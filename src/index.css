@@ -2819,7 +2819,7 @@ body {
   background: color-mix(in oklab, var(--app-bg) 96%, #000 4%);
   border-left: 1px solid color-mix(in oklab, var(--text) 16%, transparent);
   padding: 18px;
-  z-index: 3;
+  z-index: 50;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2859,7 +2859,7 @@ body {
   padding: 0;
   margin: 0;
   cursor: pointer;
-  z-index: 2;
+  z-index: 49;
 }
 
 .sheet-header {
@@ -3127,7 +3127,7 @@ body {
     margin-top: 0;
     padding-top: 8px;
     background: transparent;
-    z-index: 4;
+    z-index: 51;
   }
 
   .settings-sidesheet .sheet-form {
