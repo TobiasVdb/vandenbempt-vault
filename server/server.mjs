@@ -92,7 +92,21 @@ function getPoolConfig() {
   const rejectUnauthorized = process.env.PG_SSL_REJECT_UNAUTHORIZED === 'true'
 
   if (process.env.DATABASE_URL) {
-    const url = new URL(process.env.DATABASE_URL)
+    const rawDatabaseUrl = String(process.env.DATABASE_URL).trim()
+
+    if (rawDatabaseUrl.startsWith('${') && rawDatabaseUrl.endsWith('}')) {
+      dbInitError = `DATABASE_URL is a literal placeholder (${rawDatabaseUrl}). Resolve the DigitalOcean env reference before boot.`
+      return null
+    }
+
+    let url
+    try {
+      url = new URL(rawDatabaseUrl)
+    } catch {
+      dbInitError = 'DATABASE_URL is present but not a valid URL.'
+      return null
+    }
+
     if (!url.searchParams.has('sslmode')) {
       url.searchParams.set('sslmode', 'require')
     }
@@ -118,10 +132,10 @@ function getPoolConfig() {
   }
 }
 
-const poolConfig = getPoolConfig()
-const pool = poolConfig ? new Pool(poolConfig) : null
 let dbReady = false
 let dbInitError = 'Database is not configured.'
+const poolConfig = getPoolConfig()
+const pool = poolConfig ? new Pool(poolConfig) : null
 
 async function initializeDatabase() {
   if (!pool) return
