@@ -369,7 +369,7 @@ async function validateContentItemPayload(kind, payload) {
 
   const numericRating = Number(rating)
   if (!Number.isFinite(numericRating)) return { error: 'Rating must be a number.' }
-  if (numericRating < 0 || numericRating > 10) return { error: 'Rating must be between 0 and 10.' }
+  if (numericRating < 0 || numericRating > 5) return { error: 'Rating must be between 0 and 5.' }
 
   const parsedTimestamp = new Date(String(timestamp ?? ''))
   if (Number.isNaN(parsedTimestamp.getTime())) return { error: 'Timestamp must be a valid date/time.' }

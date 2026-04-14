@@ -18,6 +18,7 @@ import { Plus } from '@phosphor-icons/react/Plus'
 import { PlugCharging } from '@phosphor-icons/react/PlugCharging'
 import { Prohibit } from '@phosphor-icons/react/Prohibit'
 import { ShieldStar } from '@phosphor-icons/react/ShieldStar'
+import { Star } from '@phosphor-icons/react/Star'
 import { Sun } from '@phosphor-icons/react/Sun'
 import { Trash } from '@phosphor-icons/react/Trash'
 import { WarningDiamond } from '@phosphor-icons/react/WarningDiamond'
@@ -415,6 +416,18 @@ function toDateTimeLocalValue(value?: string | null): string {
 
 function toApiTimestamp(value: string): string {
   return value ? new Date(value).toISOString() : new Date().toISOString()
+}
+
+function RatingStars({ rating, size = 16 }: { rating: number; size?: number }) {
+  const activeStars = Math.max(0, Math.min(5, Math.round(rating)))
+
+  return (
+    <span className="rating-stars-display" aria-label={`${activeStars} out of 5 stars`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <Star key={index} size={size} weight={index < activeStars ? 'fill' : 'regular'} />
+      ))}
+    </span>
+  )
 }
 
 export default function App() {
@@ -2154,7 +2167,7 @@ export default function App() {
                             className="catalog-card"
                             icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
                             title={item.name}
-                            subtitle={`Rating ${item.rating}/10`}
+                            subtitle={<RatingStars rating={item.rating} />}
                           >
                             {item.imageUrl ? (
                               <div className="catalog-card-image">
@@ -3504,15 +3517,27 @@ export default function App() {
                 </Select>
               </label>
               <label>
-                Rating
-                <Input
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  value={libraryDraft.rating}
-                  onChange={(event) => setLibraryDraft((current) => ({ ...current, rating: event.target.value }))}
-                />
+                <span>Rating</span>
+                <div className="rating-input" role="radiogroup" aria-label="Rating">
+                  {Array.from({ length: 5 }, (_, index) => {
+                    const value = index + 1
+                    const isActive = Number(libraryDraft.rating || '0') >= value
+
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`rating-star-button${isActive ? ' active' : ''}`}
+                        aria-label={`Set rating to ${value} star${value === 1 ? '' : 's'}`}
+                        aria-pressed={isActive}
+                        onClick={() => setLibraryDraft((current) => ({ ...current, rating: String(value) }))}
+                      >
+                        <Star size={20} weight={isActive ? 'fill' : 'regular'} />
+                      </button>
+                    )
+                  })}
+                  <span className="rating-input-value">{libraryDraft.rating ? `${libraryDraft.rating}/5` : 'Select a rating'}</span>
+                </div>
               </label>
               <label>
                 Timestamp
