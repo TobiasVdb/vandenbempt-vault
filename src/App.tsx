@@ -1,9 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft } from '@phosphor-icons/react/ArrowLeft'
-import { AddressBook } from '@phosphor-icons/react/AddressBook'
 import { Archive } from '@phosphor-icons/react/Archive'
-import { CaretDown } from '@phosphor-icons/react/CaretDown'
-import { CaretUp } from '@phosphor-icons/react/CaretUp'
 import { CheckCircle } from '@phosphor-icons/react/CheckCircle'
 import { ClipboardText } from '@phosphor-icons/react/ClipboardText'
 import { ClockCounterClockwise } from '@phosphor-icons/react/ClockCounterClockwise'
@@ -21,12 +18,8 @@ import { Plus } from '@phosphor-icons/react/Plus'
 import { PlugCharging } from '@phosphor-icons/react/PlugCharging'
 import { Prohibit } from '@phosphor-icons/react/Prohibit'
 import { ShieldStar } from '@phosphor-icons/react/ShieldStar'
-import { SealCheck } from '@phosphor-icons/react/SealCheck'
-import { ShieldCheck } from '@phosphor-icons/react/ShieldCheck'
 import { Sun } from '@phosphor-icons/react/Sun'
 import { Trash } from '@phosphor-icons/react/Trash'
-import { Users } from '@phosphor-icons/react/Users'
-import { UsersThree } from '@phosphor-icons/react/UsersThree'
 import { WarningDiamond } from '@phosphor-icons/react/WarningDiamond'
 import { X } from '@phosphor-icons/react/X'
 import { AnimatePresence, m } from 'framer-motion'
@@ -57,13 +50,11 @@ import {
   REPORT_PREFS_STORAGE_KEY,
   THEME_MODE_ORDER,
   THEME_STORAGE_KEY,
-  WORKSPACE_USERS_STORAGE_KEY,
   apiUrl,
   bottomNavigationItems,
   defaultPolicyEngine,
   defaultLibraryItemDraft,
   defaultReportPreferences,
-  defaultUserDraft,
   getAutoThemeForTime,
   getPageFromPath,
   getPathFromPage,
@@ -94,14 +85,9 @@ import type {
   LibraryItemResponse,
   Page,
   ReportPreferences,
-  TeamName,
   ThemeMode,
   ToastState,
   UploadCookieState,
-  UserDirectorySortKey,
-  UserDraft,
-  UserRecord,
-  UserRole,
 } from './app/types'
 
 const integrationRuntimeInfo: Record<IntegrationType, IntegrationRuntimeInfo> = {
@@ -415,60 +401,6 @@ function readReportPreferences(): ReportPreferences {
   }
 }
 
-const defaultWorkspaceUsers: UserRecord[] = [
-  {
-    id: 'user-1',
-    name: 'Anouk Vermeer',
-    email: 'anouk@houseoftobias.io',
-    team: 'Platform',
-    role: 'platform_admin',
-    lastActivityAt: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
-    sso: 'enforced',
-    canApproveProduction: true,
-  },
-  {
-    id: 'user-2',
-    name: 'Milan Dreesen',
-    email: 'milan@houseoftobias.io',
-    team: 'Security',
-    role: 'security_reviewer',
-    lastActivityAt: new Date(Date.now() - 58 * 60 * 1000).toISOString(),
-    sso: 'enforced',
-    canApproveProduction: true,
-  },
-  {
-    id: 'user-3',
-    name: 'Sofia Peeters',
-    email: 'sofia@houseoftobias.io',
-    team: 'Compliance',
-    role: 'compliance_auditor',
-    lastActivityAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    sso: 'optional',
-    canApproveProduction: false,
-  },
-  {
-    id: 'user-4',
-    name: 'Jules Martens',
-    email: 'jules@houseoftobias.io',
-    team: 'Leadership',
-    role: 'viewer',
-    lastActivityAt: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString(),
-    sso: 'break_glass',
-    canApproveProduction: false,
-  },
-]
-
-function readWorkspaceUsers(): UserRecord[] {
-  try {
-    const raw = localStorage.getItem(WORKSPACE_USERS_STORAGE_KEY)
-    if (!raw) return defaultWorkspaceUsers
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as UserRecord[]) : defaultWorkspaceUsers
-  } catch {
-    return defaultWorkspaceUsers
-  }
-}
-
 function toDateTimeLocalValue(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
@@ -488,7 +420,6 @@ export default function App() {
   const pitchDeckUrl = `${assetBase}PitchDeck2.pdf`
   const collapsedWidth = 62
   const sidesheetRef = useRef<HTMLElement | null>(null)
-  const userSheetRef = useRef<HTMLElement | null>(null)
   const glbInputRef = useRef<HTMLInputElement | null>(null)
   const glbPreviewFrameRef = useRef<HTMLIFrameElement | null>(null)
 
@@ -527,16 +458,6 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const [integrationTileFeedback, setIntegrationTileFeedback] = useState<IntegrationTileFeedback>(null)
-  const [workspaceUsers, setWorkspaceUsers] = useState<UserRecord[]>(() => readWorkspaceUsers())
-  const [userDraft, setUserDraft] = useState<UserDraft>(defaultUserDraft)
-  const [editingUserId, setEditingUserId] = useState<string | null>(null)
-  const [isUserSheetOpen, setIsUserSheetOpen] = useState(false)
-  const isUsersLoading = false
-  const [isUserSaving, setIsUserSaving] = useState(false)
-  const [isUserDeletingId, setIsUserDeletingId] = useState<string | null>(null)
-  const [userSearch, setUserSearch] = useState('')
-  const [userSortKey, setUserSortKey] = useState<UserDirectorySortKey>('name')
-  const [userSortDirection, setUserSortDirection] = useState<'asc' | 'desc'>('asc')
   const [isHomeSummarySheetOpen, setIsHomeSummarySheetOpen] = useState(false)
   const [isCreatingIntegration, setIsCreatingIntegration] = useState(false)
   const [createIntegrationType, setCreateIntegrationType] = useState<IntegrationType | null>(null)
@@ -957,102 +878,6 @@ export default function App() {
     goToPage('IntegrationDetail', integration.id)
   }
 
-  const resetUserEditor = useCallback(() => {
-    setUserDraft(defaultUserDraft)
-    setEditingUserId(null)
-  }, [])
-
-  const closeUserSheet = useCallback(() => {
-    setIsUserSheetOpen(false)
-    resetUserEditor()
-  }, [resetUserEditor])
-
-  const openCreateUserSheet = useCallback(() => {
-    resetUserEditor()
-    setIsUserSheetOpen(true)
-  }, [resetUserEditor])
-
-  const beginEditUser = useCallback((user: UserRecord) => {
-    setEditingUserId(user.id)
-    setUserDraft({
-      name: user.name,
-      email: user.email,
-      team: user.team,
-      role: user.role,
-      sso: user.sso,
-      canApproveProduction: user.canApproveProduction,
-    })
-    setIsUserSheetOpen(true)
-  }, [])
-
-  const saveUserRecord = useCallback(async () => {
-    const name = userDraft.name.trim()
-    const email = userDraft.email.trim().toLowerCase()
-    if (!name || !email) {
-      setToast({ kind: 'error', message: 'User name and email are required.' })
-      return
-    }
-
-    setIsUserSaving(true)
-
-    try {
-      const nextUser: UserRecord = {
-        id: editingUserId ?? crypto.randomUUID(),
-        name,
-        email,
-        team: userDraft.team,
-        role: userDraft.role,
-        sso: userDraft.sso,
-        canApproveProduction: userDraft.canApproveProduction,
-        lastActivityAt: editingUserId
-          ? workspaceUsers.find((user) => user.id === editingUserId)?.lastActivityAt ?? new Date().toISOString()
-          : new Date().toISOString(),
-      }
-
-      setWorkspaceUsers((current) =>
-        editingUserId ? current.map((user) => (user.id === editingUserId ? nextUser : user)) : [nextUser, ...current],
-      )
-      setToast({
-        kind: 'success',
-        message: editingUserId ? `${name} updated.` : `${name} created.`,
-      })
-      closeUserSheet()
-    } catch (error) {
-      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to save workspace user.' })
-    } finally {
-      setIsUserSaving(false)
-    }
-  }, [closeUserSheet, editingUserId, userDraft, workspaceUsers])
-
-  const deleteUserRecord = useCallback(
-    async (userId: string) => {
-      setIsUserDeletingId(userId)
-
-      try {
-        setWorkspaceUsers((current) => current.filter((user) => user.id !== userId))
-        if (editingUserId === userId) closeUserSheet()
-        setToast({ kind: 'success', message: 'User removed.' })
-      } catch (error) {
-        setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to delete workspace user.' })
-      } finally {
-        setIsUserDeletingId(null)
-      }
-    },
-    [closeUserSheet, editingUserId],
-  )
-
-  const sortDirectoryBy = useCallback((key: UserDirectorySortKey) => {
-    setUserSortKey((currentKey) => {
-      if (currentKey === key) {
-        setUserSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'))
-        return currentKey
-      }
-
-      setUserSortDirection('asc')
-      return key
-    })
-  }, [])
-
   const exportAuditCsv = () => {
     const header = 'timestamp,actor,action,integrationId,before,after'
     const rows = auditLog.map((entry) =>
@@ -1421,13 +1246,11 @@ export default function App() {
     setDetailsIntegration(null)
     setIsCreatingIntegration(false)
     setCreateIntegrationType(null)
-    setIsUserSheetOpen(false)
     setLibrarySheetType(null)
     setDeleteSheetType(null)
     setDeletingLibraryItem(null)
-    resetUserEditor()
     resetLibraryEditor()
-  }, [activePage, resetLibraryEditor, resetUserEditor])
+  }, [activePage, resetLibraryEditor])
 
   useEffect(() => {
     if (activePage !== 'Playground') {
@@ -1501,10 +1324,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(CUSTOM_INTEGRATIONS_STORAGE_KEY, JSON.stringify(customIntegrations))
   }, [customIntegrations])
-
-  useEffect(() => {
-    localStorage.setItem(WORKSPACE_USERS_STORAGE_KEY, JSON.stringify(workspaceUsers))
-  }, [workspaceUsers])
 
   useEffect(() => {
     localStorage.setItem(ENABLED_INTEGRATIONS_STORAGE_KEY, JSON.stringify(enabledIntegrations))
@@ -1596,51 +1415,6 @@ export default function App() {
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [closeSidesheet, isCreatingIntegration, selectedIntegration])
-
-  useEffect(() => {
-    if (!isUserSheetOpen) return
-
-    const panel = userSheetRef.current
-    if (!panel) return
-
-    const getFocusable = () =>
-      Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      )
-
-    const focusable = getFocusable()
-    focusable[0]?.focus()
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        closeUserSheet()
-        return
-      }
-
-      if (event.key !== 'Tab') return
-
-      const tabbables = getFocusable()
-      if (!tabbables.length) return
-
-      const first = tabbables[0]
-      const last = tabbables[tabbables.length - 1]
-      const active = document.activeElement
-
-      if (event.shiftKey && active === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [closeUserSheet, isUserSheetOpen])
 
   const activeTabId =
     activePage === 'IntegrationDetail'
@@ -1760,36 +1534,6 @@ export default function App() {
     },
   ]
   const recentAuditEntries = auditLog.slice(0, 6)
-  const teamMembership = (['Platform', 'Security', 'Compliance', 'Leadership'] as TeamName[]).map((team) => ({
-    team,
-    count: workspaceUsers.filter((user) => user.team === team).length,
-  }))
-  const roleCoverage = [
-    { role: 'owner', count: workspaceUsers.filter((user) => user.role === 'owner').length },
-    { role: 'platform_admin', count: workspaceUsers.filter((user) => user.role === 'platform_admin').length },
-    { role: 'security_reviewer', count: workspaceUsers.filter((user) => user.role === 'security_reviewer').length },
-    { role: 'compliance_auditor', count: workspaceUsers.filter((user) => user.role === 'compliance_auditor').length },
-    { role: 'viewer', count: workspaceUsers.filter((user) => user.role === 'viewer').length },
-  ]
-  const ssoCoverage = [
-    { label: 'SSO enforced', count: workspaceUsers.filter((user) => user.sso === 'enforced').length },
-    { label: 'SSO optional', count: workspaceUsers.filter((user) => user.sso === 'optional').length },
-    { label: 'Break-glass', count: workspaceUsers.filter((user) => user.sso === 'break_glass').length },
-  ]
-  const approvers = workspaceUsers.filter((user) => user.canApproveProduction)
-  const normalizedUserSearch = userSearch.trim().toLowerCase()
-  const filteredDirectoryUsers = workspaceUsers.filter((user) => {
-    if (!normalizedUserSearch) return true
-    return [user.name, user.email, user.team, user.role].some((value) => value.toLowerCase().includes(normalizedUserSearch))
-  })
-  const directoryUsers = filteredDirectoryUsers.slice().sort((left, right) => {
-    const direction = userSortDirection === 'asc' ? 1 : -1
-    if (userSortKey === 'lastActivityAt') {
-      return (new Date(left.lastActivityAt).getTime() - new Date(right.lastActivityAt).getTime()) * direction
-    }
-
-    return left[userSortKey].localeCompare(right[userSortKey]) * direction
-  })
   const reportingHistory = [
     {
       label: `${reportPreferences.schedule} governance report`,
@@ -2975,222 +2719,6 @@ export default function App() {
               )}
             </AnimatePresence>
           </section>
-        ) : activePage === 'Users' ? (
-          <section className="users-page" aria-label="Access control center">
-            <PageHeader
-              title="Users"
-              subtitle="Access control, team membership, SSO posture, last activity, and approval authority."
-            />
-            <m.div
-              className="users-grid"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: { transition: { staggerChildren: 0.08, delayChildren: CONTENT_START_DELAY + 0.2 } },
-              }}
-            >
-              <PanelCard
-                className="users-card"
-                icon={<UsersThree size={18} weight="duotone" />}
-                title="Team Membership"
-                variants={{
-                  hidden: { opacity: 0, y: 12, scale: 0.98 },
-                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
-                }}
-              >
-                <ul className="users-list">
-                  {teamMembership.map((team) => (
-                    <li key={team.team}>
-                      <span>{team.team}</span>
-                      <em>{team.count} members</em>
-                    </li>
-                  ))}
-                </ul>
-              </PanelCard>
-
-              <PanelCard
-                className="users-card"
-                icon={<ClockCounterClockwise size={18} weight="duotone" />}
-                title="Last Activity"
-                variants={{
-                  hidden: { opacity: 0, y: 12, scale: 0.98 },
-                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
-                }}
-              >
-                <ul className="users-list">
-                  {workspaceUsers
-                    .slice()
-                    .sort((left, right) => new Date(left.lastActivityAt).getTime() - new Date(right.lastActivityAt).getTime())
-                    .map((user) => (
-                      <li key={`${user.id}-activity`}>
-                        <span>{user.name}</span>
-                        <em>{formatRelativeAge(user.lastActivityAt)}</em>
-                      </li>
-                    ))}
-                </ul>
-              </PanelCard>
-
-              <PanelCard
-                className="users-card"
-                icon={<ShieldCheck size={18} weight="duotone" />}
-                title="SSO Status"
-                variants={{
-                  hidden: { opacity: 0, y: 12, scale: 0.98 },
-                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
-                }}
-              >
-                <ul className="users-list">
-                  {ssoCoverage.map((item) => (
-                    <li key={item.label}>
-                      <span>{item.label}</span>
-                      <em>{item.count}</em>
-                    </li>
-                  ))}
-                </ul>
-              </PanelCard>
-
-              <PanelCard
-                className="users-card"
-                icon={<SealCheck size={18} weight="duotone" />}
-                title="Approval Authority"
-                variants={{
-                  hidden: { opacity: 0, y: 12, scale: 0.98 },
-                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
-                }}
-              >
-                <ul className="users-list">
-                  {approvers.map((user) => (
-                    <li key={`${user.id}-approver`}>
-                      <div>
-                        <span>{user.name}</span>
-                        <p>{user.team}</p>
-                      </div>
-                      <em>Production approver</em>
-                    </li>
-                  ))}
-                </ul>
-              </PanelCard>
-
-              <PanelCard
-                className="users-card"
-                icon={<Users size={18} weight="duotone" />}
-                title="Role Coverage"
-                variants={{
-                  hidden: { opacity: 0, y: 12, scale: 0.98 },
-                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
-                }}
-              >
-                <ul className="users-list">
-                  {roleCoverage.map((item) => (
-                    <li key={item.role}>
-                      <span>{item.role}</span>
-                      <em>{item.count}</em>
-                    </li>
-                  ))}
-                </ul>
-              </PanelCard>
-
-              <PanelCard
-                className="users-card users-card-directory"
-                icon={<AddressBook size={18} weight="duotone" />}
-                title="Directory"
-                variants={{
-                  hidden: { opacity: 0, y: 12, scale: 0.98 },
-                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
-                }}
-              >
-                <div className="users-directory-search">
-                  <Input
-                    type="search"
-                    placeholder="Search by name, email, team, or role"
-                    value={userSearch}
-                    onChange={(event) => setUserSearch(event.target.value)}
-                  />
-                </div>
-                <div className="users-directory-table" role="table" aria-label="User directory">
-                  <div className="users-directory-row users-directory-header" role="row">
-                    {([
-                      ['name', 'Name'],
-                      ['email', 'Email'],
-                      ['team', 'Team'],
-                      ['role', 'Role'],
-                      ['lastActivityAt', 'Last Activity'],
-                    ] as Array<[UserDirectorySortKey, string]>).map(([key, label]) => {
-                      const isActiveSort = userSortKey === key
-                      const SortIcon = isActiveSort && userSortDirection === 'desc' ? CaretDown : CaretUp
-
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          className={`users-sort-btn users-col-${key}`}
-                          onClick={() => sortDirectoryBy(key)}
-                        >
-                          <span>{label}</span>
-                          <SortIcon size={12} weight="bold" className={isActiveSort ? 'active' : undefined} />
-                        </button>
-                      )
-                    })}
-                    <span className="users-col-actions">Actions</span>
-                  </div>
-                  <div className="users-directory-body" role="rowgroup">
-                    {directoryUsers.length ? (
-                      directoryUsers.map((user) => (
-                        <div key={user.id} className="users-directory-row" role="row">
-                          <span className="users-col-name">{user.name}</span>
-                          <span className="users-col-email">{user.email}</span>
-                          <span className="users-col-team">{user.team}</span>
-                          <span className="users-col-role">{user.role}</span>
-                          <span className="users-col-lastActivityAt">{formatRelativeAge(user.lastActivityAt)}</span>
-                          <div className="users-col-actions">
-                            <div className="users-row-icon-group">
-                              <m.button
-                                type="button"
-                                className="users-icon-btn"
-                                aria-label={`Edit ${user.name}`}
-                                whileTap={isUserSaving || isUserDeletingId === user.id ? undefined : ACTION_BUTTON_PRESS}
-                                disabled={isUserSaving || isUserDeletingId === user.id}
-                                onClick={() => beginEditUser(user)}
-                              >
-                                <PencilSimple size={15} weight="bold" />
-                              </m.button>
-                              <m.button
-                                type="button"
-                                className="users-icon-btn users-icon-btn-danger"
-                                aria-label={`Delete ${user.name}`}
-                                whileTap={isUserSaving || isUserDeletingId === user.id ? undefined : ACTION_BUTTON_PRESS}
-                                disabled={isUserSaving || isUserDeletingId === user.id}
-                                onClick={() => deleteUserRecord(user.id)}
-                              >
-                                <Trash size={15} weight="bold" />
-                              </m.button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="users-directory-empty">
-                        {isUsersLoading ? 'Loading users…' : 'No users match the current search.'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </PanelCard>
-            </m.div>
-            <m.button
-              type="button"
-              className="page-fab users-fab"
-              aria-label="Create user"
-              whileTap={ACTION_BUTTON_PRESS}
-              onClick={openCreateUserSheet}
-              initial={{ opacity: 0, scale: 0.9, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ delay: CONTENT_START_DELAY + 0.42, duration: 0.32, ease: EASE_SOFT }}
-            >
-              <Plus size={20} weight="bold" />
-            </m.button>
-          </section>
         ) : activePage === 'PitchDeck' ? (
           <section className="pitchdeck-page" aria-label="Pitch deck viewer">
             <PageHeader
@@ -3687,110 +3215,6 @@ export default function App() {
         </SideSheet>
 
         <SideSheet
-          isOpen={isUserSheetOpen}
-          sheetKey={editingUserId ?? 'create-user'}
-          panelRef={userSheetRef}
-          ariaLabel="user editor panel"
-          eyebrow={editingUserId ? 'Edit User' : 'Create User'}
-          title={editingUserId ? 'Update Access' : 'New Access Record'}
-          onClose={closeUserSheet}
-        >
-          <form
-            className="sheet-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              saveUserRecord()
-            }}
-          >
-            <div className="sheet-fields">
-              <label>
-                Name
-                <Input value={userDraft.name} onChange={(event) => setUserDraft((current) => ({ ...current, name: event.target.value }))} />
-              </label>
-              <label>
-                Email
-                <Input
-                  type="email"
-                  value={userDraft.email}
-                  onChange={(event) => setUserDraft((current) => ({ ...current, email: event.target.value }))}
-                />
-              </label>
-              <label>
-                Team
-                <Select
-                  value={userDraft.team}
-                  onChange={(event) => setUserDraft((current) => ({ ...current, team: event.target.value as TeamName }))}
-                >
-                  <option value="Platform">Platform</option>
-                  <option value="Security">Security</option>
-                  <option value="Compliance">Compliance</option>
-                  <option value="Leadership">Leadership</option>
-                </Select>
-              </label>
-              <label>
-                Role
-                <Select
-                  value={userDraft.role}
-                  onChange={(event) => setUserDraft((current) => ({ ...current, role: event.target.value as UserRole }))}
-                >
-                  <option value="owner">Owner</option>
-                  <option value="platform_admin">Platform Admin</option>
-                  <option value="security_reviewer">Security Reviewer</option>
-                  <option value="compliance_auditor">Compliance Auditor</option>
-                  <option value="viewer">Viewer</option>
-                </Select>
-              </label>
-              <label>
-                SSO
-                <Select
-                  value={userDraft.sso}
-                  onChange={(event) =>
-                    setUserDraft((current) => ({ ...current, sso: event.target.value as UserRecord['sso'] }))
-                  }
-                >
-                  <option value="enforced">Enforced</option>
-                  <option value="optional">Optional</option>
-                  <option value="break_glass">Break Glass</option>
-                </Select>
-              </label>
-              <label className="sheet-inline-control">
-                <input
-                  type="checkbox"
-                  checked={userDraft.canApproveProduction}
-                  onChange={(event) =>
-                    setUserDraft((current) => ({ ...current, canApproveProduction: event.target.checked }))
-                  }
-                />
-                Can approve production
-              </label>
-            </div>
-
-            <div className="sheet-form-footer">
-              <span className="sheet-page-label">{editingUserId ? 'Editing existing user' : 'Create a new user record'}</span>
-              <div className="sheet-footer-actions">
-                <m.button
-                  type="button"
-                  className="sheet-nav-btn"
-                  whileTap={isUserSaving ? undefined : ACTION_BUTTON_PRESS}
-                  disabled={isUserSaving}
-                  onClick={closeUserSheet}
-                >
-                  Cancel
-                </m.button>
-                <m.button
-                  type="submit"
-                  className="save-button sheet-save-btn"
-                  whileTap={isUserSaving ? undefined : ACTION_BUTTON_PRESS}
-                  disabled={isUserSaving}
-                >
-                  {isUserSaving ? 'Saving...' : editingUserId ? 'Update User' : 'Create User'}
-                </m.button>
-              </div>
-            </div>
-          </form>
-        </SideSheet>
-
-        <SideSheet
           isOpen={Boolean(librarySheetType)}
           sheetKey={`${librarySheetType ?? 'library'}-${librarySheetMode}-${editingLibraryItemId ?? 'new'}`}
           ariaLabel="library item editor panel"
@@ -4094,3 +3518,4 @@ export default function App() {
     </main>
   )
 }
+

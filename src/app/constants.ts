@@ -5,7 +5,6 @@ import { GearSix } from '@phosphor-icons/react/GearSix'
 import { House } from '@phosphor-icons/react/House'
 import { Layout } from '@phosphor-icons/react/Layout'
 import { PlugCharging } from '@phosphor-icons/react/PlugCharging'
-import { Users } from '@phosphor-icons/react/Users'
 import type {
   GlobalPolicyEngine,
   Integration,
@@ -13,7 +12,6 @@ import type {
   Page,
   ReportPreferences,
   ThemeMode,
-  UserDraft,
 } from './types'
 
 export const APP_NAME = 'House of Tobias'
@@ -22,7 +20,6 @@ export const THEME_MODE_ORDER: ThemeMode[] = ['light', 'dark', 'auto']
 export const INTEGRATION_SETTINGS_STORAGE_KEY = 'house-of-tobias.integration.settings'
 export const ENABLED_INTEGRATIONS_STORAGE_KEY = 'house-of-tobias.integration.enabled'
 export const CUSTOM_INTEGRATIONS_STORAGE_KEY = 'house-of-tobias.integration.custom'
-export const WORKSPACE_USERS_STORAGE_KEY = 'house-of-tobias.workspace.users'
 export const POLICY_ENGINE_STORAGE_KEY = 'house-of-tobias.policy.engine'
 export const LIFECYCLE_STORAGE_KEY = 'house-of-tobias.integration.lifecycle'
 export const APPROVALS_STORAGE_KEY = 'house-of-tobias.integration.approvals'
@@ -68,14 +65,7 @@ export const mainNavigationItems = [
   { label: 'Playground' as const, icon: ChartBar },
 ]
 
-export const bottomNavigationItems = [
-  { label: 'Users' as const, icon: Users },
-  {
-    label: 'Admin' as const,
-    description: 'Policy, lifecycle, audit',
-    icon: GearSix,
-  },
-]
+export const bottomNavigationItems = [{ label: 'Admin' as const, description: 'Policy, lifecycle, audit', icon: GearSix }]
 
 export const integrationTemplates: Integration[] = [
   { id: 'aikido', type: 'aikido', title: 'Aikido Security', description: 'API Integration', logo: 'aikido.png' },
@@ -118,15 +108,6 @@ export const linksSectionLinks: LinkTile[] = [
   },
 ]
 
-export const defaultUserDraft: UserDraft = {
-  name: '',
-  email: '',
-  team: 'Platform',
-  role: 'viewer',
-  sso: 'enforced',
-  canApproveProduction: false,
-}
-
 export const defaultLibraryItemDraft = {
   name: '',
   url: '',
@@ -167,7 +148,6 @@ export function getPageFromPath(pathname: string): { page: Page; integrationId?:
   if (normalizedPath === '/games') return { page: 'Games' }
   if (normalizedPath === '/integrations') return { page: 'Integrations' }
   if (normalizedPath === '/admin') return { page: 'Admin' }
-  if (normalizedPath === '/users') return { page: 'Users' }
   if (normalizedPath === '/links') return { page: 'Links' }
   if (normalizedPath === '/playground') return { page: 'Playground' }
   if (normalizedPath === '/pitchdeck') return { page: 'PitchDeck' }
@@ -186,7 +166,6 @@ export function getPathFromPage(page: Page, integrationId?: string): string {
   if (page === 'Games') return '/games'
   if (page === 'Integrations') return '/integrations'
   if (page === 'Admin') return '/admin'
-  if (page === 'Users') return '/users'
   if (page === 'Links') return '/links'
   if (page === 'Playground') return '/playground'
   if (page === 'PitchDeck') return '/pitchdeck'

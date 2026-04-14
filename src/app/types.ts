@@ -7,7 +7,6 @@ export type Page =
   | 'Games'
   | 'Integrations'
   | 'Admin'
-  | 'Users'
   | 'Links'
   | 'Playground'
   | 'PitchDeck'
@@ -103,29 +102,6 @@ export type AuditEntry = {
   after?: string
 }
 
-export type TeamName = 'Platform' | 'Security' | 'Compliance' | 'Leadership'
-export type UserRole = 'owner' | 'platform_admin' | 'security_reviewer' | 'compliance_auditor' | 'viewer'
-
-export type UserRecord = {
-  id: string
-  name: string
-  email: string
-  team: TeamName
-  role: UserRole
-  lastActivityAt: string
-  sso: 'enforced' | 'optional' | 'break_glass'
-  canApproveProduction: boolean
-}
-
-export type UserDraft = {
-  name: string
-  email: string
-  team: TeamName
-  role: UserRole
-  sso: UserRecord['sso']
-  canApproveProduction: boolean
-}
-
 export type SideSheetProps = {
   isOpen: boolean
   sheetKey: string
@@ -138,10 +114,6 @@ export type SideSheetProps = {
   className?: string
   panelRef?: Ref<HTMLElement>
 }
-
-export type UserDirectorySortKey = 'name' | 'email' | 'team' | 'role' | 'lastActivityAt'
-export type WorkspaceUserListResponse = { error?: string; users?: UserRecord[] }
-export type WorkspaceUserResponse = { error?: string; user?: UserRecord }
 
 export type LibraryItemKind = 'projects' | 'games'
 
