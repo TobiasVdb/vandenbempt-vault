@@ -57,6 +57,7 @@ import {
   REPORT_PREFS_STORAGE_KEY,
   THEME_MODE_ORDER,
   THEME_STORAGE_KEY,
+  WORKSPACE_USERS_STORAGE_KEY,
   apiUrl,
   bottomNavigationItems,
   defaultPolicyEngine,
@@ -101,8 +102,6 @@ import type {
   UserDraft,
   UserRecord,
   UserRole,
-  WorkspaceUserListResponse,
-  WorkspaceUserResponse,
 } from './app/types'
 
 const integrationRuntimeInfo: Record<IntegrationType, IntegrationRuntimeInfo> = {
@@ -416,6 +415,60 @@ function readReportPreferences(): ReportPreferences {
   }
 }
 
+const defaultWorkspaceUsers: UserRecord[] = [
+  {
+    id: 'user-1',
+    name: 'Anouk Vermeer',
+    email: 'anouk@houseoftobias.io',
+    team: 'Platform',
+    role: 'platform_admin',
+    lastActivityAt: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+    sso: 'enforced',
+    canApproveProduction: true,
+  },
+  {
+    id: 'user-2',
+    name: 'Milan Dreesen',
+    email: 'milan@houseoftobias.io',
+    team: 'Security',
+    role: 'security_reviewer',
+    lastActivityAt: new Date(Date.now() - 58 * 60 * 1000).toISOString(),
+    sso: 'enforced',
+    canApproveProduction: true,
+  },
+  {
+    id: 'user-3',
+    name: 'Sofia Peeters',
+    email: 'sofia@houseoftobias.io',
+    team: 'Compliance',
+    role: 'compliance_auditor',
+    lastActivityAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    sso: 'optional',
+    canApproveProduction: false,
+  },
+  {
+    id: 'user-4',
+    name: 'Jules Martens',
+    email: 'jules@houseoftobias.io',
+    team: 'Leadership',
+    role: 'viewer',
+    lastActivityAt: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString(),
+    sso: 'break_glass',
+    canApproveProduction: false,
+  },
+]
+
+function readWorkspaceUsers(): UserRecord[] {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_USERS_STORAGE_KEY)
+    if (!raw) return defaultWorkspaceUsers
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as UserRecord[]) : defaultWorkspaceUsers
+  } catch {
+    return defaultWorkspaceUsers
+  }
+}
+
 function toDateTimeLocalValue(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
@@ -459,7 +512,6 @@ export default function App() {
   const [connectivityHealth, setConnectivityHealth] = useState<Record<string, ConnectivityHealth>>(() => readHealth())
   const [auditLog, setAuditLog] = useState<AuditEntry[]>(() => readAuditLog())
   const [reportPreferences, setReportPreferences] = useState<ReportPreferences>(() => readReportPreferences())
-  const [integrationStateLoaded, setIntegrationStateLoaded] = useState(false)
   const [glbModels, setGlbModels] = useState<GlbModelRecord[]>([])
   const [isGlbLoading, setIsGlbLoading] = useState(false)
   const [glbGalleryLoadToken, setGlbGalleryLoadToken] = useState(0)
@@ -475,11 +527,11 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const [integrationTileFeedback, setIntegrationTileFeedback] = useState<IntegrationTileFeedback>(null)
-  const [workspaceUsers, setWorkspaceUsers] = useState<UserRecord[]>([])
+  const [workspaceUsers, setWorkspaceUsers] = useState<UserRecord[]>(() => readWorkspaceUsers())
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUserDraft)
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [isUserSheetOpen, setIsUserSheetOpen] = useState(false)
-  const [isUsersLoading, setIsUsersLoading] = useState(false)
+  const isUsersLoading = false
   const [isUserSaving, setIsUserSaving] = useState(false)
   const [isUserDeletingId, setIsUserDeletingId] = useState<string | null>(null)
   const [userSearch, setUserSearch] = useState('')
@@ -905,26 +957,6 @@ export default function App() {
     goToPage('IntegrationDetail', integration.id)
   }
 
-  const loadWorkspaceUsers = useCallback(async () => {
-    setIsUsersLoading(true)
-
-    try {
-      const response = await fetch(apiUrl('/users'), { cache: 'no-store' })
-      const payload = await readJsonResponse<WorkspaceUserListResponse>(response, 'Failed to load workspace users.')
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to load workspace users.')
-      }
-
-      setWorkspaceUsers(Array.isArray(payload.users) ? payload.users : [])
-    } catch (error) {
-      setWorkspaceUsers([])
-      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to load workspace users.' })
-    } finally {
-      setIsUsersLoading(false)
-    }
-  }, [])
-
   const resetUserEditor = useCallback(() => {
     setUserDraft(defaultUserDraft)
     setEditingUserId(null)
@@ -964,26 +996,21 @@ export default function App() {
     setIsUserSaving(true)
 
     try {
-      const response = await fetch(apiUrl(editingUserId ? `/users/${editingUserId}` : '/users'), {
-        method: editingUserId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          email,
-          team: userDraft.team,
-          role: userDraft.role,
-          sso: userDraft.sso,
-          canApproveProduction: userDraft.canApproveProduction,
-        }),
-      })
-      const payload = await readJsonResponse<WorkspaceUserResponse>(response, 'Failed to save workspace user.')
-
-      if (!response.ok || !payload.user) {
-        throw new Error(payload.error ?? 'Failed to save workspace user.')
+      const nextUser: UserRecord = {
+        id: editingUserId ?? crypto.randomUUID(),
+        name,
+        email,
+        team: userDraft.team,
+        role: userDraft.role,
+        sso: userDraft.sso,
+        canApproveProduction: userDraft.canApproveProduction,
+        lastActivityAt: editingUserId
+          ? workspaceUsers.find((user) => user.id === editingUserId)?.lastActivityAt ?? new Date().toISOString()
+          : new Date().toISOString(),
       }
 
       setWorkspaceUsers((current) =>
-        editingUserId ? current.map((user) => (user.id === editingUserId ? payload.user! : user)) : [payload.user!, ...current],
+        editingUserId ? current.map((user) => (user.id === editingUserId ? nextUser : user)) : [nextUser, ...current],
       )
       setToast({
         kind: 'success',
@@ -995,20 +1022,13 @@ export default function App() {
     } finally {
       setIsUserSaving(false)
     }
-  }, [closeUserSheet, editingUserId, userDraft])
+  }, [closeUserSheet, editingUserId, userDraft, workspaceUsers])
 
   const deleteUserRecord = useCallback(
     async (userId: string) => {
       setIsUserDeletingId(userId)
 
       try {
-        const response = await fetch(apiUrl(`/users/${userId}`), { method: 'DELETE' })
-        const payload = await readJsonResponse<{ error?: string }>(response, 'Failed to delete workspace user.')
-
-        if (!response.ok) {
-          throw new Error(payload.error ?? 'Failed to delete workspace user.')
-        }
-
         setWorkspaceUsers((current) => current.filter((user) => user.id !== userId))
         if (editingUserId === userId) closeUserSheet()
         setToast({ kind: 'success', message: 'User removed.' })
@@ -1298,34 +1318,6 @@ export default function App() {
     [loadGlbModels],
   )
 
-  const loadIntegrationStateFromDb = useCallback(async () => {
-    try {
-      const response = await fetch(apiUrl('/integrations/state'), { cache: 'no-store' })
-      const payload = await readJsonResponse<{
-        error?: string
-        integrationSettings?: IntegrationSettingsMap
-        enabledIntegrations?: Record<string, boolean>
-        lifecycleState?: Record<string, IntegrationLifecycleState>
-        approvalState?: Record<string, boolean>
-        connectivityHealth?: Record<string, ConnectivityHealth>
-      }>(response, 'Failed to load integration state.')
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to load integration state.')
-      }
-
-      if (payload.integrationSettings) setIntegrationSettings(payload.integrationSettings)
-      if (payload.enabledIntegrations) setEnabledIntegrations(payload.enabledIntegrations)
-      if (payload.lifecycleState) setLifecycleState(payload.lifecycleState)
-      if (payload.approvalState) setApprovalState(payload.approvalState)
-      if (payload.connectivityHealth) setConnectivityHealth(payload.connectivityHealth)
-    } catch {
-      // Keep local state fallback when API is unavailable.
-    } finally {
-      setIntegrationStateLoaded(true)
-    }
-  }, [])
-
   const deleteGlbFile = useCallback(
     async (id: string, fileName: string) => {
       try {
@@ -1401,49 +1393,9 @@ export default function App() {
   }, [activePage, integrationCatalog, integrationPage?.id, location.pathname])
 
   useEffect(() => {
-    void loadIntegrationStateFromDb()
-  }, [loadIntegrationStateFromDb])
-
-  useEffect(() => {
-    void loadWorkspaceUsers()
-  }, [loadWorkspaceUsers])
-
-  useEffect(() => {
     void loadLibraryItems('projects')
     void loadLibraryItems('games')
   }, [loadLibraryItems])
-
-  useEffect(() => {
-    if (!integrationStateLoaded) return
-
-    const timeout = window.setTimeout(() => {
-      void Promise.all(
-        integrationCatalog.map((integration) =>
-          fetch(apiUrl(`/integrations/${integration.type}/${integration.id}`), {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              settings: integrationSettings[integration.id] ?? {},
-              enabled: enabledIntegrations[integration.id] ?? false,
-              lifecycleState: lifecycleState[integration.id] ?? 'draft',
-              approved: approvalState[integration.id] ?? false,
-              connectivityHealth: connectivityHealth[integration.id] ?? null,
-            }),
-          }),
-        ),
-      )
-    }, 350)
-
-    return () => window.clearTimeout(timeout)
-  }, [
-    approvalState,
-    connectivityHealth,
-    enabledIntegrations,
-    integrationCatalog,
-    integrationSettings,
-    integrationStateLoaded,
-    lifecycleState,
-  ])
 
   useEffect(() => {
     setSettingsSheetPage(1)
@@ -1549,6 +1501,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(CUSTOM_INTEGRATIONS_STORAGE_KEY, JSON.stringify(customIntegrations))
   }, [customIntegrations])
+
+  useEffect(() => {
+    localStorage.setItem(WORKSPACE_USERS_STORAGE_KEY, JSON.stringify(workspaceUsers))
+  }, [workspaceUsers])
 
   useEffect(() => {
     localStorage.setItem(ENABLED_INTEGRATIONS_STORAGE_KEY, JSON.stringify(enabledIntegrations))

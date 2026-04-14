@@ -22,6 +22,7 @@ export const THEME_MODE_ORDER: ThemeMode[] = ['light', 'dark', 'auto']
 export const INTEGRATION_SETTINGS_STORAGE_KEY = 'house-of-tobias.integration.settings'
 export const ENABLED_INTEGRATIONS_STORAGE_KEY = 'house-of-tobias.integration.enabled'
 export const CUSTOM_INTEGRATIONS_STORAGE_KEY = 'house-of-tobias.integration.custom'
+export const WORKSPACE_USERS_STORAGE_KEY = 'house-of-tobias.workspace.users'
 export const POLICY_ENGINE_STORAGE_KEY = 'house-of-tobias.policy.engine'
 export const LIFECYCLE_STORAGE_KEY = 'house-of-tobias.integration.lifecycle'
 export const APPROVALS_STORAGE_KEY = 'house-of-tobias.integration.approvals'
