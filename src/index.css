@@ -988,6 +988,43 @@ body {
   gap: 16px;
 }
 
+.catalog-header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.catalog-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.catalog-section {
+  display: grid;
+  gap: 12px;
+}
+
+.catalog-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.catalog-section-header h3,
+.catalog-section-header p {
+  margin: 0;
+}
+
+.catalog-section-header p {
+  color: var(--text-subtle);
+  font-size: 0.84rem;
+}
+
+.catalog-group-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .catalog-grid {
   display: grid;
   gap: 12px;
@@ -1081,6 +1118,14 @@ body {
   max-width: 28ch;
   color: var(--text-subtle);
   line-height: 1.5;
+}
+
+.catalog-group-empty {
+  border: 1px dashed color-mix(in oklab, var(--text) 12%, transparent);
+  border-radius: 14px;
+  padding: 16px 18px;
+  color: var(--text-subtle);
+  font-size: 0.84rem;
 }
 
 .delete-confirmation strong {

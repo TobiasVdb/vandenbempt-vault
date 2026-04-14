@@ -115,6 +115,7 @@ export const defaultLibraryItemDraft = {
   description: '',
   rating: '',
   timestamp: '',
+  groupId: '',
 }
 
 export const defaultPolicyEngine: GlobalPolicyEngine = {

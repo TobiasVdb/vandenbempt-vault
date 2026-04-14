@@ -79,6 +79,10 @@ import type {
   IntegrationTileFeedback,
   IntegrationType,
   LibraryItemDraft,
+  LibraryGroupDraft,
+  LibraryGroupListResponse,
+  LibraryGroupRecord,
+  LibraryGroupResponse,
   LibraryItemKind,
   LibraryItemListResponse,
   LibraryItemRecord,
@@ -463,6 +467,8 @@ export default function App() {
   const [createIntegrationType, setCreateIntegrationType] = useState<IntegrationType | null>(null)
   const [projects, setProjects] = useState<LibraryItemRecord[]>([])
   const [games, setGames] = useState<LibraryItemRecord[]>([])
+  const [projectGroups, setProjectGroups] = useState<LibraryGroupRecord[]>([])
+  const [gameGroups, setGameGroups] = useState<LibraryGroupRecord[]>([])
   const [isLibraryLoading, setIsLibraryLoading] = useState(false)
   const [librarySheetType, setLibrarySheetType] = useState<LibraryItemKind | null>(null)
   const [librarySheetMode, setLibrarySheetMode] = useState<'create' | 'edit'>('create')
@@ -475,6 +481,14 @@ export default function App() {
   const [deleteSheetType, setDeleteSheetType] = useState<LibraryItemKind | null>(null)
   const [deletingLibraryItem, setDeletingLibraryItem] = useState<LibraryItemRecord | null>(null)
   const [isLibraryDeleting, setIsLibraryDeleting] = useState(false)
+  const [groupSheetType, setGroupSheetType] = useState<LibraryItemKind | null>(null)
+  const [groupSheetMode, setGroupSheetMode] = useState<'create' | 'edit'>('create')
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [groupDraft, setGroupDraft] = useState<LibraryGroupDraft>({ name: '' })
+  const [isGroupSaving, setIsGroupSaving] = useState(false)
+  const [deleteGroupSheetType, setDeleteGroupSheetType] = useState<LibraryItemKind | null>(null)
+  const [deletingGroup, setDeletingGroup] = useState<LibraryGroupRecord | null>(null)
+  const [isGroupDeleting, setIsGroupDeleting] = useState(false)
 
   const integrationCatalog = useMemo(() => [...integrationTemplates, ...customIntegrations], [customIntegrations])
   const createIntegrationTemplate = useMemo(
@@ -922,6 +936,15 @@ export default function App() {
     setGames(items)
   }, [])
 
+  const setLibraryGroupsByType = useCallback((kind: LibraryItemKind, groups: LibraryGroupRecord[]) => {
+    if (kind === 'projects') {
+      setProjectGroups(groups)
+      return
+    }
+
+    setGameGroups(groups)
+  }, [])
+
   const resetLibraryEditor = useCallback(() => {
     setLibraryDraft({
       ...defaultLibraryItemDraft,
@@ -954,6 +977,7 @@ export default function App() {
       description: item.description ?? '',
       rating: String(item.rating),
       timestamp: toDateTimeLocalValue(item.timestamp),
+      groupId: item.groupId ?? '',
     })
   }, [])
 
@@ -967,6 +991,42 @@ export default function App() {
     setDeleteSheetType(null)
     setDeletingLibraryItem(null)
   }, [isLibraryDeleting])
+
+  const resetGroupEditor = useCallback(() => {
+    setGroupDraft({ name: '' })
+    setEditingGroupId(null)
+    setGroupSheetMode('create')
+  }, [])
+
+  const closeGroupSheet = useCallback(() => {
+    if (isGroupSaving) return
+    setGroupSheetType(null)
+    resetGroupEditor()
+  }, [isGroupSaving, resetGroupEditor])
+
+  const openCreateGroupSheet = useCallback((kind: LibraryItemKind) => {
+    resetGroupEditor()
+    setGroupSheetType(kind)
+    setGroupSheetMode('create')
+  }, [resetGroupEditor])
+
+  const beginEditLibraryGroup = useCallback((kind: LibraryItemKind, group: LibraryGroupRecord) => {
+    setGroupSheetType(kind)
+    setGroupSheetMode('edit')
+    setEditingGroupId(group.id)
+    setGroupDraft({ name: group.name })
+  }, [])
+
+  const openDeleteGroupSheet = useCallback((kind: LibraryItemKind, group: LibraryGroupRecord) => {
+    setDeleteGroupSheetType(kind)
+    setDeletingGroup(group)
+  }, [])
+
+  const closeDeleteGroupSheet = useCallback(() => {
+    if (isGroupDeleting) return
+    setDeleteGroupSheetType(null)
+    setDeletingGroup(null)
+  }, [isGroupDeleting])
 
   const loadLibraryItems = useCallback(async (kind: LibraryItemKind) => {
     setIsLibraryLoading(true)
@@ -987,6 +1047,22 @@ export default function App() {
       setIsLibraryLoading(false)
     }
   }, [setLibraryItemsByType])
+
+  const loadLibraryGroups = useCallback(async (kind: LibraryItemKind) => {
+    try {
+      const response = await fetch(apiUrl(`/${kind}/groups`), { cache: 'no-store' })
+      const payload = await readJsonResponse<LibraryGroupListResponse>(response, `Failed to load ${kind} groups.`)
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to load ${kind} groups.`)
+      }
+
+      setLibraryGroupsByType(kind, Array.isArray(payload.groups) ? payload.groups : [])
+    } catch (error) {
+      setLibraryGroupsByType(kind, [])
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to load ${kind} groups.` })
+    }
+  }, [setLibraryGroupsByType])
 
   const saveLibraryItem = useCallback(async () => {
     if (!librarySheetType) return
@@ -1011,6 +1087,7 @@ export default function App() {
           description: libraryDraft.description.trim() || null,
           rating: Number(libraryDraft.rating),
           timestamp: toApiTimestamp(libraryDraft.timestamp),
+          groupId: libraryDraft.groupId || null,
         }),
       })
       const payload = await readJsonResponse<LibraryItemResponse>(response, `Failed to save ${librarySheetType.slice(0, -1)}.`)
@@ -1038,6 +1115,51 @@ export default function App() {
     }
   }, [closeLibrarySheet, editingLibraryItemId, games, libraryDraft, librarySheetType, projects, setLibraryItemsByType])
 
+  const saveLibraryGroup = useCallback(async () => {
+    if (!groupSheetType) return
+
+    const name = groupDraft.name.trim()
+    if (!name) {
+      setToast({ kind: 'error', message: 'Group name is required.' })
+      return
+    }
+
+    setIsGroupSaving(true)
+
+    try {
+      const response = await fetch(
+        apiUrl(editingGroupId ? `/${groupSheetType}/groups/${editingGroupId}` : `/${groupSheetType}/groups`),
+        {
+          method: editingGroupId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        },
+      )
+      const payload = await readJsonResponse<LibraryGroupResponse>(response, `Failed to save ${groupSheetType} group.`)
+
+      if (!response.ok || !payload.group) {
+        throw new Error(payload.error ?? `Failed to save ${groupSheetType} group.`)
+      }
+
+      setLibraryGroupsByType(
+        groupSheetType,
+        (groupSheetType === 'projects' ? projectGroups : gameGroups)
+          .filter((group) => group.id !== payload.group!.id)
+          .concat(payload.group!)
+          .sort((left, right) => left.name.localeCompare(right.name)),
+      )
+      setToast({
+        kind: 'success',
+        message: editingGroupId ? `${payload.group.name} updated.` : `${payload.group.name} created.`,
+      })
+      closeGroupSheet()
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to save ${groupSheetType} group.` })
+    } finally {
+      setIsGroupSaving(false)
+    }
+  }, [closeGroupSheet, editingGroupId, gameGroups, groupDraft.name, groupSheetType, projectGroups, setLibraryGroupsByType])
+
   const deleteLibraryItem = useCallback(async () => {
     if (!deleteSheetType || !deletingLibraryItem) return
 
@@ -1063,6 +1185,32 @@ export default function App() {
       setIsLibraryDeleting(false)
     }
   }, [closeDeleteLibrarySheet, deleteSheetType, deletingLibraryItem, games, projects, setLibraryItemsByType])
+
+  const deleteLibraryGroup = useCallback(async () => {
+    if (!deleteGroupSheetType || !deletingGroup) return
+
+    setIsGroupDeleting(true)
+
+    try {
+      const response = await fetch(apiUrl(`/${deleteGroupSheetType}/groups/${deletingGroup.id}`), { method: 'DELETE' })
+      const payload = await readJsonResponse<{ error?: string }>(response, `Failed to delete ${deleteGroupSheetType} group.`)
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to delete ${deleteGroupSheetType} group.`)
+      }
+
+      setLibraryGroupsByType(
+        deleteGroupSheetType,
+        (deleteGroupSheetType === 'projects' ? projectGroups : gameGroups).filter((group) => group.id !== deletingGroup.id),
+      )
+      setToast({ kind: 'success', message: `${deletingGroup.name} deleted.` })
+      closeDeleteGroupSheet()
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to delete ${deleteGroupSheetType} group.` })
+    } finally {
+      setIsGroupDeleting(false)
+    }
+  }, [closeDeleteGroupSheet, deleteGroupSheetType, deletingGroup, gameGroups, projectGroups, setLibraryGroupsByType])
 
   const loadGlbModels = useCallback(async () => {
     setIsGlbLoading(true)
@@ -1220,7 +1368,9 @@ export default function App() {
   useEffect(() => {
     void loadLibraryItems('projects')
     void loadLibraryItems('games')
-  }, [loadLibraryItems])
+    void loadLibraryGroups('projects')
+    void loadLibraryGroups('games')
+  }, [loadLibraryGroups, loadLibraryItems])
 
   useEffect(() => {
     setSettingsSheetPage(1)
@@ -1249,8 +1399,12 @@ export default function App() {
     setLibrarySheetType(null)
     setDeleteSheetType(null)
     setDeletingLibraryItem(null)
+    setGroupSheetType(null)
+    setDeleteGroupSheetType(null)
+    setDeletingGroup(null)
     resetLibraryEditor()
-  }, [activePage, resetLibraryEditor])
+    resetGroupEditor()
+  }, [activePage, resetGroupEditor, resetLibraryEditor])
 
   useEffect(() => {
     if (activePage !== 'Playground') {
@@ -1425,6 +1579,29 @@ export default function App() {
   const currentLibraryKind: LibraryItemKind | null =
     activePage === 'Projects' ? 'projects' : activePage === 'Games' ? 'games' : null
   const currentLibraryItems = currentLibraryKind === 'projects' ? projects : currentLibraryKind === 'games' ? games : []
+  const currentLibraryGroups = currentLibraryKind === 'projects' ? projectGroups : currentLibraryKind === 'games' ? gameGroups : []
+  const groupedLibrarySections = useMemo<Array<{ id: string; name: string; group: LibraryGroupRecord | null; items: LibraryItemRecord[] }>>(() => {
+    if (!currentLibraryKind) return []
+
+    const sections: Array<{ id: string; name: string; group: LibraryGroupRecord | null; items: LibraryItemRecord[] }> = currentLibraryGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      group,
+      items: currentLibraryItems.filter((item) => item.groupId === group.id),
+    }))
+
+    const ungroupedItems = currentLibraryItems.filter((item) => !item.groupId)
+    if (ungroupedItems.length) {
+      sections.push({
+        id: 'ungrouped',
+        name: 'Ungrouped',
+        group: null,
+        items: ungroupedItems,
+      })
+    }
+
+    return sections
+  }, [currentLibraryGroups, currentLibraryItems, currentLibraryKind])
   const integrationDetailsInfo = integrationPage ? integrationRuntimeInfo[integrationPage.type] : null
   const enabledIntegrationList = integrationCatalog.filter((integration) => enabledIntegrations[integration.id])
   const degradedEnabledCount = enabledIntegrationList.filter(
@@ -1902,16 +2079,28 @@ export default function App() {
             <PageHeader
               title={activePage}
               subtitle={activePage === 'Projects' ? 'Track projects with links, images, ratings, and timestamps.' : 'Track games with links, images, ratings, and timestamps.'}
+              actions={currentLibraryKind ? (
+                <div className="catalog-header-actions">
+                  <m.button
+                    type="button"
+                    className="sheet-nav-btn"
+                    whileTap={ACTION_BUTTON_PRESS}
+                    onClick={() => openCreateGroupSheet(currentLibraryKind)}
+                  >
+                    New Group
+                  </m.button>
+                </div>
+              ) : null}
             />
 
-            {!isLibraryLoading && !currentLibraryItems.length ? (
+            {!isLibraryLoading && !currentLibraryItems.length && !currentLibraryGroups.length ? (
               <div className="catalog-empty">
                 <strong>No {currentLibraryKind} yet</strong>
                 <p>Create your first {currentLibraryKind === 'projects' ? 'project' : 'game'} from the floating add button.</p>
               </div>
             ) : (
               <m.div
-                className="catalog-grid"
+                className="catalog-sections"
                 initial="hidden"
                 animate="visible"
                 variants={{
@@ -1919,61 +2108,103 @@ export default function App() {
                   visible: { transition: { staggerChildren: 0.08, delayChildren: CONTENT_START_DELAY + 0.2 } },
                 }}
               >
-                {currentLibraryItems.map((item) => (
-                  <PanelCard
-                    key={item.id}
-                    className="catalog-card"
-                    icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
-                    title={item.name}
-                    subtitle={`Rating ${item.rating}/10`}
+                {groupedLibrarySections.map((section) => (
+                  <m.section
+                    key={section.id}
+                    className="catalog-section"
                     variants={{
                       hidden: { opacity: 0, y: 12, scale: 0.98 },
                       visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
                     }}
                   >
-                    {item.imageUrl ? (
-                      <div className="catalog-card-image">
-                        <img src={item.imageUrl} alt="" />
+                    <div className="catalog-section-header">
+                      <div>
+                        <h3>{section.name}</h3>
+                        <p>{section.items.length} {section.items.length === 1 ? 'item' : 'items'}</p>
                       </div>
-                    ) : null}
-                    <div className="catalog-card-copy">
-                      {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
-                      <dl className="catalog-meta">
-                        <div>
-                          <dt>Timestamp</dt>
-                          <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                      {section.group ? (
+                        <div className="catalog-group-actions">
+                          <m.button
+                            type="button"
+                            className="users-icon-btn"
+                            whileTap={ACTION_BUTTON_PRESS}
+                            aria-label={`Edit ${section.group.name}`}
+                            onClick={() => beginEditLibraryGroup(currentLibraryKind!, section.group!)}
+                          >
+                            <PencilSimple size={15} weight="bold" />
+                          </m.button>
+                          <m.button
+                            type="button"
+                            className="users-icon-btn users-icon-btn-danger"
+                            whileTap={ACTION_BUTTON_PRESS}
+                            aria-label={`Delete ${section.group.name}`}
+                            onClick={() => openDeleteGroupSheet(currentLibraryKind!, section.group!)}
+                          >
+                            <Trash size={15} weight="bold" />
+                          </m.button>
                         </div>
-                        <div>
-                          <dt>URL</dt>
-                          <dd>
-                            <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
-                              Open Link
-                            </a>
-                          </dd>
-                        </div>
-                      </dl>
+                      ) : null}
                     </div>
-                    <div className="catalog-card-actions">
-                      <m.button
-                        type="button"
-                        className="users-icon-btn"
-                        whileTap={ACTION_BUTTON_PRESS}
-                        aria-label={`Edit ${item.name}`}
-                        onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
-                      >
-                        <PencilSimple size={15} weight="bold" />
-                      </m.button>
-                      <m.button
-                        type="button"
-                        className="users-icon-btn users-icon-btn-danger"
-                        whileTap={ACTION_BUTTON_PRESS}
-                        aria-label={`Delete ${item.name}`}
-                        onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
-                      >
-                        <Trash size={15} weight="bold" />
-                      </m.button>
-                    </div>
-                  </PanelCard>
+
+                    {section.items.length ? (
+                      <div className="catalog-grid">
+                        {section.items.map((item) => (
+                          <PanelCard
+                            key={item.id}
+                            className="catalog-card"
+                            icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
+                            title={item.name}
+                            subtitle={`Rating ${item.rating}/10`}
+                          >
+                            {item.imageUrl ? (
+                              <div className="catalog-card-image">
+                                <img src={item.imageUrl} alt="" />
+                              </div>
+                            ) : null}
+                            <div className="catalog-card-copy">
+                              {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
+                              <dl className="catalog-meta">
+                                <div>
+                                  <dt>Timestamp</dt>
+                                  <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                                </div>
+                                <div>
+                                  <dt>URL</dt>
+                                  <dd>
+                                    <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
+                                      Open Link
+                                    </a>
+                                  </dd>
+                                </div>
+                              </dl>
+                            </div>
+                            <div className="catalog-card-actions">
+                              <m.button
+                                type="button"
+                                className="users-icon-btn"
+                                whileTap={ACTION_BUTTON_PRESS}
+                                aria-label={`Edit ${item.name}`}
+                                onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
+                              >
+                                <PencilSimple size={15} weight="bold" />
+                              </m.button>
+                              <m.button
+                                type="button"
+                                className="users-icon-btn users-icon-btn-danger"
+                                whileTap={ACTION_BUTTON_PRESS}
+                                aria-label={`Delete ${item.name}`}
+                                onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
+                              >
+                                <Trash size={15} weight="bold" />
+                              </m.button>
+                            </div>
+                          </PanelCard>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="catalog-group-empty">No {currentLibraryKind === 'projects' ? 'projects' : 'games'} in this group yet.</div>
+                    )}
+                  </m.section>
                 ))}
               </m.div>
             )}
@@ -3259,6 +3490,20 @@ export default function App() {
                 />
               </label>
               <label>
+                Group
+                <Select
+                  value={libraryDraft.groupId}
+                  onChange={(event) => setLibraryDraft((current) => ({ ...current, groupId: event.target.value }))}
+                >
+                  <option value="">Ungrouped</option>
+                  {(librarySheetType === 'projects' ? projectGroups : gameGroups).map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label>
                 Rating
                 <Input
                   type="number"
@@ -3309,6 +3554,57 @@ export default function App() {
         </SideSheet>
 
         <SideSheet
+          isOpen={Boolean(groupSheetType)}
+          sheetKey={`${groupSheetType ?? 'library'}-group-${groupSheetMode}-${editingGroupId ?? 'new'}`}
+          ariaLabel="library group editor panel"
+          eyebrow={groupSheetMode === 'edit' ? 'Edit Group' : 'Add Group'}
+          title={`${groupSheetMode === 'edit' ? 'Update' : 'Create'} ${groupSheetType === 'projects' ? 'Project Group' : 'Game Group'}`}
+          onClose={closeGroupSheet}
+        >
+          <form
+            className="sheet-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveLibraryGroup()
+            }}
+          >
+            <div className="sheet-fields">
+              <label>
+                Group Name
+                <Input value={groupDraft.name} onChange={(event) => setGroupDraft({ name: event.target.value })} />
+              </label>
+            </div>
+
+            <div className="sheet-form-footer">
+              <span className="sheet-page-label">
+                {groupSheetMode === 'edit'
+                  ? `Editing ${groupSheetType === 'projects' ? 'project' : 'game'} group`
+                  : `Create a new ${groupSheetType === 'projects' ? 'project' : 'game'} group`}
+              </span>
+              <div className="sheet-footer-actions">
+                <m.button
+                  type="button"
+                  className="sheet-nav-btn"
+                  whileTap={isGroupSaving ? undefined : ACTION_BUTTON_PRESS}
+                  disabled={isGroupSaving}
+                  onClick={closeGroupSheet}
+                >
+                  Cancel
+                </m.button>
+                <m.button
+                  type="submit"
+                  className="save-button sheet-save-btn"
+                  whileTap={isGroupSaving ? undefined : ACTION_BUTTON_PRESS}
+                  disabled={isGroupSaving}
+                >
+                  {isGroupSaving ? 'Saving...' : groupSheetMode === 'edit' ? 'Save Group' : 'Create Group'}
+                </m.button>
+              </div>
+            </div>
+          </form>
+        </SideSheet>
+
+        <SideSheet
           isOpen={Boolean(deleteSheetType && deletingLibraryItem)}
           sheetKey={`${deleteSheetType ?? 'library'}-delete-${deletingLibraryItem?.id ?? 'none'}`}
           ariaLabel="library item delete panel"
@@ -3342,6 +3638,45 @@ export default function App() {
                 }}
               >
                 {isLibraryDeleting ? 'Deleting...' : 'Delete'}
+              </m.button>
+            </div>
+          </div>
+        </SideSheet>
+
+        <SideSheet
+          isOpen={Boolean(deleteGroupSheetType && deletingGroup)}
+          sheetKey={`${deleteGroupSheetType ?? 'library'}-group-delete-${deletingGroup?.id ?? 'none'}`}
+          ariaLabel="library group delete panel"
+          eyebrow="Delete Group"
+          title={`Delete ${deleteGroupSheetType === 'projects' ? 'Project' : 'Game'} Group`}
+          onClose={closeDeleteGroupSheet}
+        >
+          <div className="detail-stack delete-confirmation">
+            <p>Delete <strong>{deletingGroup?.name}</strong>?</p>
+            <p>This only works when no items are still assigned to the group.</p>
+          </div>
+          <div className="sheet-form-footer">
+            <span className="sheet-page-label">This action cannot be undone.</span>
+            <div className="sheet-footer-actions">
+              <m.button
+                type="button"
+                className="sheet-nav-btn"
+                whileTap={isGroupDeleting ? undefined : ACTION_BUTTON_PRESS}
+                disabled={isGroupDeleting}
+                onClick={closeDeleteGroupSheet}
+              >
+                Cancel
+              </m.button>
+              <m.button
+                type="button"
+                className="save-button sheet-save-btn"
+                whileTap={isGroupDeleting ? undefined : ACTION_BUTTON_PRESS}
+                disabled={isGroupDeleting}
+                onClick={() => {
+                  void deleteLibraryGroup()
+                }}
+              >
+                {isGroupDeleting ? 'Deleting...' : 'Delete Group'}
               </m.button>
             </div>
           </div>

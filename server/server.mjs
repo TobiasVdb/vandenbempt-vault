@@ -28,6 +28,10 @@ const CONTENT_TABLES = {
   projects: 'projects',
   games: 'games',
 }
+const CONTENT_GROUP_TABLES = {
+  projects: 'project_groups',
+  games: 'game_groups',
+}
 const TEAM_NAMES = ['Platform', 'Security', 'Compliance', 'Leadership']
 const USER_ROLES = ['owner', 'platform_admin', 'security_reviewer', 'compliance_auditor', 'viewer']
 const USER_SSO_MODES = ['enforced', 'optional', 'break_glass']
@@ -220,6 +224,27 @@ async function initializeDatabase() {
     `)
   }
 
+  for (const tableName of Object.values(CONTENT_GROUP_TABLES)) {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ${tableName} (
+        id UUID PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+  }
+
+  await pool.query(`
+    ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES project_groups(id) ON DELETE SET NULL;
+  `)
+
+  await pool.query(`
+    ALTER TABLE games
+    ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES game_groups(id) ON DELETE SET NULL;
+  `)
+
   const userCountResult = await pool.query('SELECT COUNT(*)::int AS count FROM workspace_users')
   if (userCountResult.rows[0]?.count === 0) {
     for (const user of INITIAL_WORKSPACE_USERS) {
@@ -273,6 +298,17 @@ function resolveContentTable(kind) {
   return CONTENT_TABLES[kind] ?? null
 }
 
+function resolveContentGroupTable(kind) {
+  return CONTENT_GROUP_TABLES[kind] ?? null
+}
+
+function mapContentGroup(row) {
+  return {
+    id: row.id,
+    name: row.name,
+  }
+}
+
 function mapContentItem(row) {
   return {
     id: row.id,
@@ -282,42 +318,76 @@ function mapContentItem(row) {
     description: row.description ?? null,
     rating: Number(row.rating),
     timestamp: row.timestamp,
+    groupId: row.group_id ?? null,
+    groupName: row.group_name ?? null,
   }
 }
 
-function validateContentItemPayload(payload) {
-  if (!payload || typeof payload !== 'object') {
-    return 'Invalid request body.'
+async function resolveValidatedGroupId(kind, rawGroupId) {
+  const normalizedGroupId = String(rawGroupId ?? '').trim()
+  if (!normalizedGroupId) return { groupId: null }
+
+  const groupTableName = resolveContentGroupTable(kind)
+  if (!groupTableName) {
+    return { error: 'Unknown content type.' }
   }
 
-  const { name, url, imageUrl, description, rating, timestamp } = payload
-  if (!String(name ?? '').trim()) return 'Name is required.'
-  if (!String(url ?? '').trim()) return 'URL is required.'
+  const result = await pool.query(`SELECT id FROM ${groupTableName} WHERE id = $1`, [normalizedGroupId])
+  if (!result.rowCount) {
+    return { error: 'Selected group was not found.' }
+  }
+
+  return { groupId: normalizedGroupId }
+}
+
+async function validateContentItemPayload(kind, payload) {
+  if (!payload || typeof payload !== 'object') {
+    return { error: 'Invalid request body.' }
+  }
+
+  const { name, url, imageUrl, description, rating, timestamp, groupId } = payload
+  if (!String(name ?? '').trim()) return { error: 'Name is required.' }
+  if (!String(url ?? '').trim()) return { error: 'URL is required.' }
 
   try {
     new URL(String(url).trim())
   } catch {
-    return 'URL must be a valid absolute URL.'
+    return { error: 'URL must be a valid absolute URL.' }
   }
 
   if (imageUrl !== undefined && imageUrl !== null && String(imageUrl).trim()) {
     try {
       new URL(String(imageUrl).trim())
     } catch {
-      return 'Image URL must be a valid absolute URL.'
+      return { error: 'Image URL must be a valid absolute URL.' }
     }
   }
 
   if (description !== undefined && description !== null && typeof description !== 'string') {
-    return 'Description must be a string.'
+    return { error: 'Description must be a string.' }
   }
 
   const numericRating = Number(rating)
-  if (!Number.isFinite(numericRating)) return 'Rating must be a number.'
-  if (numericRating < 0 || numericRating > 10) return 'Rating must be between 0 and 10.'
+  if (!Number.isFinite(numericRating)) return { error: 'Rating must be a number.' }
+  if (numericRating < 0 || numericRating > 10) return { error: 'Rating must be between 0 and 10.' }
 
   const parsedTimestamp = new Date(String(timestamp ?? ''))
-  if (Number.isNaN(parsedTimestamp.getTime())) return 'Timestamp must be a valid date/time.'
+  if (Number.isNaN(parsedTimestamp.getTime())) return { error: 'Timestamp must be a valid date/time.' }
+
+  const resolvedGroup = await resolveValidatedGroupId(kind, groupId)
+  if (resolvedGroup.error) return resolvedGroup
+
+  return { groupId: resolvedGroup.groupId }
+}
+
+function validateContentGroupPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return 'Invalid request body.'
+  }
+
+  if (!String(payload.name ?? '').trim()) {
+    return 'Group name is required.'
+  }
 
   return null
 }
@@ -1250,6 +1320,7 @@ app.get('/api/:kind(projects|games)', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
+  const groupTableName = resolveContentGroupTable(request.params.kind)
   if (!tableName) {
     response.status(400).json({ error: 'Unknown content type.' })
     return
@@ -1257,9 +1328,19 @@ app.get('/api/:kind(projects|games)', async (request, response) => {
 
   try {
     const result = await pool.query(`
-      SELECT id, name, url, image_url, description, rating, timestamp
-      FROM ${tableName}
-      ORDER BY timestamp DESC, created_at DESC
+      SELECT
+        item.id,
+        item.name,
+        item.url,
+        item.image_url,
+        item.description,
+        item.rating,
+        item.timestamp,
+        item.group_id,
+        group_item.name AS group_name
+      FROM ${tableName} AS item
+      LEFT JOIN ${groupTableName} AS group_item ON group_item.id = item.group_id
+      ORDER BY item.timestamp DESC, item.created_at DESC
     `)
 
     response.json({ items: result.rows.map(mapContentItem) })
@@ -1273,14 +1354,15 @@ app.post('/api/:kind(projects|games)', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
+  const groupTableName = resolveContentGroupTable(request.params.kind)
   if (!tableName) {
     response.status(400).json({ error: 'Unknown content type.' })
     return
   }
 
-  const validationError = validateContentItemPayload(request.body)
-  if (validationError) {
-    response.status(400).json({ error: validationError })
+  const validation = await validateContentItemPayload(request.params.kind, request.body)
+  if (validation.error) {
+    response.status(400).json({ error: validation.error })
     return
   }
 
@@ -1290,9 +1372,9 @@ app.post('/api/:kind(projects|games)', async (request, response) => {
   try {
     const result = await pool.query(
       `
-      INSERT INTO ${tableName} (id, name, url, image_url, description, rating, timestamp, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING id, name, url, image_url, description, rating, timestamp
+      INSERT INTO ${tableName} (id, name, url, image_url, description, rating, timestamp, group_id, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING id
       `,
       [
         id,
@@ -1302,10 +1384,30 @@ app.post('/api/:kind(projects|games)', async (request, response) => {
         String(description ?? '').trim() || null,
         Number(rating),
         new Date(String(timestamp)).toISOString(),
+        validation.groupId,
       ],
     )
 
-    response.status(201).json({ item: mapContentItem(result.rows[0]) })
+    const createdItem = await pool.query(
+      `
+      SELECT
+        item.id,
+        item.name,
+        item.url,
+        item.image_url,
+        item.description,
+        item.rating,
+        item.timestamp,
+        item.group_id,
+        group_item.name AS group_name
+      FROM ${tableName} AS item
+      LEFT JOIN ${groupTableName} AS group_item ON group_item.id = item.group_id
+      WHERE item.id = $1
+      `,
+      [result.rows[0].id],
+    )
+
+    response.status(201).json({ item: mapContentItem(createdItem.rows[0]) })
   } catch (error) {
     console.error(`Failed to create ${request.params.kind.slice(0, -1)}:`, error)
     response.status(500).json({ error: `Failed to create ${request.params.kind.slice(0, -1)}.` })
@@ -1316,14 +1418,15 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
+  const groupTableName = resolveContentGroupTable(request.params.kind)
   if (!tableName) {
     response.status(400).json({ error: 'Unknown content type.' })
     return
   }
 
-  const validationError = validateContentItemPayload(request.body)
-  if (validationError) {
-    response.status(400).json({ error: validationError })
+  const validation = await validateContentItemPayload(request.params.kind, request.body)
+  if (validation.error) {
+    response.status(400).json({ error: validation.error })
     return
   }
 
@@ -1340,9 +1443,10 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
         description = $5,
         rating = $6,
         timestamp = $7,
+        group_id = $8,
         updated_at = NOW()
       WHERE id = $1
-      RETURNING id, name, url, image_url, description, rating, timestamp
+      RETURNING id
       `,
       [
         request.params.id,
@@ -1352,6 +1456,7 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
         String(description ?? '').trim() || null,
         Number(rating),
         new Date(String(timestamp)).toISOString(),
+        validation.groupId,
       ],
     )
 
@@ -1360,10 +1465,160 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
       return
     }
 
-    response.json({ item: mapContentItem(result.rows[0]) })
+    const updatedItem = await pool.query(
+      `
+      SELECT
+        item.id,
+        item.name,
+        item.url,
+        item.image_url,
+        item.description,
+        item.rating,
+        item.timestamp,
+        item.group_id,
+        group_item.name AS group_name
+      FROM ${tableName} AS item
+      LEFT JOIN ${groupTableName} AS group_item ON group_item.id = item.group_id
+      WHERE item.id = $1
+      `,
+      [request.params.id],
+    )
+
+    response.json({ item: mapContentItem(updatedItem.rows[0]) })
   } catch (error) {
     console.error(`Failed to update ${request.params.kind.slice(0, -1)}:`, error)
     response.status(500).json({ error: `Failed to update ${request.params.kind.slice(0, -1)}.` })
+  }
+})
+
+app.get('/api/:kind(projects|games)/groups', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentGroupTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT id, name
+      FROM ${tableName}
+      ORDER BY LOWER(name) ASC
+    `)
+
+    response.json({ groups: result.rows.map(mapContentGroup) })
+  } catch (error) {
+    console.error(`Failed to load ${request.params.kind} groups:`, error)
+    response.status(500).json({ error: `Failed to load ${request.params.kind} groups.` })
+  }
+})
+
+app.post('/api/:kind(projects|games)/groups', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentGroupTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  const validationError = validateContentGroupPayload(request.body)
+  if (validationError) {
+    response.status(400).json({ error: validationError })
+    return
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO ${tableName} (id, name, updated_at)
+      VALUES ($1, $2, NOW())
+      RETURNING id, name
+      `,
+      [randomUUID(), String(request.body.name).trim()],
+    )
+
+    response.status(201).json({ group: mapContentGroup(result.rows[0]) })
+  } catch (error) {
+    console.error(`Failed to create ${request.params.kind} group:`, error)
+    response.status(500).json({ error: `Failed to create ${request.params.kind} group.` })
+  }
+})
+
+app.put('/api/:kind(projects|games)/groups/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentGroupTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  const validationError = validateContentGroupPayload(request.body)
+  if (validationError) {
+    response.status(400).json({ error: validationError })
+    return
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE ${tableName}
+      SET name = $2, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, name
+      `,
+      [request.params.id, String(request.body.name).trim()],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Group not found.' })
+      return
+    }
+
+    response.json({ group: mapContentGroup(result.rows[0]) })
+  } catch (error) {
+    console.error(`Failed to update ${request.params.kind} group:`, error)
+    response.status(500).json({ error: `Failed to update ${request.params.kind} group.` })
+  }
+})
+
+app.delete('/api/:kind(projects|games)/groups/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentGroupTable(request.params.kind)
+  const contentTableName = resolveContentTable(request.params.kind)
+  if (!tableName || !contentTableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  try {
+    const usage = await pool.query(`SELECT COUNT(*)::int AS count FROM ${contentTableName} WHERE group_id = $1`, [request.params.id])
+    if (usage.rows[0]?.count > 0) {
+      response.status(400).json({ error: 'Remove or reassign items in this group before deleting it.' })
+      return
+    }
+
+    const result = await pool.query(
+      `
+      DELETE FROM ${tableName}
+      WHERE id = $1
+      RETURNING id
+      `,
+      [request.params.id],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Group not found.' })
+      return
+    }
+
+    response.json({ ok: true })
+  } catch (error) {
+    console.error(`Failed to delete ${request.params.kind} group:`, error)
+    response.status(500).json({ error: `Failed to delete ${request.params.kind} group.` })
   }
 })
 

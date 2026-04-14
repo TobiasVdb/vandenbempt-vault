@@ -117,6 +117,11 @@ export type SideSheetProps = {
 
 export type LibraryItemKind = 'projects' | 'games'
 
+export type LibraryGroupRecord = {
+  id: string
+  name: string
+}
+
 export type LibraryItemRecord = {
   id: string
   name: string
@@ -125,6 +130,8 @@ export type LibraryItemRecord = {
   description: string | null
   rating: number
   timestamp: string
+  groupId: string | null
+  groupName: string | null
 }
 
 export type LibraryItemDraft = {
@@ -134,8 +141,15 @@ export type LibraryItemDraft = {
   description: string
   rating: string
   timestamp: string
+  groupId: string
 }
 
+export type LibraryGroupDraft = {
+  name: string
+}
+
+export type LibraryGroupListResponse = { error?: string; groups?: LibraryGroupRecord[] }
+export type LibraryGroupResponse = { error?: string; group?: LibraryGroupRecord }
 export type LibraryItemListResponse = { error?: string; items?: LibraryItemRecord[] }
 export type LibraryItemResponse = { error?: string; item?: LibraryItemRecord }
 
