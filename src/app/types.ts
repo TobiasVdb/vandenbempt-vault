@@ -1,7 +1,17 @@
 import type { ReactNode, Ref } from 'react'
 import type { Variants } from 'framer-motion'
 
-export type Page = 'Home' | 'Integrations' | 'Admin' | 'Users' | 'Links' | 'Playground' | 'PitchDeck' | 'IntegrationDetail'
+export type Page =
+  | 'Home'
+  | 'Projects'
+  | 'Games'
+  | 'Integrations'
+  | 'Admin'
+  | 'Users'
+  | 'Links'
+  | 'Playground'
+  | 'PitchDeck'
+  | 'IntegrationDetail'
 export type IntegrationType = 'kubernetes' | 'gcp' | 'azure' | 'aikido' | 'aws'
 export type ThemeMode = 'light' | 'dark' | 'auto'
 export type IntegrationDetailTab = 'details' | 'topology' | 'findings' | 'identities' | 'changes' | 'actions' | 'activity'
@@ -132,6 +142,30 @@ export type SideSheetProps = {
 export type UserDirectorySortKey = 'name' | 'email' | 'team' | 'role' | 'lastActivityAt'
 export type WorkspaceUserListResponse = { error?: string; users?: UserRecord[] }
 export type WorkspaceUserResponse = { error?: string; user?: UserRecord }
+
+export type LibraryItemKind = 'projects' | 'games'
+
+export type LibraryItemRecord = {
+  id: string
+  name: string
+  url: string
+  imageUrl: string | null
+  description: string | null
+  rating: number
+  timestamp: string
+}
+
+export type LibraryItemDraft = {
+  name: string
+  url: string
+  imageUrl: string
+  description: string
+  rating: string
+  timestamp: string
+}
+
+export type LibraryItemListResponse = { error?: string; items?: LibraryItemRecord[] }
+export type LibraryItemResponse = { error?: string; item?: LibraryItemRecord }
 
 export type PanelCardProps = {
   icon: ReactNode

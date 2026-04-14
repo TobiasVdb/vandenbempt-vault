@@ -60,6 +60,7 @@ import {
   apiUrl,
   bottomNavigationItems,
   defaultPolicyEngine,
+  defaultLibraryItemDraft,
   defaultReportPreferences,
   defaultUserDraft,
   getAutoThemeForTime,
@@ -85,6 +86,11 @@ import type {
   IntegrationSettingsMap,
   IntegrationTileFeedback,
   IntegrationType,
+  LibraryItemDraft,
+  LibraryItemKind,
+  LibraryItemListResponse,
+  LibraryItemRecord,
+  LibraryItemResponse,
   Page,
   ReportPreferences,
   TeamName,
@@ -410,6 +416,18 @@ function readReportPreferences(): ReportPreferences {
   }
 }
 
+function toDateTimeLocalValue(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16)
+}
+
+function toApiTimestamp(value: string): string {
+  return value ? new Date(value).toISOString() : new Date().toISOString()
+}
+
 export default function App() {
   const assetBase = import.meta.env.BASE_URL
   const navigate = useNavigate()
@@ -470,6 +488,20 @@ export default function App() {
   const [isHomeSummarySheetOpen, setIsHomeSummarySheetOpen] = useState(false)
   const [isCreatingIntegration, setIsCreatingIntegration] = useState(false)
   const [createIntegrationType, setCreateIntegrationType] = useState<IntegrationType | null>(null)
+  const [projects, setProjects] = useState<LibraryItemRecord[]>([])
+  const [games, setGames] = useState<LibraryItemRecord[]>([])
+  const [isLibraryLoading, setIsLibraryLoading] = useState(false)
+  const [librarySheetType, setLibrarySheetType] = useState<LibraryItemKind | null>(null)
+  const [librarySheetMode, setLibrarySheetMode] = useState<'create' | 'edit'>('create')
+  const [editingLibraryItemId, setEditingLibraryItemId] = useState<string | null>(null)
+  const [libraryDraft, setLibraryDraft] = useState<LibraryItemDraft>({
+    ...defaultLibraryItemDraft,
+    timestamp: toDateTimeLocalValue(new Date().toISOString()),
+  })
+  const [isLibrarySaving, setIsLibrarySaving] = useState(false)
+  const [deleteSheetType, setDeleteSheetType] = useState<LibraryItemKind | null>(null)
+  const [deletingLibraryItem, setDeletingLibraryItem] = useState<LibraryItemRecord | null>(null)
+  const [isLibraryDeleting, setIsLibraryDeleting] = useState(false)
 
   const integrationCatalog = useMemo(() => [...integrationTemplates, ...customIntegrations], [customIntegrations])
   const createIntegrationTemplate = useMemo(
@@ -1036,6 +1068,157 @@ export default function App() {
     return (await response.json()) as T
   }
 
+  const setLibraryItemsByType = useCallback((kind: LibraryItemKind, items: LibraryItemRecord[]) => {
+    if (kind === 'projects') {
+      setProjects(items)
+      return
+    }
+
+    setGames(items)
+  }, [])
+
+  const resetLibraryEditor = useCallback(() => {
+    setLibraryDraft({
+      ...defaultLibraryItemDraft,
+      timestamp: toDateTimeLocalValue(new Date().toISOString()),
+    })
+    setEditingLibraryItemId(null)
+    setLibrarySheetMode('create')
+  }, [])
+
+  const closeLibrarySheet = useCallback(() => {
+    if (isLibrarySaving) return
+    setLibrarySheetType(null)
+    resetLibraryEditor()
+  }, [isLibrarySaving, resetLibraryEditor])
+
+  const openCreateLibrarySheet = useCallback((kind: LibraryItemKind) => {
+    resetLibraryEditor()
+    setLibrarySheetType(kind)
+    setLibrarySheetMode('create')
+  }, [resetLibraryEditor])
+
+  const beginEditLibraryItem = useCallback((kind: LibraryItemKind, item: LibraryItemRecord) => {
+    setLibrarySheetType(kind)
+    setLibrarySheetMode('edit')
+    setEditingLibraryItemId(item.id)
+    setLibraryDraft({
+      name: item.name,
+      url: item.url,
+      imageUrl: item.imageUrl ?? '',
+      description: item.description ?? '',
+      rating: String(item.rating),
+      timestamp: toDateTimeLocalValue(item.timestamp),
+    })
+  }, [])
+
+  const openDeleteLibrarySheet = useCallback((kind: LibraryItemKind, item: LibraryItemRecord) => {
+    setDeleteSheetType(kind)
+    setDeletingLibraryItem(item)
+  }, [])
+
+  const closeDeleteLibrarySheet = useCallback(() => {
+    if (isLibraryDeleting) return
+    setDeleteSheetType(null)
+    setDeletingLibraryItem(null)
+  }, [isLibraryDeleting])
+
+  const loadLibraryItems = useCallback(async (kind: LibraryItemKind) => {
+    setIsLibraryLoading(true)
+
+    try {
+      const response = await fetch(apiUrl(`/${kind}`), { cache: 'no-store' })
+      const payload = await readJsonResponse<LibraryItemListResponse>(response, `Failed to load ${kind}.`)
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to load ${kind}.`)
+      }
+
+      setLibraryItemsByType(kind, Array.isArray(payload.items) ? payload.items : [])
+    } catch (error) {
+      setLibraryItemsByType(kind, [])
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to load ${kind}.` })
+    } finally {
+      setIsLibraryLoading(false)
+    }
+  }, [setLibraryItemsByType])
+
+  const saveLibraryItem = useCallback(async () => {
+    if (!librarySheetType) return
+
+    const name = libraryDraft.name.trim()
+    const url = libraryDraft.url.trim()
+    if (!name || !url || !libraryDraft.rating.trim() || !libraryDraft.timestamp.trim()) {
+      setToast({ kind: 'error', message: 'Name, URL, rating, and timestamp are required.' })
+      return
+    }
+
+    setIsLibrarySaving(true)
+
+    try {
+      const response = await fetch(apiUrl(editingLibraryItemId ? `/${librarySheetType}/${editingLibraryItemId}` : `/${librarySheetType}`), {
+        method: editingLibraryItemId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          url,
+          imageUrl: libraryDraft.imageUrl.trim() || null,
+          description: libraryDraft.description.trim() || null,
+          rating: Number(libraryDraft.rating),
+          timestamp: toApiTimestamp(libraryDraft.timestamp),
+        }),
+      })
+      const payload = await readJsonResponse<LibraryItemResponse>(response, `Failed to save ${librarySheetType.slice(0, -1)}.`)
+
+      if (!response.ok || !payload.item) {
+        throw new Error(payload.error ?? `Failed to save ${librarySheetType.slice(0, -1)}.`)
+      }
+
+      setLibraryItemsByType(
+        librarySheetType,
+        (librarySheetType === 'projects' ? projects : games)
+          .filter((item) => item.id !== payload.item!.id)
+          .concat(payload.item!)
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()),
+      )
+      setToast({
+        kind: 'success',
+        message: editingLibraryItemId ? `${payload.item.name} updated.` : `${payload.item.name} created.`,
+      })
+      closeLibrarySheet()
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to save ${librarySheetType.slice(0, -1)}.` })
+    } finally {
+      setIsLibrarySaving(false)
+    }
+  }, [closeLibrarySheet, editingLibraryItemId, games, libraryDraft, librarySheetType, projects, setLibraryItemsByType])
+
+  const deleteLibraryItem = useCallback(async () => {
+    if (!deleteSheetType || !deletingLibraryItem) return
+
+    setIsLibraryDeleting(true)
+
+    try {
+      const response = await fetch(apiUrl(`/${deleteSheetType}/${deletingLibraryItem.id}`), { method: 'DELETE' })
+      const payload = await readJsonResponse<{ error?: string }>(response, `Failed to delete ${deleteSheetType.slice(0, -1)}.`)
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to delete ${deleteSheetType.slice(0, -1)}.`)
+      }
+
+      setLibraryItemsByType(
+        deleteSheetType,
+        (deleteSheetType === 'projects' ? projects : games).filter((item) => item.id !== deletingLibraryItem.id),
+      )
+      setToast({ kind: 'success', message: `${deletingLibraryItem.name} deleted.` })
+      closeDeleteLibrarySheet()
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to delete ${deleteSheetType.slice(0, -1)}.` })
+    } finally {
+      setIsLibraryDeleting(false)
+    }
+  }, [closeDeleteLibrarySheet, deleteSheetType, deletingLibraryItem, games, projects, setLibraryItemsByType])
+
   const loadGlbModels = useCallback(async () => {
     setIsGlbLoading(true)
     setGlbError(null)
@@ -1226,6 +1409,11 @@ export default function App() {
   }, [loadWorkspaceUsers])
 
   useEffect(() => {
+    void loadLibraryItems('projects')
+    void loadLibraryItems('games')
+  }, [loadLibraryItems])
+
+  useEffect(() => {
     if (!integrationStateLoaded) return
 
     const timeout = window.setTimeout(() => {
@@ -1282,8 +1470,12 @@ export default function App() {
     setIsCreatingIntegration(false)
     setCreateIntegrationType(null)
     setIsUserSheetOpen(false)
+    setLibrarySheetType(null)
+    setDeleteSheetType(null)
+    setDeletingLibraryItem(null)
     resetUserEditor()
-  }, [activePage, resetUserEditor])
+    resetLibraryEditor()
+  }, [activePage, resetLibraryEditor, resetUserEditor])
 
   useEffect(() => {
     if (activePage !== 'Playground') {
@@ -1500,6 +1692,9 @@ export default function App() {
       : activePage === 'PitchDeck'
         ? 'menu-tab-links'
         : `menu-tab-${activePage.toLowerCase()}`
+  const currentLibraryKind: LibraryItemKind | null =
+    activePage === 'Projects' ? 'projects' : activePage === 'Games' ? 'games' : null
+  const currentLibraryItems = currentLibraryKind === 'projects' ? projects : currentLibraryKind === 'games' ? games : []
   const integrationDetailsInfo = integrationPage ? integrationRuntimeInfo[integrationPage.type] : null
   const enabledIntegrationList = integrationCatalog.filter((integration) => enabledIntegrations[integration.id])
   const degradedEnabledCount = enabledIntegrationList.filter(
@@ -1808,8 +2003,8 @@ export default function App() {
     { value: 'activity', label: 'Activity' },
   ]
   const homeMetricTiles = [
-    { label: 'Amount of Games', value: '0', detail: 'Total games tracked so far.' },
-    { label: 'Amount of Projects', value: '0', detail: 'Current active and archived projects.' },
+    { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.' },
+    { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.' },
     { label: 'Physical vs Digital Books', value: '0 / 0', detail: 'Physical books compared with digital ones.' },
     { label: 'Lifetime Flights', value: '0', detail: 'Flights taken across your lifetime.' },
   ]
@@ -2001,6 +2196,97 @@ export default function App() {
                 </m.article>
               ))}
             </m.div>
+          </section>
+        ) : activePage === 'Projects' || activePage === 'Games' ? (
+          <section className="catalog-page" aria-label={`${activePage} collection`}>
+            <PageHeader
+              title={activePage}
+              subtitle={activePage === 'Projects' ? 'Track projects with links, images, ratings, and timestamps.' : 'Track games with links, images, ratings, and timestamps.'}
+            />
+
+            {!isLibraryLoading && !currentLibraryItems.length ? (
+              <div className="catalog-empty">
+                <strong>No {currentLibraryKind} yet</strong>
+                <p>Create your first {currentLibraryKind === 'projects' ? 'project' : 'game'} from the floating add button.</p>
+              </div>
+            ) : (
+              <m.div
+                className="catalog-grid"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: {},
+                  visible: { transition: { staggerChildren: 0.08, delayChildren: CONTENT_START_DELAY + 0.2 } },
+                }}
+              >
+                {currentLibraryItems.map((item) => (
+                  <PanelCard
+                    key={item.id}
+                    className="catalog-card"
+                    icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
+                    title={item.name}
+                    subtitle={`Rating ${item.rating}/10`}
+                    variants={{
+                      hidden: { opacity: 0, y: 12, scale: 0.98 },
+                      visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
+                    }}
+                  >
+                    {item.imageUrl ? (
+                      <div className="catalog-card-image">
+                        <img src={item.imageUrl} alt="" />
+                      </div>
+                    ) : null}
+                    <div className="catalog-card-copy">
+                      {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
+                      <dl className="catalog-meta">
+                        <div>
+                          <dt>Timestamp</dt>
+                          <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                        </div>
+                        <div>
+                          <dt>URL</dt>
+                          <dd>
+                            <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
+                              Open Link
+                            </a>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                    <div className="catalog-card-actions">
+                      <m.button
+                        type="button"
+                        className="users-icon-btn"
+                        whileTap={ACTION_BUTTON_PRESS}
+                        aria-label={`Edit ${item.name}`}
+                        onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
+                      >
+                        <PencilSimple size={15} weight="bold" />
+                      </m.button>
+                      <m.button
+                        type="button"
+                        className="users-icon-btn users-icon-btn-danger"
+                        whileTap={ACTION_BUTTON_PRESS}
+                        aria-label={`Delete ${item.name}`}
+                        onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
+                      >
+                        <Trash size={15} weight="bold" />
+                      </m.button>
+                    </div>
+                  </PanelCard>
+                ))}
+              </m.div>
+            )}
+
+            <m.button
+              type="button"
+              className="page-fab"
+              aria-label={`Add new ${currentLibraryKind === 'projects' ? 'project' : 'game'}`}
+              whileTap={ACTION_BUTTON_PRESS}
+              onClick={() => openCreateLibrarySheet(currentLibraryKind!)}
+            >
+              <Plus size={22} weight="bold" />
+            </m.button>
           </section>
         ) : activePage === 'Integrations' ? (
           <>
@@ -3546,6 +3832,139 @@ export default function App() {
               </div>
             </div>
           </form>
+        </SideSheet>
+
+        <SideSheet
+          isOpen={Boolean(librarySheetType)}
+          sheetKey={`${librarySheetType ?? 'library'}-${librarySheetMode}-${editingLibraryItemId ?? 'new'}`}
+          ariaLabel="library item editor panel"
+          eyebrow={librarySheetMode === 'edit' ? 'Edit Item' : 'Add Item'}
+          title={`${librarySheetMode === 'edit' ? 'Update' : 'Create'} ${librarySheetType === 'projects' ? 'Project' : 'Game'}`}
+          onClose={closeLibrarySheet}
+        >
+          <form
+            className="sheet-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveLibraryItem()
+            }}
+          >
+            <div className="sheet-fields">
+              <label>
+                Name
+                <Input value={libraryDraft.name} onChange={(event) => setLibraryDraft((current) => ({ ...current, name: event.target.value }))} />
+              </label>
+              <label>
+                URL
+                <Input
+                  type="url"
+                  value={libraryDraft.url}
+                  onChange={(event) => setLibraryDraft((current) => ({ ...current, url: event.target.value }))}
+                />
+              </label>
+              <label>
+                Image URL
+                <Input
+                  type="url"
+                  value={libraryDraft.imageUrl}
+                  onChange={(event) => setLibraryDraft((current) => ({ ...current, imageUrl: event.target.value }))}
+                />
+              </label>
+              <label>
+                Description
+                <Textarea
+                  rows={4}
+                  value={libraryDraft.description}
+                  onChange={(event) => setLibraryDraft((current) => ({ ...current, description: event.target.value }))}
+                />
+              </label>
+              <label>
+                Rating
+                <Input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={libraryDraft.rating}
+                  onChange={(event) => setLibraryDraft((current) => ({ ...current, rating: event.target.value }))}
+                />
+              </label>
+              <label>
+                Timestamp
+                <Input
+                  type="datetime-local"
+                  value={libraryDraft.timestamp}
+                  onChange={(event) => setLibraryDraft((current) => ({ ...current, timestamp: event.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="sheet-form-footer">
+              <span className="sheet-page-label">
+                {librarySheetMode === 'edit'
+                  ? `Editing ${librarySheetType === 'projects' ? 'project' : 'game'}`
+                  : `Create a new ${librarySheetType === 'projects' ? 'project' : 'game'}`}
+              </span>
+              <div className="sheet-footer-actions">
+                <m.button
+                  type="button"
+                  className="sheet-nav-btn"
+                  whileTap={isLibrarySaving ? undefined : ACTION_BUTTON_PRESS}
+                  disabled={isLibrarySaving}
+                  onClick={closeLibrarySheet}
+                >
+                  Cancel
+                </m.button>
+                <m.button
+                  type="submit"
+                  className="save-button sheet-save-btn"
+                  whileTap={isLibrarySaving ? undefined : ACTION_BUTTON_PRESS}
+                  disabled={isLibrarySaving}
+                >
+                  {isLibrarySaving ? 'Saving...' : librarySheetMode === 'edit' ? 'Save Changes' : 'Create Item'}
+                </m.button>
+              </div>
+            </div>
+          </form>
+        </SideSheet>
+
+        <SideSheet
+          isOpen={Boolean(deleteSheetType && deletingLibraryItem)}
+          sheetKey={`${deleteSheetType ?? 'library'}-delete-${deletingLibraryItem?.id ?? 'none'}`}
+          ariaLabel="library item delete panel"
+          eyebrow="Delete Item"
+          title={`Delete ${deleteSheetType === 'projects' ? 'Project' : 'Game'}`}
+          onClose={closeDeleteLibrarySheet}
+        >
+          <div className="detail-stack delete-confirmation">
+            <p>Delete <strong>{deletingLibraryItem?.name}</strong>?</p>
+            <p>This permanently removes the record from the database.</p>
+          </div>
+          <div className="sheet-form-footer">
+            <span className="sheet-page-label">This action cannot be undone.</span>
+            <div className="sheet-footer-actions">
+              <m.button
+                type="button"
+                className="sheet-nav-btn"
+                whileTap={isLibraryDeleting ? undefined : ACTION_BUTTON_PRESS}
+                disabled={isLibraryDeleting}
+                onClick={closeDeleteLibrarySheet}
+              >
+                Cancel
+              </m.button>
+              <m.button
+                type="button"
+                className="save-button sheet-save-btn"
+                whileTap={isLibraryDeleting ? undefined : ACTION_BUTTON_PRESS}
+                disabled={isLibraryDeleting}
+                onClick={() => {
+                  void deleteLibraryItem()
+                }}
+              >
+                {isLibraryDeleting ? 'Deleting...' : 'Delete'}
+              </m.button>
+            </div>
+          </div>
         </SideSheet>
 
         <SideSheet

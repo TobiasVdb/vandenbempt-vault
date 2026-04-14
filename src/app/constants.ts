@@ -1,3 +1,5 @@
+import { Archive } from '@phosphor-icons/react/Archive'
+import { ChartBar } from '@phosphor-icons/react/ChartBar'
 import { GameController } from '@phosphor-icons/react/GameController'
 import { GearSix } from '@phosphor-icons/react/GearSix'
 import { House } from '@phosphor-icons/react/House'
@@ -44,12 +46,22 @@ export const mainNavigationItems = [
     icon: House,
   },
   {
+    label: 'Projects' as const,
+    description: 'Project collection',
+    icon: Archive,
+  },
+  {
+    label: 'Games' as const,
+    description: 'Game collection',
+    icon: GameController,
+  },
+  {
     label: 'Integrations' as const,
     description: 'Link with cloud systems',
     icon: PlugCharging,
   },
   { label: 'Links' as const, icon: Layout },
-  { label: 'Playground' as const, icon: GameController },
+  { label: 'Playground' as const, icon: ChartBar },
 ]
 
 export const bottomNavigationItems = [
@@ -111,6 +123,15 @@ export const defaultUserDraft: UserDraft = {
   canApproveProduction: false,
 }
 
+export const defaultLibraryItemDraft = {
+  name: '',
+  url: '',
+  imageUrl: '',
+  description: '',
+  rating: '',
+  timestamp: '',
+}
+
 export const defaultPolicyEngine: GlobalPolicyEngine = {
   mandatoryTagsEnabled: true,
   mandatoryTag: 'security-reviewed',
@@ -138,6 +159,8 @@ function normalizePath(pathname: string): string {
 export function getPageFromPath(pathname: string): { page: Page; integrationId?: string } {
   const normalizedPath = normalizePath(pathname)
   if (normalizedPath === '/' || normalizedPath === '/home') return { page: 'Home' }
+  if (normalizedPath === '/projects') return { page: 'Projects' }
+  if (normalizedPath === '/games') return { page: 'Games' }
   if (normalizedPath === '/integrations') return { page: 'Integrations' }
   if (normalizedPath === '/admin') return { page: 'Admin' }
   if (normalizedPath === '/users') return { page: 'Users' }
@@ -155,6 +178,8 @@ export function getPageFromPath(pathname: string): { page: Page; integrationId?:
 
 export function getPathFromPage(page: Page, integrationId?: string): string {
   if (page === 'Home') return '/home'
+  if (page === 'Projects') return '/projects'
+  if (page === 'Games') return '/games'
   if (page === 'Integrations') return '/integrations'
   if (page === 'Admin') return '/admin'
   if (page === 'Users') return '/users'

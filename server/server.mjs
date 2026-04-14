@@ -17,6 +17,10 @@ const INTEGRATION_TABLES = {
   aikido: 'integration_aikido',
   aws: 'integration_aws',
 }
+const CONTENT_TABLES = {
+  projects: 'projects',
+  games: 'games',
+}
 const TEAM_NAMES = ['Platform', 'Security', 'Compliance', 'Leadership']
 const USER_ROLES = ['owner', 'platform_admin', 'security_reviewer', 'compliance_auditor', 'viewer']
 const USER_SSO_MODES = ['enforced', 'optional', 'break_glass']
@@ -180,6 +184,22 @@ async function initializeDatabase() {
     );
   `)
 
+  for (const tableName of Object.values(CONTENT_TABLES)) {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ${tableName} (
+        id UUID PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        image_url TEXT,
+        description TEXT,
+        rating NUMERIC(4,2) NOT NULL,
+        timestamp TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+  }
+
   const userCountResult = await pool.query('SELECT COUNT(*)::int AS count FROM workspace_users')
   if (userCountResult.rows[0]?.count === 0) {
     for (const user of INITIAL_WORKSPACE_USERS) {
@@ -227,6 +247,59 @@ function mapWorkspaceUser(row) {
     sso: row.sso,
     canApproveProduction: Boolean(row.can_approve_production),
   }
+}
+
+function resolveContentTable(kind) {
+  return CONTENT_TABLES[kind] ?? null
+}
+
+function mapContentItem(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    url: row.url,
+    imageUrl: row.image_url ?? null,
+    description: row.description ?? null,
+    rating: Number(row.rating),
+    timestamp: row.timestamp,
+  }
+}
+
+function validateContentItemPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return 'Invalid request body.'
+  }
+
+  const { name, url, imageUrl, description, rating, timestamp } = payload
+  if (!String(name ?? '').trim()) return 'Name is required.'
+  if (!String(url ?? '').trim()) return 'URL is required.'
+
+  try {
+    new URL(String(url).trim())
+  } catch {
+    return 'URL must be a valid absolute URL.'
+  }
+
+  if (imageUrl !== undefined && imageUrl !== null && String(imageUrl).trim()) {
+    try {
+      new URL(String(imageUrl).trim())
+    } catch {
+      return 'Image URL must be a valid absolute URL.'
+    }
+  }
+
+  if (description !== undefined && description !== null && typeof description !== 'string') {
+    return 'Description must be a string.'
+  }
+
+  const numericRating = Number(rating)
+  if (!Number.isFinite(numericRating)) return 'Rating must be a number.'
+  if (numericRating < 0 || numericRating > 10) return 'Rating must be between 0 and 10.'
+
+  const parsedTimestamp = new Date(String(timestamp ?? ''))
+  if (Number.isNaN(parsedTimestamp.getTime())) return 'Timestamp must be a valid date/time.'
+
+  return null
 }
 
 function validateWorkspaceUserPayload(payload) {
@@ -1150,6 +1223,158 @@ app.delete('/api/users/:id', async (request, response) => {
   } catch (error) {
     console.error('Failed to delete workspace user:', error)
     response.status(500).json({ error: 'Failed to delete workspace user.' })
+  }
+})
+
+app.get('/api/:kind(projects|games)', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT id, name, url, image_url, description, rating, timestamp
+      FROM ${tableName}
+      ORDER BY timestamp DESC, created_at DESC
+    `)
+
+    response.json({ items: result.rows.map(mapContentItem) })
+  } catch (error) {
+    console.error(`Failed to load ${request.params.kind}:`, error)
+    response.status(500).json({ error: `Failed to load ${request.params.kind}.` })
+  }
+})
+
+app.post('/api/:kind(projects|games)', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  const validationError = validateContentItemPayload(request.body)
+  if (validationError) {
+    response.status(400).json({ error: validationError })
+    return
+  }
+
+  const id = randomUUID()
+  const { name, url, imageUrl, description, rating, timestamp } = request.body
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO ${tableName} (id, name, url, image_url, description, rating, timestamp, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      RETURNING id, name, url, image_url, description, rating, timestamp
+      `,
+      [
+        id,
+        String(name).trim(),
+        String(url).trim(),
+        String(imageUrl ?? '').trim() || null,
+        String(description ?? '').trim() || null,
+        Number(rating),
+        new Date(String(timestamp)).toISOString(),
+      ],
+    )
+
+    response.status(201).json({ item: mapContentItem(result.rows[0]) })
+  } catch (error) {
+    console.error(`Failed to create ${request.params.kind.slice(0, -1)}:`, error)
+    response.status(500).json({ error: `Failed to create ${request.params.kind.slice(0, -1)}.` })
+  }
+})
+
+app.put('/api/:kind(projects|games)/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  const validationError = validateContentItemPayload(request.body)
+  if (validationError) {
+    response.status(400).json({ error: validationError })
+    return
+  }
+
+  const { name, url, imageUrl, description, rating, timestamp } = request.body
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE ${tableName}
+      SET
+        name = $2,
+        url = $3,
+        image_url = $4,
+        description = $5,
+        rating = $6,
+        timestamp = $7,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, name, url, image_url, description, rating, timestamp
+      `,
+      [
+        request.params.id,
+        String(name).trim(),
+        String(url).trim(),
+        String(imageUrl ?? '').trim() || null,
+        String(description ?? '').trim() || null,
+        Number(rating),
+        new Date(String(timestamp)).toISOString(),
+      ],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Item not found.' })
+      return
+    }
+
+    response.json({ item: mapContentItem(result.rows[0]) })
+  } catch (error) {
+    console.error(`Failed to update ${request.params.kind.slice(0, -1)}:`, error)
+    response.status(500).json({ error: `Failed to update ${request.params.kind.slice(0, -1)}.` })
+  }
+})
+
+app.delete('/api/:kind(projects|games)/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const tableName = resolveContentTable(request.params.kind)
+  if (!tableName) {
+    response.status(400).json({ error: 'Unknown content type.' })
+    return
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      DELETE FROM ${tableName}
+      WHERE id = $1
+      RETURNING id
+      `,
+      [request.params.id],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Item not found.' })
+      return
+    }
+
+    response.json({ ok: true })
+  } catch (error) {
+    console.error(`Failed to delete ${request.params.kind.slice(0, -1)}:`, error)
+    response.status(500).json({ error: `Failed to delete ${request.params.kind.slice(0, -1)}.` })
   }
 })
 
