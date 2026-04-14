@@ -10,6 +10,13 @@ const app = express()
 const port = Number(process.env.PORT || 8080)
 const distDir = path.resolve(process.cwd(), 'dist')
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i
+const DIGITALOCEAN_APP_ORIGIN_PATTERN = /^https:\/\/[\w-]+\.ondigitalocean\.app$/i
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
+)
 const INTEGRATION_TABLES = {
   kubernetes: 'integration_kubernetes',
   gcp: 'integration_gcp',
@@ -67,10 +74,18 @@ const INITIAL_WORKSPACE_USERS = [
   },
 ]
 
+function isAllowedOrigin(origin) {
+  return (
+    LOCALHOST_ORIGIN_PATTERN.test(origin)
+    || DIGITALOCEAN_APP_ORIGIN_PATTERN.test(origin)
+    || allowedOrigins.has(origin)
+  )
+}
+
 app.use((request, response, next) => {
   const origin = request.headers.origin
 
-  if (origin && LOCALHOST_ORIGIN_PATTERN.test(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     response.setHeader('Access-Control-Allow-Origin', origin)
     response.setHeader('Vary', 'Origin')
     response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
@@ -78,6 +93,11 @@ app.use((request, response, next) => {
   }
 
   if (request.method === 'OPTIONS') {
+    if (origin && !isAllowedOrigin(origin)) {
+      response.status(403).json({ error: 'Origin not allowed.' })
+      return
+    }
+
     response.sendStatus(204)
     return
   }

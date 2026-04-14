@@ -32,8 +32,11 @@ export const MENU_ANIMATION_DURATION = 0.46
 export const CONTENT_START_DELAY = 0.62
 export const EASE_SOFT: [number, number, number, number] = [0.16, 1, 0.3, 1]
 export const ACTION_BUTTON_PRESS = { scale: 0.975, y: 1 }
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'https://kube-qz2b5.ondigitalocean.app/api'
-export const API_ORIGIN = new URL(API_BASE_URL).origin
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api'
+export const API_ORIGIN = new URL(
+  API_BASE_URL,
+  typeof window === 'undefined' ? 'http://localhost' : window.location.origin,
+).origin
 export const GLB_PREVIEW_QUERY_PARAM = 'glb'
 export const PLAYGROUND_ANIMATION_AVAILABILITY_EVENT = 'house-of-tobias-playground-animation-availability'
 export const PLAYGROUND_ANIMATION_EVENT = 'house-of-tobias-playground-animation'
