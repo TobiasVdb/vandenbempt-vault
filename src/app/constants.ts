@@ -1,3 +1,4 @@
+import { AirplaneTilt } from '@phosphor-icons/react/AirplaneTilt'
 import { Archive } from '@phosphor-icons/react/Archive'
 import { ChartBar } from '@phosphor-icons/react/ChartBar'
 import { GameController } from '@phosphor-icons/react/GameController'
@@ -56,6 +57,11 @@ export const mainNavigationItems = [
     label: 'Games' as const,
     description: 'Game collection',
     icon: GameController,
+  },
+  {
+    label: 'Flights' as const,
+    description: 'Flight history and map',
+    icon: AirplaneTilt,
   },
   {
     label: 'Integrations' as const,
@@ -119,6 +125,19 @@ export const defaultLibraryItemDraft = {
   groupId: '',
 }
 
+export const defaultFlightDraft = {
+  flightDate: '',
+  flightNumber: '',
+  fromAirport: '',
+  toAirport: '',
+  distance: '',
+  departureTime: '',
+  arrivalTime: '',
+  airline: '',
+  aircraft: '',
+  notes: '',
+}
+
 export const defaultPolicyEngine: GlobalPolicyEngine = {
   mandatoryTagsEnabled: true,
   mandatoryTag: 'security-reviewed',
@@ -148,6 +167,7 @@ export function getPageFromPath(pathname: string): { page: Page; integrationId?:
   if (normalizedPath === '/' || normalizedPath === '/home') return { page: 'Home' }
   if (normalizedPath === '/projects') return { page: 'Projects' }
   if (normalizedPath === '/games') return { page: 'Games' }
+  if (normalizedPath === '/flights') return { page: 'Flights' }
   if (normalizedPath === '/integrations') return { page: 'Integrations' }
   if (normalizedPath === '/admin') return { page: 'Admin' }
   if (normalizedPath === '/links') return { page: 'Links' }
@@ -166,6 +186,7 @@ export function getPathFromPage(page: Page, integrationId?: string): string {
   if (page === 'Home') return '/home'
   if (page === 'Projects') return '/projects'
   if (page === 'Games') return '/games'
+  if (page === 'Flights') return '/flights'
   if (page === 'Integrations') return '/integrations'
   if (page === 'Admin') return '/admin'
   if (page === 'Links') return '/links'

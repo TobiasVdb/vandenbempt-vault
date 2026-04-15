@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { AirplaneTilt } from '@phosphor-icons/react/AirplaneTilt'
 import { ArrowLeft } from '@phosphor-icons/react/ArrowLeft'
 import { Archive } from '@phosphor-icons/react/Archive'
 import { CaretDown } from '@phosphor-icons/react/CaretDown'
@@ -55,6 +56,7 @@ import {
   THEME_STORAGE_KEY,
   apiUrl,
   bottomNavigationItems,
+  defaultFlightDraft,
   defaultPolicyEngine,
   defaultLibraryItemDraft,
   defaultReportPreferences,
@@ -66,11 +68,16 @@ import {
   mainNavigationItems,
 } from './app/constants'
 import { Input } from './components/ui/Input'
+import { FlightsMap } from './components/FlightsMap'
 import { Select } from './components/ui/Select'
 import { Textarea } from './components/ui/Textarea'
 import type {
   AuditEntry,
   ConnectivityHealth,
+  FlightDraft,
+  FlightListResponse,
+  FlightRecord,
+  FlightResponse,
   GlbModelRecord,
   GlobalPolicyEngine,
   Integration,
@@ -92,6 +99,7 @@ import type {
   LibraryItemResponse,
   Page,
   ReportPreferences,
+  ResolveFlightAirportsResponse,
   ThemeMode,
   ToastState,
   UploadCookieState,
@@ -435,8 +443,23 @@ function toDateTimeLocalValue(value?: string | null): string {
   return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16)
 }
 
+function toDateValue(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
+
 function toApiTimestamp(value: string): string {
   return value ? new Date(value).toISOString() : new Date().toISOString()
+}
+
+function sortFlights(flights: FlightRecord[]) {
+  return [...flights].sort((left, right) => {
+    const leftValue = new Date(left.departureTime ?? left.arrivalTime ?? left.flightDate ?? 0).getTime()
+    const rightValue = new Date(right.departureTime ?? right.arrivalTime ?? right.flightDate ?? 0).getTime()
+    return rightValue - leftValue
+  })
 }
 
 function RatingStars({ rating, size = 16 }: { rating: number; size?: number }) {
@@ -527,6 +550,18 @@ export default function App() {
   const [draggedLibraryItem, setDraggedLibraryItem] = useState<{ kind: LibraryItemKind; itemId: string } | null>(null)
   const [dragHoverSectionId, setDragHoverSectionId] = useState<string | null>(null)
   const [movingLibraryItemId, setMovingLibraryItemId] = useState<string | null>(null)
+  const [flights, setFlights] = useState<FlightRecord[]>([])
+  const [flightViewMode, setFlightViewMode] = useState<'list' | 'map'>('list')
+  const [isFlightLoading, setIsFlightLoading] = useState(false)
+  const [flightSheetMode, setFlightSheetMode] = useState<'create' | 'edit'>('create')
+  const [editingFlightId, setEditingFlightId] = useState<string | null>(null)
+  const [flightDraft, setFlightDraft] = useState<FlightDraft>(defaultFlightDraft)
+  const [isFlightSheetOpen, setIsFlightSheetOpen] = useState(false)
+  const [isFlightSaving, setIsFlightSaving] = useState(false)
+  const [deletingFlight, setDeletingFlight] = useState<FlightRecord | null>(null)
+  const [isFlightDeleting, setIsFlightDeleting] = useState(false)
+  const [isResolvingFlightAirports, setIsResolvingFlightAirports] = useState(false)
+  const mapboxToken = (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined) ?? ''
 
   const integrationCatalog = useMemo(() => [...integrationTemplates, ...customIntegrations], [customIntegrations])
   const createIntegrationTemplate = useMemo(
@@ -1102,6 +1137,144 @@ export default function App() {
     }
   }, [setLibraryGroupsByType])
 
+  const resetFlightEditor = useCallback(() => {
+    setFlightDraft(defaultFlightDraft)
+    setEditingFlightId(null)
+    setFlightSheetMode('create')
+  }, [])
+
+  const closeFlightSheet = useCallback(() => {
+    if (isFlightSaving) return
+    setIsFlightSheetOpen(false)
+    resetFlightEditor()
+  }, [isFlightSaving, resetFlightEditor])
+
+  const openCreateFlightSheet = useCallback(() => {
+    resetFlightEditor()
+    setIsFlightSheetOpen(true)
+    setFlightSheetMode('create')
+  }, [resetFlightEditor])
+
+  const beginEditFlight = useCallback((flight: FlightRecord) => {
+    setEditingFlightId(flight.id)
+    setFlightSheetMode('edit')
+    setFlightDraft({
+      flightDate: toDateValue(flight.flightDate),
+      flightNumber: flight.flightNumber ?? '',
+      fromAirport: flight.fromAirport ?? '',
+      toAirport: flight.toAirport ?? '',
+      distance: flight.distance === null ? '' : String(flight.distance),
+      departureTime: toDateTimeLocalValue(flight.departureTime),
+      arrivalTime: toDateTimeLocalValue(flight.arrivalTime),
+      airline: flight.airline ?? '',
+      aircraft: flight.aircraft ?? '',
+      notes: flight.notes ?? '',
+    })
+    setIsFlightSheetOpen(true)
+  }, [])
+
+  const loadFlights = useCallback(async () => {
+    setIsFlightLoading(true)
+
+    try {
+      const response = await fetch(apiUrl('/flights'), { cache: 'no-store' })
+      const payload = await readJsonResponse<FlightListResponse>(response, 'Failed to load flights.')
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to load flights.')
+      }
+
+      setFlights(sortFlights(Array.isArray(payload.flights) ? payload.flights : []))
+    } catch (error) {
+      setFlights([])
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to load flights.' })
+    } finally {
+      setIsFlightLoading(false)
+    }
+  }, [])
+
+  const saveFlight = useCallback(async () => {
+    setIsFlightSaving(true)
+
+    try {
+      const response = await fetch(apiUrl(editingFlightId ? `/flights/${editingFlightId}` : '/flights'), {
+        method: editingFlightId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          flightDate: flightDraft.flightDate || null,
+          flightNumber: flightDraft.flightNumber || null,
+          fromAirport: flightDraft.fromAirport || null,
+          toAirport: flightDraft.toAirport || null,
+          distance: flightDraft.distance || null,
+          departureTime: flightDraft.departureTime ? toApiTimestamp(flightDraft.departureTime) : null,
+          arrivalTime: flightDraft.arrivalTime ? toApiTimestamp(flightDraft.arrivalTime) : null,
+          airline: flightDraft.airline || null,
+          aircraft: flightDraft.aircraft || null,
+          notes: flightDraft.notes || null,
+        }),
+      })
+      const payload = await readJsonResponse<FlightResponse>(response, 'Failed to save flight.')
+
+      if (!response.ok || !payload.flight) {
+        throw new Error(payload.error ?? 'Failed to save flight.')
+      }
+
+      setFlights((current) => sortFlights(current.filter((flight) => flight.id !== payload.flight!.id).concat(payload.flight!)))
+      setToast({
+        kind: 'success',
+        message: editingFlightId ? 'Flight updated.' : 'Flight created.',
+      })
+      closeFlightSheet()
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to save flight.' })
+    } finally {
+      setIsFlightSaving(false)
+    }
+  }, [closeFlightSheet, editingFlightId, flightDraft])
+
+  const deleteFlight = useCallback(async () => {
+    if (!deletingFlight) return
+
+    setIsFlightDeleting(true)
+    try {
+      const response = await fetch(apiUrl(`/flights/${deletingFlight.id}`), { method: 'DELETE' })
+      const payload = await readJsonResponse<{ error?: string; ok?: boolean }>(response, 'Failed to delete flight.')
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to delete flight.')
+      }
+
+      setFlights((current) => current.filter((flight) => flight.id !== deletingFlight.id))
+      setDeletingFlight(null)
+      setToast({ kind: 'success', message: 'Flight deleted.' })
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to delete flight.' })
+    } finally {
+      setIsFlightDeleting(false)
+    }
+  }, [deletingFlight])
+
+  const resolveFlightAirports = useCallback(async () => {
+    if (isResolvingFlightAirports || !mapboxToken) return
+
+    setIsResolvingFlightAirports(true)
+    try {
+      const response = await fetch(apiUrl('/flights/resolve-airports'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const payload = await readJsonResponse<ResolveFlightAirportsResponse>(response, 'Failed to resolve flight airports.')
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to resolve flight airports.')
+      }
+
+      await loadFlights()
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to resolve flight airports.' })
+    } finally {
+      setIsResolvingFlightAirports(false)
+    }
+  }, [isResolvingFlightAirports, loadFlights, mapboxToken])
+
   const saveLibraryItem = useCallback(async () => {
     if (!librarySheetType) return
 
@@ -1451,7 +1624,20 @@ export default function App() {
     void loadLibraryItems('games')
     void loadLibraryGroups('projects')
     void loadLibraryGroups('games')
-  }, [loadLibraryGroups, loadLibraryItems])
+    void loadFlights()
+  }, [loadFlights, loadLibraryGroups, loadLibraryItems])
+
+  useEffect(() => {
+    if (activePage !== 'Flights' || flightViewMode !== 'map') return
+    const hasUnresolvedFlights = flights.some(
+      (flight) =>
+        (flight.fromAirport && (flight.fromAirportLatitude === null || flight.fromAirportLongitude === null))
+        || (flight.toAirport && (flight.toAirportLatitude === null || flight.toAirportLongitude === null)),
+    )
+
+    if (!hasUnresolvedFlights) return
+    void resolveFlightAirports()
+  }, [activePage, flightViewMode, flights, resolveFlightAirports])
 
   useEffect(() => {
     setSettingsSheetPage(1)
@@ -1739,6 +1925,13 @@ export default function App() {
 
     await moveLibraryItemToGroup(kind, item, section.group?.id ?? null)
   }, [draggedLibraryItem, games, moveLibraryItemToGroup, projects])
+  const mappableFlights = flights.filter(
+    (flight) =>
+      flight.fromAirportLatitude !== null
+      && flight.fromAirportLongitude !== null
+      && flight.toAirportLatitude !== null
+      && flight.toAirportLongitude !== null,
+  )
   const integrationDetailsInfo = integrationPage ? integrationRuntimeInfo[integrationPage.type] : null
   const enabledIntegrationList = integrationCatalog.filter((integration) => enabledIntegrations[integration.id])
   const degradedEnabledCount = enabledIntegrationList.filter(
@@ -2020,7 +2213,7 @@ export default function App() {
     { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.' },
     { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.' },
     { label: 'Physical vs Digital Books', value: '0 / 0', detail: 'Physical books compared with digital ones.' },
-    { label: 'Lifetime Flights', value: '0', detail: 'Flights taken across your lifetime.' },
+    { label: 'Lifetime Flights', value: String(flights.length), detail: 'Flights taken across your lifetime.' },
   ]
 
   return (
@@ -2399,6 +2592,151 @@ export default function App() {
             >
               <Plus size={22} weight="bold" />
             </m.button>
+          </section>
+        ) : activePage === 'Flights' ? (
+          <section className="flights-page" aria-label="Flights collection">
+            <PageHeader
+              title="Flights"
+              subtitle="Track the flights you've taken and switch between a logbook list and route map."
+              actions={(
+                <div className="flights-header-actions">
+                  <div className="view-toggle" role="tablist" aria-label="Flights view mode">
+                    <button
+                      type="button"
+                      className={`view-toggle-btn ${flightViewMode === 'list' ? 'active' : ''}`}
+                      role="tab"
+                      aria-selected={flightViewMode === 'list'}
+                      onClick={() => setFlightViewMode('list')}
+                    >
+                      List
+                    </button>
+                    <button
+                      type="button"
+                      className={`view-toggle-btn ${flightViewMode === 'map' ? 'active' : ''}`}
+                      role="tab"
+                      aria-selected={flightViewMode === 'map'}
+                      onClick={() => setFlightViewMode('map')}
+                    >
+                      Map
+                    </button>
+                  </div>
+                  <m.button
+                    type="button"
+                    className="sheet-nav-btn"
+                    whileTap={ACTION_BUTTON_PRESS}
+                    onClick={openCreateFlightSheet}
+                  >
+                    New Flight
+                  </m.button>
+                </div>
+              )}
+            />
+
+            {!isFlightLoading && !flights.length ? (
+              <div className="catalog-empty">
+                <strong>No flights yet</strong>
+                <p>Add your first flight to start building a route logbook and map history.</p>
+              </div>
+            ) : flightViewMode === 'map' ? (
+              <div className="flights-map-shell">
+                {!mapboxToken ? (
+                  <div className="catalog-empty flights-map-empty">
+                    <strong>Mapbox token required</strong>
+                    <p>Set `VITE_MAPBOX_ACCESS_TOKEN` to render the flights map and resolve airport coordinates.</p>
+                  </div>
+                ) : !mappableFlights.length && !isResolvingFlightAirports ? (
+                  <div className="catalog-empty flights-map-empty">
+                    <strong>No mappable flights yet</strong>
+                    <p>Add flights with recognizable airport names or codes. Route rendering starts after airport coordinates are resolved.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flights-map-status">
+                      <strong>{mappableFlights.length} mapped routes</strong>
+                      <span>{isResolvingFlightAirports ? 'Resolving airport coordinates…' : 'Map uses cached airport lookups when available.'}</span>
+                    </div>
+                    <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} />
+                  </>
+                )}
+              </div>
+            ) : (
+              <m.div
+                className="flights-list"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: {},
+                  visible: { transition: { staggerChildren: 0.08, delayChildren: CONTENT_START_DELAY + 0.2 } },
+                }}
+              >
+                {flights.map((flight) => (
+                  <m.article
+                    key={flight.id}
+                    className="flight-card"
+                    variants={{
+                      hidden: { opacity: 0, y: 12, scale: 0.98 },
+                      visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
+                    }}
+                  >
+                    <PanelCard
+                      className="flight-card-panel"
+                      icon={<AirplaneTilt size={18} weight="duotone" />}
+                      title={flight.flightNumber || `${flight.fromAirport ?? 'Unknown'} to ${flight.toAirport ?? 'Unknown'}`}
+                      subtitle={flight.airline || flight.aircraft || 'Flight entry'}
+                    >
+                      <div className="flight-card-route">
+                        <strong>{flight.fromAirport || 'Unknown departure'}</strong>
+                        <span>to</span>
+                        <strong>{flight.toAirport || 'Unknown arrival'}</strong>
+                      </div>
+                      <dl className="flight-meta-grid">
+                        <div>
+                          <dt>Date</dt>
+                          <dd>{flight.flightDate ? new Date(flight.flightDate).toLocaleDateString() : '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>Departure</dt>
+                          <dd>{flight.departureTime ? new Date(flight.departureTime).toLocaleString() : '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>Arrival</dt>
+                          <dd>{flight.arrivalTime ? new Date(flight.arrivalTime).toLocaleString() : '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>Distance</dt>
+                          <dd>{flight.distance !== null ? `${flight.distance} km` : '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>Aircraft</dt>
+                          <dd>{flight.aircraft || '—'}</dd>
+                        </div>
+                      </dl>
+                      {flight.notes ? <p className="flight-notes">{flight.notes}</p> : null}
+                      <div className="catalog-card-actions">
+                        <m.button
+                          type="button"
+                          className="users-icon-btn"
+                          whileTap={ACTION_BUTTON_PRESS}
+                          aria-label={`Edit ${flight.flightNumber || 'flight'}`}
+                          onClick={() => beginEditFlight(flight)}
+                        >
+                          <PencilSimple size={15} weight="bold" />
+                        </m.button>
+                        <m.button
+                          type="button"
+                          className="users-icon-btn users-icon-btn-danger"
+                          whileTap={ACTION_BUTTON_PRESS}
+                          aria-label={`Delete ${flight.flightNumber || 'flight'}`}
+                          onClick={() => setDeletingFlight(flight)}
+                        >
+                          <Trash size={15} weight="bold" />
+                        </m.button>
+                      </div>
+                    </PanelCard>
+                  </m.article>
+                ))}
+              </m.div>
+            )}
           </section>
         ) : activePage === 'Integrations' ? (
           <>
@@ -3624,6 +3962,173 @@ export default function App() {
                     </div>
                   </div>
                 </form>
+        </SideSheet>
+
+        <SideSheet
+          isOpen={isFlightSheetOpen}
+          sheetKey={`flight-${flightSheetMode}-${editingFlightId ?? 'new'}`}
+          ariaLabel="flight editor panel"
+          eyebrow={flightSheetMode === 'edit' ? 'Edit Flight' : 'Add Flight'}
+          title={flightSheetMode === 'edit' ? 'Update Flight' : 'Create Flight'}
+          onClose={closeFlightSheet}
+        >
+          <form
+            className="sheet-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveFlight()
+            }}
+          >
+            <div className="sheet-fields">
+              <label>
+                Date
+                <Input
+                  type="date"
+                  value={flightDraft.flightDate}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, flightDate: event.target.value }))}
+                />
+              </label>
+              <label>
+                Flight Number
+                <Input
+                  value={flightDraft.flightNumber}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, flightNumber: event.target.value }))}
+                />
+              </label>
+              <label>
+                From Airport
+                <Input
+                  value={flightDraft.fromAirport}
+                  placeholder="BRU or Brussels Airport"
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, fromAirport: event.target.value }))}
+                />
+              </label>
+              <label>
+                To Airport
+                <Input
+                  value={flightDraft.toAirport}
+                  placeholder="JFK or John F. Kennedy International Airport"
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, toAirport: event.target.value }))}
+                />
+              </label>
+              <label>
+                Distance (km)
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={flightDraft.distance}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, distance: event.target.value }))}
+                />
+              </label>
+              <label>
+                Departure Time
+                <Input
+                  type="datetime-local"
+                  value={flightDraft.departureTime}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, departureTime: event.target.value }))}
+                />
+              </label>
+              <label>
+                Arrival Time
+                <Input
+                  type="datetime-local"
+                  value={flightDraft.arrivalTime}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, arrivalTime: event.target.value }))}
+                />
+              </label>
+              <label>
+                Airline
+                <Input
+                  value={flightDraft.airline}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, airline: event.target.value }))}
+                />
+              </label>
+              <label>
+                Aircraft
+                <Input
+                  value={flightDraft.aircraft}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, aircraft: event.target.value }))}
+                />
+              </label>
+              <label>
+                Notes
+                <Textarea
+                  rows={4}
+                  value={flightDraft.notes}
+                  onChange={(event) => setFlightDraft((current) => ({ ...current, notes: event.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="sheet-form-footer">
+              <span className="sheet-page-label">
+                {flightSheetMode === 'edit' ? 'Editing flight entry' : 'Create a new flight entry'}
+              </span>
+              <div className="sheet-footer-actions">
+                <m.button
+                  type="button"
+                  className="sheet-nav-btn"
+                  whileTap={isFlightSaving ? undefined : ACTION_BUTTON_PRESS}
+                  disabled={isFlightSaving}
+                  onClick={closeFlightSheet}
+                >
+                  Cancel
+                </m.button>
+                <m.button
+                  type="submit"
+                  className="save-button sheet-save-btn"
+                  whileTap={isFlightSaving ? undefined : ACTION_BUTTON_PRESS}
+                  disabled={isFlightSaving}
+                >
+                  {isFlightSaving ? 'Saving...' : flightSheetMode === 'edit' ? 'Save Changes' : 'Create Flight'}
+                </m.button>
+              </div>
+            </div>
+          </form>
+        </SideSheet>
+
+        <SideSheet
+          isOpen={Boolean(deletingFlight)}
+          sheetKey={`delete-flight-${deletingFlight?.id ?? 'none'}`}
+          ariaLabel="delete flight panel"
+          eyebrow="Delete Flight"
+          title="Delete Flight"
+          onClose={() => {
+            if (!isFlightDeleting) setDeletingFlight(null)
+          }}
+        >
+          <div className="detail-stack delete-confirmation">
+            <p>
+              Delete <strong>{deletingFlight?.flightNumber || `${deletingFlight?.fromAirport ?? 'Unknown'} to ${deletingFlight?.toAirport ?? 'Unknown'}`}</strong>?
+            </p>
+            <p>This removes the flight entry from your logbook. Cached airport coordinates are kept for future flights.</p>
+          </div>
+          <div className="sheet-form-footer">
+            <span className="sheet-page-label">This action cannot be undone.</span>
+            <div className="sheet-footer-actions">
+              <m.button
+                type="button"
+                className="sheet-nav-btn"
+                whileTap={isFlightDeleting ? undefined : ACTION_BUTTON_PRESS}
+                disabled={isFlightDeleting}
+                onClick={() => setDeletingFlight(null)}
+              >
+                Cancel
+              </m.button>
+              <m.button
+                type="button"
+                className="save-button sheet-save-btn delete-sheet-btn"
+                whileTap={isFlightDeleting ? undefined : ACTION_BUTTON_PRESS}
+                disabled={isFlightDeleting}
+                onClick={() => {
+                  void deleteFlight()
+                }}
+              >
+                {isFlightDeleting ? 'Deleting...' : 'Delete Flight'}
+              </m.button>
+            </div>
+          </div>
         </SideSheet>
 
         <SideSheet

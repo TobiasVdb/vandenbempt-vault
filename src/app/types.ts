@@ -5,6 +5,7 @@ export type Page =
   | 'Home'
   | 'Projects'
   | 'Games'
+  | 'Flights'
   | 'Integrations'
   | 'Admin'
   | 'Links'
@@ -152,6 +153,43 @@ export type LibraryGroupListResponse = { error?: string; groups?: LibraryGroupRe
 export type LibraryGroupResponse = { error?: string; group?: LibraryGroupRecord }
 export type LibraryItemListResponse = { error?: string; items?: LibraryItemRecord[] }
 export type LibraryItemResponse = { error?: string; item?: LibraryItemRecord }
+
+export type FlightRecord = {
+  id: string
+  flightDate: string | null
+  flightNumber: string | null
+  fromAirport: string | null
+  toAirport: string | null
+  distance: number | null
+  departureTime: string | null
+  arrivalTime: string | null
+  airline: string | null
+  aircraft: string | null
+  notes: string | null
+  fromAirportResolvedName: string | null
+  fromAirportLatitude: number | null
+  fromAirportLongitude: number | null
+  toAirportResolvedName: string | null
+  toAirportLatitude: number | null
+  toAirportLongitude: number | null
+}
+
+export type FlightDraft = {
+  flightDate: string
+  flightNumber: string
+  fromAirport: string
+  toAirport: string
+  distance: string
+  departureTime: string
+  arrivalTime: string
+  airline: string
+  aircraft: string
+  notes: string
+}
+
+export type FlightListResponse = { error?: string; flights?: FlightRecord[] }
+export type FlightResponse = { error?: string; flight?: FlightRecord }
+export type ResolveFlightAirportsResponse = { error?: string; ok?: boolean; resolved?: number }
 
 export type PanelCardProps = {
   icon: ReactNode

@@ -32,6 +32,11 @@ const CONTENT_GROUP_TABLES = {
   projects: 'project_groups',
   games: 'game_groups',
 }
+const CONTENT_THUMBNAILS_TABLE = 'content_thumbnails'
+const FLIGHT_AIRPORT_TABLE = 'flight_airports'
+const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || process.env.VITE_MAPBOX_ACCESS_TOKEN || ''
+const THUMBNAIL_WAIT_MS = 4000
+const THUMBNAIL_NAVIGATION_TIMEOUT_MS = 30000
 const TEAM_NAMES = ['Platform', 'Security', 'Compliance', 'Leadership']
 const USER_ROLES = ['owner', 'platform_admin', 'security_reviewer', 'compliance_auditor', 'viewer']
 const USER_SSO_MODES = ['enforced', 'optional', 'break_glass']
@@ -245,6 +250,49 @@ async function initializeDatabase() {
     ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES game_groups(id) ON DELETE SET NULL;
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS flights (
+      id UUID PRIMARY KEY,
+      flight_date DATE,
+      flight_number TEXT,
+      from_airport TEXT,
+      to_airport TEXT,
+      distance NUMERIC(10,2),
+      departure_time TIMESTAMPTZ,
+      arrival_time TIMESTAMPTZ,
+      airline TEXT,
+      aircraft TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${FLIGHT_AIRPORT_TABLE} (
+      airport_key TEXT PRIMARY KEY,
+      airport_label TEXT NOT NULL,
+      resolved_name TEXT,
+      latitude NUMERIC(9,6),
+      longitude NUMERIC(9,6),
+      mapbox_feature_id TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${CONTENT_THUMBNAILS_TABLE} (
+      id UUID PRIMARY KEY,
+      content_kind TEXT NOT NULL,
+      content_item_id UUID NOT NULL,
+      content_type TEXT NOT NULL,
+      image_data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (content_kind, content_item_id)
+    );
+  `)
+
   const userCountResult = await pool.query('SELECT COUNT(*)::int AS count FROM workspace_users')
   if (userCountResult.rows[0]?.count === 0) {
     for (const user of INITIAL_WORKSPACE_USERS) {
@@ -323,6 +371,316 @@ function mapContentItem(row) {
   }
 }
 
+function isGeneratedThumbnailPath(value) {
+  return /^\/api\/content-thumbnails\/[0-9a-f-]+$/i.test(String(value ?? '').trim())
+}
+
+function normalizeAirportKey(value) {
+  return String(value ?? '').trim().toUpperCase()
+}
+
+function mapFlight(row) {
+  return {
+    id: row.id,
+    flightDate: row.flight_date ?? null,
+    flightNumber: row.flight_number ?? null,
+    fromAirport: row.from_airport ?? null,
+    toAirport: row.to_airport ?? null,
+    distance: row.distance === null || row.distance === undefined ? null : Number(row.distance),
+    departureTime: row.departure_time ?? null,
+    arrivalTime: row.arrival_time ?? null,
+    airline: row.airline ?? null,
+    aircraft: row.aircraft ?? null,
+    notes: row.notes ?? null,
+    fromAirportResolvedName: row.from_airport_resolved_name ?? null,
+    fromAirportLatitude: row.from_airport_latitude === null || row.from_airport_latitude === undefined ? null : Number(row.from_airport_latitude),
+    fromAirportLongitude: row.from_airport_longitude === null || row.from_airport_longitude === undefined ? null : Number(row.from_airport_longitude),
+    toAirportResolvedName: row.to_airport_resolved_name ?? null,
+    toAirportLatitude: row.to_airport_latitude === null || row.to_airport_latitude === undefined ? null : Number(row.to_airport_latitude),
+    toAirportLongitude: row.to_airport_longitude === null || row.to_airport_longitude === undefined ? null : Number(row.to_airport_longitude),
+  }
+}
+
+async function getCachedAirportByLabel(label) {
+  const airportKey = normalizeAirportKey(label)
+  if (!airportKey) return null
+
+  const result = await pool.query(
+    `
+    SELECT airport_key, airport_label, resolved_name, latitude, longitude, mapbox_feature_id
+    FROM ${FLIGHT_AIRPORT_TABLE}
+    WHERE airport_key = $1
+    `,
+    [airportKey],
+  )
+
+  return result.rows[0] ?? null
+}
+
+async function upsertAirportCache(label, resolvedName, latitude, longitude, featureId = null) {
+  const airportKey = normalizeAirportKey(label)
+  if (!airportKey) return
+
+  await pool.query(
+    `
+    INSERT INTO ${FLIGHT_AIRPORT_TABLE} (airport_key, airport_label, resolved_name, latitude, longitude, mapbox_feature_id, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+    ON CONFLICT (airport_key)
+    DO UPDATE SET
+      airport_label = EXCLUDED.airport_label,
+      resolved_name = EXCLUDED.resolved_name,
+      latitude = EXCLUDED.latitude,
+      longitude = EXCLUDED.longitude,
+      mapbox_feature_id = EXCLUDED.mapbox_feature_id,
+      updated_at = NOW()
+    `,
+    [airportKey, String(label).trim(), resolvedName, latitude, longitude, featureId],
+  )
+}
+
+async function resolveAirportCoordinates(label) {
+  const normalizedLabel = String(label ?? '').trim()
+  if (!normalizedLabel) return null
+
+  const cached = await getCachedAirportByLabel(normalizedLabel)
+  if (cached && cached.latitude !== null && cached.longitude !== null) {
+    return cached
+  }
+
+  if (!MAPBOX_TOKEN) return cached
+
+  const url = new URL(`https://api.mapbox.com/search/geocode/v6/forward`)
+  url.searchParams.set('q', normalizedLabel)
+  url.searchParams.set('types', 'airport')
+  url.searchParams.set('autocomplete', 'false')
+  url.searchParams.set('limit', '1')
+  url.searchParams.set('access_token', MAPBOX_TOKEN)
+
+  const response = await fetch(url, { headers: { 'User-Agent': 'house-of-tobias/1.0' } })
+  if (!response.ok) {
+    throw new Error(`Mapbox airport lookup failed with status ${response.status}.`)
+  }
+
+  const payload = await response.json()
+  const feature = Array.isArray(payload.features) ? payload.features[0] : null
+
+  if (!feature || !Array.isArray(feature.geometry?.coordinates) || feature.geometry.coordinates.length < 2) {
+    return cached
+  }
+
+  const [longitude, latitude] = feature.geometry.coordinates
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+    return cached
+  }
+
+  await upsertAirportCache(
+    normalizedLabel,
+    feature.properties?.full_address ?? feature.properties?.name ?? feature.properties?.place_formatted ?? normalizedLabel,
+    latitude,
+    longitude,
+    feature.properties?.mapbox_id ?? null,
+  )
+
+  return await getCachedAirportByLabel(normalizedLabel)
+}
+
+async function saveGeneratedThumbnail(kind, itemId, imageBuffer, contentType = 'image/jpeg') {
+  const existing = await pool.query(
+    `
+    SELECT id
+    FROM ${CONTENT_THUMBNAILS_TABLE}
+    WHERE content_kind = $1 AND content_item_id = $2
+    `,
+    [kind, itemId],
+  )
+
+  const thumbnailId = existing.rows[0]?.id ?? randomUUID()
+
+  await pool.query(
+    `
+    INSERT INTO ${CONTENT_THUMBNAILS_TABLE} (id, content_kind, content_item_id, content_type, image_data, updated_at)
+    VALUES ($1, $2, $3, $4, $5, NOW())
+    ON CONFLICT (content_kind, content_item_id)
+    DO UPDATE SET
+      content_type = EXCLUDED.content_type,
+      image_data = EXCLUDED.image_data,
+      updated_at = NOW()
+    `,
+    [thumbnailId, kind, itemId, contentType, imageBuffer],
+  )
+
+  await pool.query(
+    `
+    UPDATE ${resolveContentTable(kind)}
+    SET image_url = $2, updated_at = NOW()
+    WHERE id = $1
+    `,
+    [itemId, `/api/content-thumbnails/${thumbnailId}`],
+  )
+
+  return thumbnailId
+}
+
+async function captureItemThumbnail(page, item) {
+  await page.goto(item.url, { waitUntil: 'domcontentloaded', timeout: THUMBNAIL_NAVIGATION_TIMEOUT_MS })
+  await page.waitForTimeout(THUMBNAIL_WAIT_MS)
+  return page.screenshot({
+    type: 'jpeg',
+    quality: 82,
+    fullPage: false,
+    animations: 'disabled',
+  })
+}
+
+async function generateMissingContentThumbnails() {
+  if (!pool || !dbReady) return
+
+  let chromium
+  try {
+    ;({ chromium } = await import('@playwright/test'))
+  } catch (error) {
+    console.warn('Thumbnail generator disabled: failed to load Playwright.', error)
+    return
+  }
+
+  let browser
+  try {
+    const pendingItems = []
+
+    for (const [kind, tableName] of Object.entries(CONTENT_TABLES)) {
+      const result = await pool.query(
+        `
+        SELECT id, url
+        FROM ${tableName}
+        WHERE COALESCE(TRIM(image_url), '') = ''
+        ORDER BY created_at ASC
+        `,
+      )
+
+      pendingItems.push(...result.rows.map((row) => ({ kind, id: row.id, url: row.url })))
+    }
+
+    if (!pendingItems.length) return
+
+    browser = await chromium.launch({ headless: true })
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+      deviceScaleFactor: 1,
+      ignoreHTTPSErrors: true,
+    })
+    const page = await context.newPage()
+
+    for (const item of pendingItems) {
+      try {
+        const imageBuffer = await captureItemThumbnail(page, item)
+        await saveGeneratedThumbnail(item.kind, item.id, imageBuffer)
+        console.log(`Generated thumbnail for ${item.kind}/${item.id}.`)
+      } catch (error) {
+        console.warn(`Failed to generate thumbnail for ${item.kind}/${item.id}:`, error instanceof Error ? error.message : error)
+      }
+    }
+
+    await context.close()
+  } catch (error) {
+    console.warn('Thumbnail generator failed during boot:', error)
+  } finally {
+    await browser?.close()
+  }
+}
+
+function buildFlightsSelectQuery(whereClause = '', values = []) {
+  return pool.query(
+    `
+    SELECT
+      flight.id,
+      flight.flight_date,
+      flight.flight_number,
+      flight.from_airport,
+      flight.to_airport,
+      flight.distance,
+      flight.departure_time,
+      flight.arrival_time,
+      flight.airline,
+      flight.aircraft,
+      flight.notes,
+      departure.resolved_name AS from_airport_resolved_name,
+      departure.latitude AS from_airport_latitude,
+      departure.longitude AS from_airport_longitude,
+      arrival.resolved_name AS to_airport_resolved_name,
+      arrival.latitude AS to_airport_latitude,
+      arrival.longitude AS to_airport_longitude
+    FROM flights AS flight
+    LEFT JOIN ${FLIGHT_AIRPORT_TABLE} AS departure ON departure.airport_key = UPPER(TRIM(flight.from_airport))
+    LEFT JOIN ${FLIGHT_AIRPORT_TABLE} AS arrival ON arrival.airport_key = UPPER(TRIM(flight.to_airport))
+    ${whereClause}
+    ORDER BY COALESCE(flight.departure_time, flight.arrival_time, flight.flight_date::timestamp, flight.created_at) DESC, flight.created_at DESC
+    `,
+    values,
+  )
+}
+
+function validateFlightPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return { error: 'Invalid request body.' }
+  }
+
+  const normalized = {
+    flightDate: String(payload.flightDate ?? '').trim() || null,
+    flightNumber: String(payload.flightNumber ?? '').trim() || null,
+    fromAirport: String(payload.fromAirport ?? '').trim() || null,
+    toAirport: String(payload.toAirport ?? '').trim() || null,
+    distance: String(payload.distance ?? '').trim() || null,
+    departureTime: String(payload.departureTime ?? '').trim() || null,
+    arrivalTime: String(payload.arrivalTime ?? '').trim() || null,
+    airline: String(payload.airline ?? '').trim() || null,
+    aircraft: String(payload.aircraft ?? '').trim() || null,
+    notes: String(payload.notes ?? '').trim() || null,
+  }
+
+  if (!Object.values(normalized).some(Boolean)) {
+    return { error: 'Add at least one flight detail before saving.' }
+  }
+
+  if (normalized.flightDate) {
+    const parsed = new Date(`${normalized.flightDate}T00:00:00Z`)
+    if (Number.isNaN(parsed.getTime())) {
+      return { error: 'Date must be a valid date.' }
+    }
+  }
+
+  const parsedDeparture = normalized.departureTime ? new Date(normalized.departureTime) : null
+  const parsedArrival = normalized.arrivalTime ? new Date(normalized.arrivalTime) : null
+  if (parsedDeparture && Number.isNaN(parsedDeparture.getTime())) return { error: 'Departure time must be a valid date/time.' }
+  if (parsedArrival && Number.isNaN(parsedArrival.getTime())) return { error: 'Arrival time must be a valid date/time.' }
+
+  if (parsedDeparture && parsedArrival && parsedArrival.getTime() < parsedDeparture.getTime()) {
+    return { error: 'Arrival time cannot be earlier than departure time.' }
+  }
+
+  let distance = null
+  if (normalized.distance) {
+    distance = Number(normalized.distance)
+    if (!Number.isFinite(distance) || distance < 0) {
+      return { error: 'Distance must be a positive number.' }
+    }
+  }
+
+  return {
+    value: {
+      flightDate: normalized.flightDate,
+      flightNumber: normalized.flightNumber,
+      fromAirport: normalized.fromAirport,
+      toAirport: normalized.toAirport,
+      distance,
+      departureTime: parsedDeparture ? parsedDeparture.toISOString() : null,
+      arrivalTime: parsedArrival ? parsedArrival.toISOString() : null,
+      airline: normalized.airline,
+      aircraft: normalized.aircraft,
+      notes: normalized.notes,
+    },
+  }
+}
+
 async function resolveValidatedGroupId(kind, rawGroupId) {
   const normalizedGroupId = String(rawGroupId ?? '').trim()
   if (!normalizedGroupId) return { groupId: null }
@@ -356,10 +714,13 @@ async function validateContentItemPayload(kind, payload) {
   }
 
   if (imageUrl !== undefined && imageUrl !== null && String(imageUrl).trim()) {
-    try {
-      new URL(String(imageUrl).trim())
-    } catch {
-      return { error: 'Image URL must be a valid absolute URL.' }
+    const normalizedImageUrl = String(imageUrl).trim()
+    if (!isGeneratedThumbnailPath(normalizedImageUrl)) {
+      try {
+        new URL(normalizedImageUrl)
+      } catch {
+        return { error: 'Image URL must be a valid absolute URL or generated thumbnail path.' }
+      }
     }
   }
 
@@ -1632,6 +1993,14 @@ app.delete('/api/:kind(projects|games)/:id', async (request, response) => {
   }
 
   try {
+    await pool.query(
+      `
+      DELETE FROM ${CONTENT_THUMBNAILS_TABLE}
+      WHERE content_kind = $1 AND content_item_id = $2
+      `,
+      [request.params.kind, request.params.id],
+    )
+
     const result = await pool.query(
       `
       DELETE FROM ${tableName}
@@ -1650,6 +2019,215 @@ app.delete('/api/:kind(projects|games)/:id', async (request, response) => {
   } catch (error) {
     console.error(`Failed to delete ${request.params.kind.slice(0, -1)}:`, error)
     response.status(500).json({ error: `Failed to delete ${request.params.kind.slice(0, -1)}.` })
+  }
+})
+
+app.get('/api/flights', async (_request, response) => {
+  if (!ensureDbReady(response)) return
+
+  try {
+    const result = await buildFlightsSelectQuery()
+    response.json({ flights: result.rows.map(mapFlight) })
+  } catch (error) {
+    console.error('Failed to load flights:', error)
+    response.status(500).json({ error: 'Failed to load flights.' })
+  }
+})
+
+app.post('/api/flights', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const validation = validateFlightPayload(request.body)
+  if (validation.error) {
+    response.status(400).json({ error: validation.error })
+    return
+  }
+
+  const flight = validation.value
+  const id = randomUUID()
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO flights (
+        id,
+        flight_date,
+        flight_number,
+        from_airport,
+        to_airport,
+        distance,
+        departure_time,
+        arrival_time,
+        airline,
+        aircraft,
+        notes,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      RETURNING id
+      `,
+      [
+        id,
+        flight.flightDate,
+        flight.flightNumber,
+        flight.fromAirport,
+        flight.toAirport,
+        flight.distance,
+        flight.departureTime,
+        flight.arrivalTime,
+        flight.airline,
+        flight.aircraft,
+        flight.notes,
+      ],
+    )
+
+    const createdFlight = await buildFlightsSelectQuery('WHERE flight.id = $1', [result.rows[0].id])
+    response.status(201).json({ flight: mapFlight(createdFlight.rows[0]) })
+  } catch (error) {
+    console.error('Failed to create flight:', error)
+    response.status(500).json({ error: 'Failed to create flight.' })
+  }
+})
+
+app.put('/api/flights/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const validation = validateFlightPayload(request.body)
+  if (validation.error) {
+    response.status(400).json({ error: validation.error })
+    return
+  }
+
+  const flight = validation.value
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE flights
+      SET
+        flight_date = $2,
+        flight_number = $3,
+        from_airport = $4,
+        to_airport = $5,
+        distance = $6,
+        departure_time = $7,
+        arrival_time = $8,
+        airline = $9,
+        aircraft = $10,
+        notes = $11,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING id
+      `,
+      [
+        request.params.id,
+        flight.flightDate,
+        flight.flightNumber,
+        flight.fromAirport,
+        flight.toAirport,
+        flight.distance,
+        flight.departureTime,
+        flight.arrivalTime,
+        flight.airline,
+        flight.aircraft,
+        flight.notes,
+      ],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Flight not found.' })
+      return
+    }
+
+    const updatedFlight = await buildFlightsSelectQuery('WHERE flight.id = $1', [request.params.id])
+    response.json({ flight: mapFlight(updatedFlight.rows[0]) })
+  } catch (error) {
+    console.error('Failed to update flight:', error)
+    response.status(500).json({ error: 'Failed to update flight.' })
+  }
+})
+
+app.delete('/api/flights/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  try {
+    const result = await pool.query(
+      `
+      DELETE FROM flights
+      WHERE id = $1
+      RETURNING id
+      `,
+      [request.params.id],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Flight not found.' })
+      return
+    }
+
+    response.json({ ok: true })
+  } catch (error) {
+    console.error('Failed to delete flight:', error)
+    response.status(500).json({ error: 'Failed to delete flight.' })
+  }
+})
+
+app.get('/api/content-thumbnails/:id', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT content_type, image_data
+      FROM ${CONTENT_THUMBNAILS_TABLE}
+      WHERE id = $1
+      `,
+      [request.params.id],
+    )
+
+    if (!result.rowCount) {
+      response.status(404).json({ error: 'Thumbnail not found.' })
+      return
+    }
+
+    response.setHeader('Content-Type', result.rows[0].content_type || 'image/jpeg')
+    response.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    response.send(result.rows[0].image_data)
+  } catch (error) {
+    console.error('Failed to load content thumbnail:', error)
+    response.status(500).json({ error: 'Failed to load content thumbnail.' })
+  }
+})
+
+app.post('/api/flights/resolve-airports', async (_request, response) => {
+  if (!ensureDbReady(response)) return
+
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT airport_label
+      FROM (
+        SELECT TRIM(from_airport) AS airport_label FROM flights WHERE from_airport IS NOT NULL AND TRIM(from_airport) <> ''
+        UNION
+        SELECT TRIM(to_airport) AS airport_label FROM flights WHERE to_airport IS NOT NULL AND TRIM(to_airport) <> ''
+      ) AS labels
+      ORDER BY airport_label ASC
+    `)
+
+    let resolved = 0
+    for (const row of result.rows) {
+      const cached = await getCachedAirportByLabel(row.airport_label)
+      if (cached && cached.latitude !== null && cached.longitude !== null) continue
+
+      const airport = await resolveAirportCoordinates(row.airport_label)
+      if (airport && airport.latitude !== null && airport.longitude !== null) {
+        resolved += 1
+      }
+    }
+
+    response.json({ ok: true, resolved })
+  } catch (error) {
+    console.error('Failed to resolve flight airports:', error)
+    response.status(500).json({ error: 'Failed to resolve flight airports.' })
   }
 })
 
@@ -2049,6 +2627,9 @@ initializeDatabase()
       console.log(`Server listening on port ${port}.`)
       if (!dbReady) {
         console.warn(`Database not ready: ${dbInitError}`)
+        return
       }
+
+      void generateMissingContentThumbnails()
     })
   })

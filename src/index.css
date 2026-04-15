@@ -1371,6 +1371,150 @@ body {
   background: linear-gradient(180deg, color-mix(in oklab, var(--panel-bg) 92%, transparent), color-mix(in oklab, var(--app-bg) 96%, transparent));
 }
 
+.flights-page {
+  display: grid;
+  gap: 18px;
+}
+
+.flights-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--panel-bg) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+}
+
+.view-toggle-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-subtle);
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.view-toggle-btn.active {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+
+.flights-list {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.flight-card-panel {
+  height: 100%;
+  border-radius: 22px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 98%, transparent), color-mix(in oklab, var(--panel-bg) 94%, transparent)),
+    linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent 48%);
+}
+
+.flight-card-route {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+}
+
+.flight-card-route span {
+  color: var(--text-subtle);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flight-meta-grid {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.flight-meta-grid div {
+  display: grid;
+  gap: 4px;
+}
+
+.flight-meta-grid dt {
+  color: var(--text-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flight-meta-grid dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.flight-notes {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.flights-map-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.flights-map-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel-bg) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+}
+
+.flights-map-status strong {
+  font-size: 0.92rem;
+}
+
+.flights-map-status span {
+  color: var(--text-subtle);
+  font-size: 0.8rem;
+}
+
+.flights-map-canvas {
+  width: 100%;
+  min-height: 520px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  box-shadow: 0 16px 36px rgb(0 0 0 / 10%);
+}
+
+.flights-map-empty {
+  min-height: 320px;
+}
+
 .delete-confirmation strong {
   color: var(--text);
 }
