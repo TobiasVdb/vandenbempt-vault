@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LazyMotion, domAnimation } from 'framer-motion'
 import { MemoryRouter } from 'react-router-dom'
+import { vi } from 'vitest'
 import App from './App'
 
 function renderApp() {
@@ -17,6 +18,16 @@ function renderApp() {
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({ items: [], groups: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('starts with a compact sidebar', () => {
@@ -40,6 +51,21 @@ describe('App', () => {
 
     await user.click(themeButton)
     expect(screen.getByRole('button', { name: /theme mode: auto/i })).toBeInTheDocument()
+  })
+
+  it('persists collapsed library section state payloads as plain objects', () => {
+    localStorage.setItem('house-of-tobias.library.sections.collapsed', JSON.stringify({
+      'projects:ungrouped': true,
+      'games:ungrouped': false,
+      invalid: 'yes',
+    }))
+
+    renderApp()
+
+    expect(JSON.parse(localStorage.getItem('house-of-tobias.library.sections.collapsed') ?? '{}')).toMatchObject({
+      'projects:ungrouped': true,
+      'games:ungrouped': false,
+    })
   })
 
   it('opens settings sidesheet when an integration is enabled', async () => {

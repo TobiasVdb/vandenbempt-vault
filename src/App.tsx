@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft } from '@phosphor-icons/react/ArrowLeft'
 import { Archive } from '@phosphor-icons/react/Archive'
+import { CaretDown } from '@phosphor-icons/react/CaretDown'
 import { CheckCircle } from '@phosphor-icons/react/CheckCircle'
 import { ClipboardText } from '@phosphor-icons/react/ClipboardText'
 import { ClockCounterClockwise } from '@phosphor-icons/react/ClockCounterClockwise'
@@ -24,7 +25,7 @@ import { Trash } from '@phosphor-icons/react/Trash'
 import { WarningDiamond } from '@phosphor-icons/react/WarningDiamond'
 import { X } from '@phosphor-icons/react/X'
 import { AnimatePresence, m } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -42,6 +43,7 @@ import {
   GLB_PREVIEW_QUERY_PARAM,
   HEALTH_STORAGE_KEY,
   INTEGRATION_SETTINGS_STORAGE_KEY,
+  LIBRARY_SECTION_COLLAPSE_STORAGE_KEY,
   LIFECYCLE_STORAGE_KEY,
   MENU_ANIMATION_DURATION,
   PLAYGROUND_ANIMATION_AVAILABILITY_EVENT,
@@ -406,6 +408,25 @@ function readReportPreferences(): ReportPreferences {
   }
 }
 
+function readLibrarySectionCollapseState(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(LIBRARY_SECTION_COLLAPSE_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, boolean] => typeof entry[0] === 'string' && typeof entry[1] === 'boolean'),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function getLibrarySectionStorageId(kind: LibraryItemKind, sectionId: string) {
+  return `${kind}:${sectionId}`
+}
+
 function toDateTimeLocalValue(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
@@ -482,6 +503,7 @@ export default function App() {
   const [games, setGames] = useState<LibraryItemRecord[]>([])
   const [projectGroups, setProjectGroups] = useState<LibraryGroupRecord[]>([])
   const [gameGroups, setGameGroups] = useState<LibraryGroupRecord[]>([])
+  const [collapsedLibrarySections, setCollapsedLibrarySections] = useState<Record<string, boolean>>(() => readLibrarySectionCollapseState())
   const [isLibraryLoading, setIsLibraryLoading] = useState(false)
   const [librarySheetType, setLibrarySheetType] = useState<LibraryItemKind | null>(null)
   const [librarySheetMode, setLibrarySheetMode] = useState<'create' | 'edit'>('create')
@@ -502,6 +524,9 @@ export default function App() {
   const [deleteGroupSheetType, setDeleteGroupSheetType] = useState<LibraryItemKind | null>(null)
   const [deletingGroup, setDeletingGroup] = useState<LibraryGroupRecord | null>(null)
   const [isGroupDeleting, setIsGroupDeleting] = useState(false)
+  const [draggedLibraryItem, setDraggedLibraryItem] = useState<{ kind: LibraryItemKind; itemId: string } | null>(null)
+  const [dragHoverSectionId, setDragHoverSectionId] = useState<string | null>(null)
+  const [movingLibraryItemId, setMovingLibraryItemId] = useState<string | null>(null)
 
   const integrationCatalog = useMemo(() => [...integrationTemplates, ...customIntegrations], [customIntegrations])
   const createIntegrationTemplate = useMemo(
@@ -1128,6 +1153,49 @@ export default function App() {
     }
   }, [closeLibrarySheet, editingLibraryItemId, games, libraryDraft, librarySheetType, projects, setLibraryItemsByType])
 
+  const moveLibraryItemToGroup = useCallback(async (kind: LibraryItemKind, item: LibraryItemRecord, groupId: string | null) => {
+    if (item.groupId === groupId) return
+
+    setMovingLibraryItemId(item.id)
+
+    try {
+      const response = await fetch(apiUrl(`/${kind}/${item.id}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: item.name,
+          url: item.url,
+          imageUrl: item.imageUrl,
+          description: item.description,
+          rating: item.rating,
+          timestamp: item.timestamp,
+          groupId,
+        }),
+      })
+      const payload = await readJsonResponse<LibraryItemResponse>(response, `Failed to move ${kind.slice(0, -1)}.`)
+
+      if (!response.ok || !payload.item) {
+        throw new Error(payload.error ?? `Failed to move ${kind.slice(0, -1)}.`)
+      }
+
+      setLibraryItemsByType(
+        kind,
+        (kind === 'projects' ? projects : games)
+          .filter((entry) => entry.id !== payload.item!.id)
+          .concat(payload.item!)
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()),
+      )
+      setToast({
+        kind: 'success',
+        message: `${payload.item.name} moved ${payload.item.groupName ? `to ${payload.item.groupName}.` : 'to Ungrouped.'}`,
+      })
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to move ${kind.slice(0, -1)}.` })
+    } finally {
+      setMovingLibraryItemId(null)
+    }
+  }, [games, projects, setLibraryItemsByType])
+
   const saveLibraryGroup = useCallback(async () => {
     if (!groupSheetType) return
 
@@ -1521,6 +1589,10 @@ export default function App() {
   }, [reportPreferences])
 
   useEffect(() => {
+    localStorage.setItem(LIBRARY_SECTION_COLLAPSE_STORAGE_KEY, JSON.stringify(collapsedLibrarySections))
+  }, [collapsedLibrarySections])
+
+  useEffect(() => {
     if (!activeSheetIntegration) {
       reset({})
       return
@@ -1615,6 +1687,58 @@ export default function App() {
 
     return sections
   }, [currentLibraryGroups, currentLibraryItems, currentLibraryKind])
+  const toggleLibrarySection = useCallback((kind: LibraryItemKind, sectionId: string) => {
+    const storageId = getLibrarySectionStorageId(kind, sectionId)
+    setCollapsedLibrarySections((current) => ({
+      ...current,
+      [storageId]: !current[storageId],
+    }))
+  }, [])
+  const handleLibraryCardDragStart = useCallback((kind: LibraryItemKind, itemId: string, event: DragEvent<HTMLElement>) => {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', itemId)
+    setDraggedLibraryItem({ kind, itemId })
+  }, [])
+
+  const handleLibraryCardDragEnd = useCallback(() => {
+    setDraggedLibraryItem(null)
+    setDragHoverSectionId(null)
+  }, [])
+
+  const handleLibrarySectionDragOver = useCallback((
+    kind: LibraryItemKind,
+    sectionId: string,
+    event: DragEvent<HTMLElement>,
+  ) => {
+    if (!draggedLibraryItem || draggedLibraryItem.kind !== kind) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (dragHoverSectionId !== sectionId) {
+      setDragHoverSectionId(sectionId)
+    }
+  }, [dragHoverSectionId, draggedLibraryItem])
+
+  const handleLibrarySectionDragLeave = useCallback((sectionId: string) => {
+    setDragHoverSectionId((current) => (current === sectionId ? null : current))
+  }, [])
+
+  const handleLibrarySectionDrop = useCallback(async (
+    kind: LibraryItemKind,
+    section: { id: string; name: string; group: LibraryGroupRecord | null; items: LibraryItemRecord[] },
+    event: DragEvent<HTMLElement>,
+  ) => {
+    if (!draggedLibraryItem || draggedLibraryItem.kind !== kind) return
+
+    event.preventDefault()
+    setDragHoverSectionId(null)
+
+    const itemList = kind === 'projects' ? projects : games
+    const item = itemList.find((entry) => entry.id === draggedLibraryItem.itemId)
+    setDraggedLibraryItem(null)
+    if (!item) return
+
+    await moveLibraryItemToGroup(kind, item, section.group?.id ?? null)
+  }, [draggedLibraryItem, games, moveLibraryItemToGroup, projects])
   const integrationDetailsInfo = integrationPage ? integrationRuntimeInfo[integrationPage.type] : null
   const enabledIntegrationList = integrationCatalog.filter((integration) => enabledIntegrations[integration.id])
   const degradedEnabledCount = enabledIntegrationList.filter(
@@ -2124,17 +2248,36 @@ export default function App() {
                 {groupedLibrarySections.map((section) => (
                   <m.section
                     key={section.id}
-                    className="catalog-section"
+                    className={`catalog-section ${currentLibraryKind && collapsedLibrarySections[getLibrarySectionStorageId(currentLibraryKind, section.id)] ? 'collapsed' : ''}`}
                     variants={{
                       hidden: { opacity: 0, y: 12, scale: 0.98 },
                       visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
                     }}
                   >
-                    <div className="catalog-section-header">
-                      <div>
-                        <h3>{section.name}</h3>
-                        <p>{section.items.length} {section.items.length === 1 ? 'item' : 'items'}</p>
-                      </div>
+                    <div
+                      className={`catalog-section-header ${currentLibraryKind && draggedLibraryItem?.kind === currentLibraryKind ? 'drag-enabled' : ''} ${dragHoverSectionId === section.id ? 'drag-hover' : ''}`}
+                      onDragOver={(event) => currentLibraryKind && handleLibrarySectionDragOver(currentLibraryKind, section.id, event)}
+                      onDragLeave={() => handleLibrarySectionDragLeave(section.id)}
+                      onDrop={(event) => currentLibraryKind && void handleLibrarySectionDrop(currentLibraryKind, section, event)}
+                    >
+                      <button
+                        type="button"
+                        className="catalog-section-toggle"
+                        aria-expanded={currentLibraryKind ? !collapsedLibrarySections[getLibrarySectionStorageId(currentLibraryKind, section.id)] : true}
+                        aria-controls={`catalog-section-panel-${section.id}`}
+                        onClick={() => currentLibraryKind && toggleLibrarySection(currentLibraryKind, section.id)}
+                      >
+                        <span
+                          className={`catalog-section-chevron ${currentLibraryKind && collapsedLibrarySections[getLibrarySectionStorageId(currentLibraryKind, section.id)] ? 'collapsed' : ''}`}
+                          aria-hidden
+                        >
+                          <CaretDown size={16} weight="bold" />
+                        </span>
+                        <span className="catalog-section-heading">
+                          <h3>{section.name}</h3>
+                          <p>{section.items.length} {section.items.length === 1 ? 'item' : 'items'}</p>
+                        </span>
+                      </button>
                       {section.group ? (
                         <div className="catalog-group-actions">
                           <m.button
@@ -2159,64 +2302,89 @@ export default function App() {
                       ) : null}
                     </div>
 
-                    {section.items.length ? (
-                      <div className="catalog-grid">
-                        {section.items.map((item) => (
-                          <PanelCard
-                            key={item.id}
-                            className="catalog-card"
-                            icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
-                            title={item.name}
-                            subtitle={<RatingStars rating={item.rating} />}
-                          >
-                            {item.imageUrl ? (
-                              <div className="catalog-card-image">
-                                <img src={item.imageUrl} alt="" />
-                              </div>
-                            ) : null}
-                            <div className="catalog-card-copy">
-                              {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
-                              <dl className="catalog-meta">
-                                <div>
-                                  <dt>Timestamp</dt>
-                                  <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                    <AnimatePresence initial={false}>
+                      {(!currentLibraryKind || !collapsedLibrarySections[getLibrarySectionStorageId(currentLibraryKind, section.id)]) ? (
+                        <m.div
+                          key={`${section.id}-body`}
+                          id={`catalog-section-panel-${section.id}`}
+                          className="catalog-section-body"
+                          initial={{ opacity: 0, height: 0, y: -8 }}
+                          animate={{ opacity: 1, height: 'auto', y: 0 }}
+                          exit={{ opacity: 0, height: 0, y: -8 }}
+                          transition={{ duration: 0.24, ease: EASE_SOFT }}
+                        >
+                          {section.items.length ? (
+                            <div className="catalog-grid">
+                              {section.items.map((item) => (
+                                <div
+                                  key={item.id}
+                                  draggable
+                                  className={`catalog-card-drag-shell ${draggedLibraryItem?.itemId === item.id ? 'catalog-card-dragging' : ''} ${movingLibraryItemId === item.id ? 'catalog-card-moving' : ''}`}
+                                  onDragStart={(event) => handleLibraryCardDragStart(currentLibraryKind!, item.id, event)}
+                                  onDragEnd={handleLibraryCardDragEnd}
+                                >
+                                  <PanelCard
+                                    className="catalog-card"
+                                    icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
+                                    title={item.name}
+                                    subtitle={<RatingStars rating={item.rating} />}
+                                  >
+                                    {item.imageUrl ? (
+                                      <div className="catalog-card-image">
+                                        <img src={item.imageUrl} alt="" />
+                                      </div>
+                                    ) : (
+                                      <div className="catalog-card-image catalog-card-image-empty" aria-hidden>
+                                        <span>{activePage === 'Projects' ? 'Project' : 'Game'}</span>
+                                      </div>
+                                    )}
+                                    <div className="catalog-card-copy">
+                                      {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
+                                      <dl className="catalog-meta">
+                                        <div>
+                                          <dt>Timestamp</dt>
+                                          <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                                        </div>
+                                        <div>
+                                          <dt>Link</dt>
+                                          <dd>
+                                            <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
+                                              Open Link
+                                            </a>
+                                          </dd>
+                                        </div>
+                                      </dl>
+                                    </div>
+                                    <div className="catalog-card-actions">
+                                      <m.button
+                                        type="button"
+                                        className="users-icon-btn"
+                                        whileTap={ACTION_BUTTON_PRESS}
+                                        aria-label={`Edit ${item.name}`}
+                                        onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
+                                      >
+                                        <PencilSimple size={15} weight="bold" />
+                                      </m.button>
+                                      <m.button
+                                        type="button"
+                                        className="users-icon-btn users-icon-btn-danger"
+                                        whileTap={ACTION_BUTTON_PRESS}
+                                        aria-label={`Delete ${item.name}`}
+                                        onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
+                                      >
+                                        <Trash size={15} weight="bold" />
+                                      </m.button>
+                                    </div>
+                                  </PanelCard>
                                 </div>
-                                <div>
-                                  <dt>URL</dt>
-                                  <dd>
-                                    <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
-                                      Open Link
-                                    </a>
-                                  </dd>
-                                </div>
-                              </dl>
+                              ))}
                             </div>
-                            <div className="catalog-card-actions">
-                              <m.button
-                                type="button"
-                                className="users-icon-btn"
-                                whileTap={ACTION_BUTTON_PRESS}
-                                aria-label={`Edit ${item.name}`}
-                                onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
-                              >
-                                <PencilSimple size={15} weight="bold" />
-                              </m.button>
-                              <m.button
-                                type="button"
-                                className="users-icon-btn users-icon-btn-danger"
-                                whileTap={ACTION_BUTTON_PRESS}
-                                aria-label={`Delete ${item.name}`}
-                                onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
-                              >
-                                <Trash size={15} weight="bold" />
-                              </m.button>
-                            </div>
-                          </PanelCard>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="catalog-group-empty">No {currentLibraryKind === 'projects' ? 'projects' : 'games'} in this group yet.</div>
-                    )}
+                          ) : (
+                            <div className="catalog-group-empty">No {currentLibraryKind === 'projects' ? 'projects' : 'games'} in this group yet.</div>
+                          )}
+                        </m.div>
+                      ) : null}
+                    </AnimatePresence>
                   </m.section>
                 ))}
               </m.div>

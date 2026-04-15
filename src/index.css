@@ -1001,6 +1001,21 @@ body {
 .catalog-section {
   display: grid;
   gap: 12px;
+  padding: 16px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--panel-bg) 94%, transparent), color-mix(in oklab, var(--app-bg) 92%, transparent)),
+    linear-gradient(135deg, color-mix(in oklab, var(--accent) 5%, transparent), transparent 45%);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 6%);
+}
+
+.app-shell.dark .catalog-section {
+  background:
+    linear-gradient(180deg, rgba(38, 40, 45, 0.96), rgba(31, 33, 37, 0.98)),
+    linear-gradient(135deg, rgba(255, 108, 55, 0.08), transparent 42%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 34px rgb(0 0 0 / 18%);
 }
 
 .catalog-section-header {
@@ -1008,11 +1023,91 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  border-radius: 18px;
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.catalog-section-header.drag-enabled {
+  border: 1px dashed color-mix(in oklab, var(--accent) 18%, transparent);
+  padding: 8px 10px;
+}
+
+.catalog-section-header.drag-hover {
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 42%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.app-shell.dark .catalog-section-header.drag-enabled {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.app-shell.dark .catalog-section-header.drag-hover {
+  background: rgba(255, 108, 55, 0.12);
+  border-color: rgba(255, 108, 55, 0.32);
+  box-shadow: 0 0 0 3px rgba(255, 108, 55, 0.12);
+}
+
+.catalog-section-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.catalog-section-toggle:focus-visible {
+  outline: none;
+}
+
+.catalog-section-chevron {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.catalog-section-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.catalog-section-toggle:hover .catalog-section-chevron,
+.catalog-section-toggle:focus-visible .catalog-section-chevron {
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+}
+
+.catalog-section-heading {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .catalog-section-header h3,
 .catalog-section-header p {
   margin: 0;
+}
+
+.catalog-section-header h3 {
+  font-size: 1rem;
 }
 
 .catalog-section-header p {
@@ -1025,14 +1120,91 @@ body {
   gap: 8px;
 }
 
+.catalog-section-body {
+  overflow: hidden;
+}
+
 .catalog-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .catalog-card {
   min-height: 0;
+  border-radius: 22px;
+  padding: 18px;
+  border-color: color-mix(in oklab, var(--text) 8%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 98%, transparent), color-mix(in oklab, var(--panel-bg) 94%, transparent)),
+    linear-gradient(135deg, color-mix(in oklab, var(--accent) 6%, transparent), transparent 48%);
+  overflow: hidden;
+  transition:
+    transform 0.24s ease,
+    box-shadow 0.24s ease,
+    border-color 0.24s ease,
+    background-color 0.24s ease;
+}
+
+.catalog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgb(0 0 0 / 10%);
+  border-color: color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.catalog-card-drag-shell {
+  display: block;
+  height: 100%;
+}
+
+.catalog-card-drag-shell[draggable='true'] .catalog-card {
+  cursor: grab;
+}
+
+.catalog-card-drag-shell[draggable='true']:active .catalog-card {
+  cursor: grabbing;
+}
+
+.catalog-card-dragging .catalog-card {
+  opacity: 0.52;
+  transform: scale(0.985);
+}
+
+.catalog-card-moving .catalog-card {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.app-shell.dark .catalog-card {
+  background:
+    linear-gradient(180deg, rgba(41, 44, 49, 0.98), rgba(34, 36, 41, 0.98)),
+    linear-gradient(135deg, rgba(255, 108, 55, 0.08), transparent 48%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.catalog-card .panel-title {
+  margin-bottom: 12px;
+}
+
+.catalog-card .panel-title-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+}
+
+.catalog-card .panel-title-copy {
+  min-width: 0;
+}
+
+.catalog-card .panel-title h3 {
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.catalog-card .panel-title p {
+  font-size: 0.78rem;
 }
 
 .catalog-card .panel-card-body {
@@ -1040,10 +1212,12 @@ body {
 }
 
 .catalog-card-image {
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  background: color-mix(in oklab, var(--button-bg) 74%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--accent) 18%, transparent), color-mix(in oklab, var(--button-bg) 90%, transparent));
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
 }
 
 .catalog-card-image img {
@@ -1051,6 +1225,23 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.catalog-card-image-empty {
+  display: grid;
+  place-items: center;
+}
+
+.catalog-card-image-empty span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--panel-bg) 72%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  color: var(--text-subtle);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .catalog-card-copy {
@@ -1115,6 +1306,10 @@ body {
   margin: 0;
   display: grid;
   gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
 }
 
 .catalog-meta div {
@@ -1140,6 +1335,7 @@ body {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  margin-top: auto;
 }
 
 .catalog-empty {
@@ -1168,10 +1364,11 @@ body {
 
 .catalog-group-empty {
   border: 1px dashed color-mix(in oklab, var(--text) 12%, transparent);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 18px;
+  padding: 18px 20px;
   color: var(--text-subtle);
   font-size: 0.84rem;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--panel-bg) 92%, transparent), color-mix(in oklab, var(--app-bg) 96%, transparent));
 }
 
 .delete-confirmation strong {

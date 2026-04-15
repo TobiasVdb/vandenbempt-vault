@@ -26,6 +26,7 @@ export const APPROVALS_STORAGE_KEY = 'house-of-tobias.integration.approvals'
 export const HEALTH_STORAGE_KEY = 'house-of-tobias.integration.health'
 export const AUDIT_STORAGE_KEY = 'house-of-tobias.audit.log'
 export const REPORT_PREFS_STORAGE_KEY = 'house-of-tobias.reporting.preferences'
+export const LIBRARY_SECTION_COLLAPSE_STORAGE_KEY = 'house-of-tobias.library.sections.collapsed'
 export const MENU_ANIMATION_DURATION = 0.46
 export const CONTENT_START_DELAY = 0.62
 export const EASE_SOFT: [number, number, number, number] = [0.16, 1, 0.3, 1]
