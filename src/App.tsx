@@ -2507,71 +2507,97 @@ export default function App() {
                           transition={{ duration: 0.24, ease: EASE_SOFT }}
                         >
                           {section.items.length ? (
-                            <div className="catalog-grid">
+                            <m.div
+                              className="catalog-grid"
+                              initial="hidden"
+                              animate="visible"
+                              variants={{
+                                hidden: {},
+                                visible: {
+                                  transition: {
+                                    staggerChildren: 0.08,
+                                    delayChildren: 0.06,
+                                  },
+                                },
+                              }}
+                            >
                               {section.items.map((item) => (
-                                <div
+                                <m.div
                                   key={item.id}
-                                  draggable
                                   className={`catalog-card-drag-shell ${draggedLibraryItem?.itemId === item.id ? 'catalog-card-dragging' : ''} ${movingLibraryItemId === item.id ? 'catalog-card-moving' : ''}`}
-                                  onDragStart={(event) => handleLibraryCardDragStart(currentLibraryKind!, item.id, event)}
-                                  onDragEnd={handleLibraryCardDragEnd}
+                                  variants={{
+                                    hidden: { opacity: 0, y: 14, scale: 0.98 },
+                                    visible: {
+                                      opacity: 1,
+                                      y: 0,
+                                      scale: 1,
+                                      transition: { duration: 0.4, ease: EASE_SOFT },
+                                    },
+                                  }}
                                 >
-                                  <PanelCard
-                                    className="catalog-card"
-                                    icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
-                                    title={item.name}
-                                    subtitle={<RatingStars rating={item.rating} />}
+                                  <div
+                                    draggable
+                                    className="catalog-card-drag-handle"
+                                    onDragStart={(event) => handleLibraryCardDragStart(currentLibraryKind!, item.id, event)}
+                                    onDragEnd={handleLibraryCardDragEnd}
                                   >
-                                    {item.imageUrl ? (
-                                      <div className="catalog-card-image">
-                                        <img src={item.imageUrl} alt="" />
-                                      </div>
-                                    ) : (
-                                      <div className="catalog-card-image catalog-card-image-empty" aria-hidden>
-                                        <span>{activePage === 'Projects' ? 'Project' : 'Game'}</span>
-                                      </div>
-                                    )}
-                                    <div className="catalog-card-copy">
-                                      {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
-                                      <dl className="catalog-meta">
-                                        <div>
-                                          <dt>Timestamp</dt>
-                                          <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                                    <PanelCard
+                                      className="catalog-card"
+                                      icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
+                                      title={item.name}
+                                      subtitle={<RatingStars rating={item.rating} />}
+                                    >
+                                      {item.imageUrl ? (
+                                        <div className="catalog-card-image">
+                                          <img src={item.imageUrl} alt="" />
                                         </div>
-                                        <div>
-                                          <dt>Link</dt>
-                                          <dd>
-                                            <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
-                                              Open Link
-                                            </a>
-                                          </dd>
+                                      ) : (
+                                        <div className="catalog-card-image catalog-card-image-empty" aria-hidden>
+                                          <span>{activePage === 'Projects' ? 'Project' : 'Game'}</span>
                                         </div>
-                                      </dl>
-                                    </div>
-                                    <div className="catalog-card-actions">
-                                      <m.button
-                                        type="button"
-                                        className="users-icon-btn"
-                                        whileTap={ACTION_BUTTON_PRESS}
-                                        aria-label={`Edit ${item.name}`}
-                                        onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
-                                      >
-                                        <PencilSimple size={15} weight="bold" />
-                                      </m.button>
-                                      <m.button
-                                        type="button"
-                                        className="users-icon-btn users-icon-btn-danger"
-                                        whileTap={ACTION_BUTTON_PRESS}
-                                        aria-label={`Delete ${item.name}`}
-                                        onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
-                                      >
-                                        <Trash size={15} weight="bold" />
-                                      </m.button>
-                                    </div>
-                                  </PanelCard>
-                                </div>
+                                      )}
+                                      <div className="catalog-card-copy">
+                                        {item.description ? <p>{item.description}</p> : <p>No description added.</p>}
+                                        <dl className="catalog-meta">
+                                          <div>
+                                            <dt>Timestamp</dt>
+                                            <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                                          </div>
+                                          <div>
+                                            <dt>Link</dt>
+                                            <dd>
+                                              <a href={item.url} target="_blank" rel="noreferrer" className="link-button">
+                                                Open Link
+                                              </a>
+                                            </dd>
+                                          </div>
+                                        </dl>
+                                      </div>
+                                      <div className="catalog-card-actions">
+                                        <m.button
+                                          type="button"
+                                          className="users-icon-btn"
+                                          whileTap={ACTION_BUTTON_PRESS}
+                                          aria-label={`Edit ${item.name}`}
+                                          onClick={() => beginEditLibraryItem(currentLibraryKind!, item)}
+                                        >
+                                          <PencilSimple size={15} weight="bold" />
+                                        </m.button>
+                                        <m.button
+                                          type="button"
+                                          className="users-icon-btn users-icon-btn-danger"
+                                          whileTap={ACTION_BUTTON_PRESS}
+                                          aria-label={`Delete ${item.name}`}
+                                          onClick={() => openDeleteLibrarySheet(currentLibraryKind!, item)}
+                                        >
+                                          <Trash size={15} weight="bold" />
+                                        </m.button>
+                                      </div>
+                                    </PanelCard>
+                                  </div>
+                                </m.div>
                               ))}
-                            </div>
+                            </m.div>
                           ) : (
                             <div className="catalog-group-empty">No {currentLibraryKind === 'projects' ? 'projects' : 'games'} in this group yet.</div>
                           )}

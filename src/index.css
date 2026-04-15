@@ -1157,11 +1157,16 @@ body {
   height: 100%;
 }
 
-.catalog-card-drag-shell[draggable='true'] .catalog-card {
+.catalog-card-drag-handle {
+  display: block;
+  height: 100%;
+}
+
+.catalog-card-drag-handle[draggable='true'] .catalog-card {
   cursor: grab;
 }
 
-.catalog-card-drag-shell[draggable='true']:active .catalog-card {
+.catalog-card-drag-handle[draggable='true']:active .catalog-card {
   cursor: grabbing;
 }
 
