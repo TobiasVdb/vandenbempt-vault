@@ -38,6 +38,20 @@ const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || process.env.VITE_MAPBOX_
 const THUMBNAIL_WAIT_MS = 4000
 const THUMBNAIL_NAVIGATION_TIMEOUT_MS = 30000
 const THUMBNAIL_SCREENSHOT_TIMEOUT_MS = 10000
+const THUMBNAIL_BOOT_ENABLED = process.env.ENABLE_BOOT_THUMBNAILS === 'true'
+const THUMBNAIL_DEFAULT_BATCH_SIZE = 5
+const THUMBNAIL_ALLOWED_HOSTS = new Set(
+  (process.env.THUMBNAIL_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean),
+)
+const THUMBNAIL_BLOCKED_HOSTS = new Set(
+  (process.env.THUMBNAIL_BLOCKED_HOSTS || '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean),
+)
 const TEAM_NAMES = ['Platform', 'Security', 'Compliance', 'Leadership']
 const USER_ROLES = ['owner', 'platform_admin', 'security_reviewer', 'compliance_auditor', 'viewer']
 const USER_SSO_MODES = ['enforced', 'optional', 'break_glass']
@@ -251,6 +265,23 @@ async function initializeDatabase() {
     ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES game_groups(id) ON DELETE SET NULL;
   `)
 
+  for (const tableName of Object.values(CONTENT_TABLES)) {
+    await pool.query(`
+      ALTER TABLE ${tableName}
+      ADD COLUMN IF NOT EXISTS thumbnail_status TEXT NOT NULL DEFAULT 'pending';
+    `)
+
+    await pool.query(`
+      ALTER TABLE ${tableName}
+      ADD COLUMN IF NOT EXISTS thumbnail_attempted_at TIMESTAMPTZ;
+    `)
+
+    await pool.query(`
+      ALTER TABLE ${tableName}
+      ADD COLUMN IF NOT EXISTS thumbnail_error TEXT;
+    `)
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS flights (
       id UUID PRIMARY KEY,
@@ -374,6 +405,35 @@ function mapContentItem(row) {
 
 function isGeneratedThumbnailPath(value) {
   return /^\/api\/content-thumbnails\/[0-9a-f-]+$/i.test(String(value ?? '').trim())
+}
+
+function getThumbnailStateForImageUrl(imageUrl) {
+  const normalized = String(imageUrl ?? '').trim()
+  if (!normalized) {
+    return { status: 'pending', attemptedAt: null, error: null }
+  }
+
+  if (isGeneratedThumbnailPath(normalized)) {
+    return { status: 'generated', attemptedAt: new Date().toISOString(), error: null }
+  }
+
+  return { status: 'external', attemptedAt: null, error: null }
+}
+
+function isThumbnailHostAllowed(rawUrl) {
+  try {
+    const url = new URL(String(rawUrl).trim())
+    const hostname = url.hostname.toLowerCase()
+
+    if (THUMBNAIL_BLOCKED_HOSTS.has(hostname)) return false
+    if (THUMBNAIL_ALLOWED_HOSTS.size > 0) {
+      return THUMBNAIL_ALLOWED_HOSTS.has(hostname)
+    }
+
+    return true
+  } catch {
+    return false
+  }
 }
 
 function normalizeAirportKey(value) {
@@ -513,13 +573,24 @@ async function saveGeneratedThumbnail(kind, itemId, imageBuffer, contentType = '
   await pool.query(
     `
     UPDATE ${resolveContentTable(kind)}
-    SET image_url = $2, updated_at = NOW()
+    SET image_url = $2, thumbnail_status = 'generated', thumbnail_attempted_at = NOW(), thumbnail_error = NULL, updated_at = NOW()
     WHERE id = $1
     `,
     [itemId, `/api/content-thumbnails/${thumbnailId}`],
   )
 
   return thumbnailId
+}
+
+async function markThumbnailFailure(kind, itemId, errorMessage) {
+  await pool.query(
+    `
+    UPDATE ${resolveContentTable(kind)}
+    SET thumbnail_status = 'failed', thumbnail_attempted_at = NOW(), thumbnail_error = $2, updated_at = NOW()
+    WHERE id = $1
+    `,
+    [itemId, errorMessage],
+  )
 }
 
 async function captureItemThumbnail(page, item) {
@@ -531,20 +602,49 @@ async function captureItemThumbnail(page, item) {
     timeout: THUMBNAIL_SCREENSHOT_TIMEOUT_MS,
   }
 
+  await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {})
+  await page.route('**/*', (route) => {
+    const type = route.request().resourceType()
+    if (type === 'font' || type === 'media' || type === 'websocket' || type === 'manifest') {
+      route.abort().catch(() => {})
+      return
+    }
+    route.continue().catch(() => {})
+  })
+
   await page.setViewportSize({ width: 1440, height: 960 })
   await page.goto(item.url, { waitUntil: 'domcontentloaded', timeout: THUMBNAIL_NAVIGATION_TIMEOUT_MS })
   await page.waitForTimeout(THUMBNAIL_WAIT_MS)
+  await page.evaluate(() => {
+    document.querySelectorAll('video, audio, iframe[allow*="autoplay"], canvas').forEach((element) => {
+      element.remove()
+    })
+  }).catch(() => {})
 
   try {
     return await page.screenshot(screenshotOptions)
   } catch (error) {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.waitForTimeout(800)
-    return page.screenshot(screenshotOptions)
+    try {
+      return await page.screenshot(screenshotOptions)
+    } catch {
+      const mainLocator = page.locator('main').first()
+      if (await mainLocator.count()) {
+        return await mainLocator.screenshot(screenshotOptions)
+      }
+
+      const bodyLocator = page.locator('body').first()
+      if (await bodyLocator.count()) {
+        return bodyLocator.screenshot(screenshotOptions)
+      }
+
+      throw error
+    }
   }
 }
 
-async function generateMissingContentThumbnails() {
+async function generateMissingContentThumbnails({ retryFailed = false, limit = THUMBNAIL_DEFAULT_BATCH_SIZE } = {}) {
   if (!pool || !dbReady) return
 
   let chromium
@@ -555,7 +655,7 @@ async function generateMissingContentThumbnails() {
     return
   }
 
-  let browser
+    let browser
   try {
     const pendingItems = []
 
@@ -565,11 +665,21 @@ async function generateMissingContentThumbnails() {
         SELECT id, url
         FROM ${tableName}
         WHERE COALESCE(TRIM(image_url), '') = ''
+          AND thumbnail_status = ANY($1)
         ORDER BY created_at ASC
+        LIMIT $2
         `,
+        [retryFailed ? ['pending', 'failed'] : ['pending'], limit],
       )
 
-      pendingItems.push(...result.rows.map((row) => ({ kind, id: row.id, url: row.url })))
+      for (const row of result.rows.map((entry) => ({ kind, id: entry.id, url: entry.url }))) {
+        if (!isThumbnailHostAllowed(row.url)) {
+          await markThumbnailFailure(row.kind, row.id, 'Thumbnail generation is not allowed for this host.')
+          continue
+        }
+
+        pendingItems.push(row)
+      }
     }
 
     if (!pendingItems.length) return
@@ -589,6 +699,7 @@ async function generateMissingContentThumbnails() {
         console.log(`Generated thumbnail for ${item.kind}/${item.id}.`)
       } catch (error) {
         const message = error instanceof Error ? error.message.split('\n')[0] : String(error)
+        await markThumbnailFailure(item.kind, item.id, message)
         console.warn(`Failed to generate thumbnail for ${item.kind}/${item.id}: ${message}`)
       }
     }
@@ -1742,12 +1853,16 @@ app.post('/api/:kind(projects|games)', async (request, response) => {
 
   const id = randomUUID()
   const { name, url, imageUrl, description, rating, timestamp } = request.body
+  const thumbnailState = getThumbnailStateForImageUrl(imageUrl)
 
   try {
     const result = await pool.query(
       `
-      INSERT INTO ${tableName} (id, name, url, image_url, description, rating, timestamp, group_id, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      INSERT INTO ${tableName} (
+        id, name, url, image_url, description, rating, timestamp, group_id,
+        thumbnail_status, thumbnail_attempted_at, thumbnail_error, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING id
       `,
       [
@@ -1759,6 +1874,9 @@ app.post('/api/:kind(projects|games)', async (request, response) => {
         Number(rating),
         new Date(String(timestamp)).toISOString(),
         validation.groupId,
+        thumbnailState.status,
+        thumbnailState.attemptedAt,
+        thumbnailState.error,
       ],
     )
 
@@ -1805,6 +1923,7 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
   }
 
   const { name, url, imageUrl, description, rating, timestamp } = request.body
+  const thumbnailState = getThumbnailStateForImageUrl(imageUrl)
 
   try {
     const result = await pool.query(
@@ -1818,6 +1937,9 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
         rating = $6,
         timestamp = $7,
         group_id = $8,
+        thumbnail_status = $9,
+        thumbnail_attempted_at = $10,
+        thumbnail_error = $11,
         updated_at = NOW()
       WHERE id = $1
       RETURNING id
@@ -1831,6 +1953,9 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
         Number(rating),
         new Date(String(timestamp)).toISOString(),
         validation.groupId,
+        thumbnailState.status,
+        thumbnailState.attemptedAt,
+        thumbnailState.error,
       ],
     )
 
@@ -2182,6 +2307,22 @@ app.delete('/api/flights/:id', async (request, response) => {
   } catch (error) {
     console.error('Failed to delete flight:', error)
     response.status(500).json({ error: 'Failed to delete flight.' })
+  }
+})
+
+app.post('/api/content-thumbnails/generate', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  const retryFailed = Boolean(request.body?.retryFailed)
+  const rawLimit = Number(request.body?.limit)
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(50, Math.floor(rawLimit)) : THUMBNAIL_DEFAULT_BATCH_SIZE
+
+  try {
+    await generateMissingContentThumbnails({ retryFailed, limit })
+    response.json({ ok: true, retryFailed, limit })
+  } catch (error) {
+    console.error('Failed to trigger thumbnail generation:', error)
+    response.status(500).json({ error: 'Failed to trigger thumbnail generation.' })
   }
 })
 
@@ -2643,6 +2784,8 @@ initializeDatabase()
         return
       }
 
-      void generateMissingContentThumbnails()
+      if (THUMBNAIL_BOOT_ENABLED) {
+        void generateMissingContentThumbnails()
+      }
     })
   })
