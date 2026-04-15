@@ -1430,34 +1430,139 @@ body {
     linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent 48%);
 }
 
-.flight-card-route {
+.flight-card-topline {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 12px 14px;
+  gap: 12px;
+}
+
+.flight-card-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  color: color-mix(in oklab, var(--accent) 82%, var(--text));
+  flex: 0 0 auto;
+}
+
+.flight-card-heading {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.flight-card-heading strong {
+  font-size: 1rem;
+}
+
+.flight-card-heading span {
+  color: var(--text-subtle);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.flight-card-timeline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
   border-radius: 16px;
   background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
   border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
 }
 
-.flight-card-route span {
+.flight-card-time-block {
+  display: grid;
+  gap: 2px;
+}
+
+.flight-card-time-block strong {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.flight-card-time-block span {
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.flight-card-time-block em {
   color: var(--text-subtle);
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.84rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.flight-card-time-block-arrival {
+  text-align: right;
+}
+
+.flight-card-connector {
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flight-card-connector span {
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in oklab, var(--text) 12%, transparent);
+}
+
+.flight-card-connector b {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  background: color-mix(in oklab, var(--app-bg) 94%, transparent);
+  font-size: 0.74rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.flight-card-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flight-card-summary-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--panel-bg) 82%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+  color: var(--text-subtle);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .flight-meta-grid {
   margin: 0;
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .flight-meta-grid div {
   display: grid;
   gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+}
+
+.flight-meta-grid-wide {
+  grid-column: 1 / -1;
 }
 
 .flight-meta-grid dt {
@@ -1473,13 +1578,6 @@ body {
   color: var(--text);
   font-size: 0.82rem;
   line-height: 1.4;
-}
-
-.flight-notes {
-  margin: 0;
-  color: var(--text-subtle);
-  font-size: 0.84rem;
-  line-height: 1.6;
 }
 
 .flights-map-shell {

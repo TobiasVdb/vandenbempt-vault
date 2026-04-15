@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "postinstall": "playwright install chromium",
+    "postinstall": "playwright install",
     "build": "tsc -b && vite build",
     "start": "node server/server.mjs",
     "lint": "eslint .",

@@ -462,6 +462,28 @@ function sortFlights(flights: FlightRecord[]) {
   })
 }
 
+function formatFlightTime(value?: string | null): string {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function formatFlightDuration(departureTime?: string | null, arrivalTime?: string | null): string | null {
+  if (!departureTime || !arrivalTime) return null
+  const departure = new Date(departureTime).getTime()
+  const arrival = new Date(arrivalTime).getTime()
+  if (!Number.isFinite(departure) || !Number.isFinite(arrival) || arrival < departure) return null
+
+  const totalMinutes = Math.round((arrival - departure) / (1000 * 60))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours && minutes) return `${hours}h ${minutes}m`
+  if (hours) return `${hours}h`
+  return `${minutes}m`
+}
+
 function RatingStars({ rating, size = 16 }: { rating: number; size?: number }) {
   const activeStars = Math.max(0, Math.min(5, Math.round(rating)))
 
@@ -2704,40 +2726,83 @@ export default function App() {
                       visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
                     }}
                   >
+                    {(() => {
+                      const durationLabel = formatFlightDuration(flight.departureTime, flight.arrivalTime)
+                      const routeTitle = `${flight.fromAirport || 'Unknown departure'} to ${flight.toAirport || 'Unknown arrival'}`
+                      return (
                     <PanelCard
                       className="flight-card-panel"
                       icon={<AirplaneTilt size={18} weight="duotone" />}
-                      title={flight.flightNumber || `${flight.fromAirport ?? 'Unknown'} to ${flight.toAirport ?? 'Unknown'}`}
-                      subtitle={flight.airline || flight.aircraft || 'Flight entry'}
+                      title={flight.airline || flight.flightNumber || routeTitle}
+                      subtitle={flight.flightNumber ? `${flight.flightNumber}${flight.aircraft ? ` • ${flight.aircraft}` : ''}` : (flight.aircraft || 'Flight entry')}
                     >
-                      <div className="flight-card-route">
-                        <strong>{flight.fromAirport || 'Unknown departure'}</strong>
-                        <span>to</span>
-                        <strong>{flight.toAirport || 'Unknown arrival'}</strong>
+                      <div className="flight-card-topline">
+                        <div className="flight-card-badge">
+                          <AirplaneTilt size={18} weight="fill" />
+                        </div>
+                        <div className="flight-card-heading">
+                          <strong>{flight.airline || 'Flight'}</strong>
+                          <span>{flight.flightNumber || routeTitle}</span>
+                        </div>
                       </div>
+
+                      <div className="flight-card-timeline">
+                        <div className="flight-card-time-block">
+                          <strong>{formatFlightTime(flight.departureTime)}</strong>
+                          <span>{flight.fromAirport || 'DEP'}</span>
+                          {flight.fromAirportResolvedName ? <em>{flight.fromAirportResolvedName}</em> : null}
+                        </div>
+                        <div className="flight-card-connector" aria-hidden>
+                          <span />
+                          {durationLabel ? <b>{durationLabel}</b> : null}
+                          <span />
+                        </div>
+                        <div className="flight-card-time-block flight-card-time-block-arrival">
+                          <strong>{formatFlightTime(flight.arrivalTime)}</strong>
+                          <span>{flight.toAirport || 'ARR'}</span>
+                          {flight.toAirportResolvedName ? <em>{flight.toAirportResolvedName}</em> : null}
+                        </div>
+                      </div>
+
+                      <div className="flight-card-summary-row">
+                        {flight.flightDate ? <span>{new Date(flight.flightDate).toLocaleDateString()}</span> : null}
+                        {flight.distance !== null ? <span>{flight.distance} km</span> : null}
+                        {flight.aircraft ? <span>{flight.aircraft}</span> : null}
+                      </div>
+
                       <dl className="flight-meta-grid">
-                        <div>
-                          <dt>Date</dt>
-                          <dd>{flight.flightDate ? new Date(flight.flightDate).toLocaleDateString() : '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>Departure</dt>
-                          <dd>{flight.departureTime ? new Date(flight.departureTime).toLocaleString() : '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>Arrival</dt>
-                          <dd>{flight.arrivalTime ? new Date(flight.arrivalTime).toLocaleString() : '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>Distance</dt>
-                          <dd>{flight.distance !== null ? `${flight.distance} km` : '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>Aircraft</dt>
-                          <dd>{flight.aircraft || '—'}</dd>
-                        </div>
+                        {flight.departureTime ? (
+                          <div>
+                            <dt>Departure</dt>
+                            <dd>{new Date(flight.departureTime).toLocaleString()}</dd>
+                          </div>
+                        ) : null}
+                        {flight.arrivalTime ? (
+                          <div>
+                            <dt>Arrival</dt>
+                            <dd>{new Date(flight.arrivalTime).toLocaleString()}</dd>
+                          </div>
+                        ) : null}
+                        {durationLabel ? (
+                          <div>
+                            <dt>Duration</dt>
+                            <dd>{durationLabel}</dd>
+                          </div>
+                        ) : null}
+                        {flight.notes ? (
+                          <div className="flight-meta-grid-wide">
+                            <dt>Notes</dt>
+                            <dd>{flight.notes}</dd>
+                          </div>
+                        ) : null}
+                        {!flight.departureTime && !flight.arrivalTime && !durationLabel && !flight.notes ? (
+                          <div className="flight-meta-grid-wide">
+                            <dt>Route</dt>
+                            <dd>{routeTitle}</dd>
+                          </div>
+                        ) : null}
                       </dl>
-                      {flight.notes ? <p className="flight-notes">{flight.notes}</p> : null}
+
                       <div className="catalog-card-actions">
                         <m.button
                           type="button"
@@ -2759,6 +2824,8 @@ export default function App() {
                         </m.button>
                       </div>
                     </PanelCard>
+                      )
+                    })()}
                   </m.article>
                 ))}
               </m.div>
