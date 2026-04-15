@@ -37,6 +37,7 @@ const FLIGHT_AIRPORT_TABLE = 'flight_airports'
 const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || process.env.VITE_MAPBOX_ACCESS_TOKEN || ''
 const THUMBNAIL_WAIT_MS = 4000
 const THUMBNAIL_NAVIGATION_TIMEOUT_MS = 30000
+const THUMBNAIL_SCREENSHOT_TIMEOUT_MS = 10000
 const TEAM_NAMES = ['Platform', 'Security', 'Compliance', 'Leadership']
 const USER_ROLES = ['owner', 'platform_admin', 'security_reviewer', 'compliance_auditor', 'viewer']
 const USER_SSO_MODES = ['enforced', 'optional', 'break_glass']
@@ -522,14 +523,25 @@ async function saveGeneratedThumbnail(kind, itemId, imageBuffer, contentType = '
 }
 
 async function captureItemThumbnail(page, item) {
-  await page.goto(item.url, { waitUntil: 'domcontentloaded', timeout: THUMBNAIL_NAVIGATION_TIMEOUT_MS })
-  await page.waitForTimeout(THUMBNAIL_WAIT_MS)
-  return page.screenshot({
+  const screenshotOptions = {
     type: 'jpeg',
-    quality: 82,
+    quality: 76,
     fullPage: false,
     animations: 'disabled',
-  })
+    timeout: THUMBNAIL_SCREENSHOT_TIMEOUT_MS,
+  }
+
+  await page.setViewportSize({ width: 1440, height: 960 })
+  await page.goto(item.url, { waitUntil: 'domcontentloaded', timeout: THUMBNAIL_NAVIGATION_TIMEOUT_MS })
+  await page.waitForTimeout(THUMBNAIL_WAIT_MS)
+
+  try {
+    return await page.screenshot(screenshotOptions)
+  } catch (error) {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.waitForTimeout(800)
+    return page.screenshot(screenshotOptions)
+  }
 }
 
 async function generateMissingContentThumbnails() {
@@ -576,7 +588,8 @@ async function generateMissingContentThumbnails() {
         await saveGeneratedThumbnail(item.kind, item.id, imageBuffer)
         console.log(`Generated thumbnail for ${item.kind}/${item.id}.`)
       } catch (error) {
-        console.warn(`Failed to generate thumbnail for ${item.kind}/${item.id}:`, error instanceof Error ? error.message : error)
+        const message = error instanceof Error ? error.message.split('\n')[0] : String(error)
+        console.warn(`Failed to generate thumbnail for ${item.kind}/${item.id}: ${message}`)
       }
     }
 
