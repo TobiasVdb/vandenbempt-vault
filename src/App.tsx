@@ -2516,7 +2516,6 @@ export default function App() {
       value: `${homeLibraryStats.physicalBooks} / ${homeLibraryStats.digitalBooks}`,
       detail: `${homeLibraryStats.totalBooks} books available in total.`,
     },
-    { label: 'Amount of Books Read', value: String(homeLibraryStats.booksRead), detail: 'Books marked as read in Scribe.' },
     { label: 'Lifetime Flights', value: String(flights.length), detail: 'Flights taken across your lifetime.' },
   ]
 
