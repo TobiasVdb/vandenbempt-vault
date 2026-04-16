@@ -3022,13 +3022,14 @@ export default function App() {
                   const returnFlight = trip.returnFlight
                   const destinationTitle = formatAirportTitle(outbound.toAirportResolvedName, outbound.toAirport)
                   const originTitle = formatAirportTitle(outbound.fromAirportResolvedName, outbound.fromAirport)
-                  const tripTitle = returnFlight
-                    ? `${originTitle} to ${destinationTitle}`
-                    : `${originTitle} to ${destinationTitle}`
+                  const tripTitle = `${originTitle} to ${destinationTitle}`
                   const stayDurationLabel = returnFlight ? formatStayDuration(outbound.arrivalTime, returnFlight.departureTime) : null
+                  const tripDateLabel = outbound.departureTime
+                    ? formatFlightDateTime(outbound.departureTime, outbound.fromAirport)
+                    : formatFlightDate(outbound.flightDate)
                   const tripLabel = returnFlight
                     ? [outbound.flightNumber, returnFlight.flightNumber].filter(Boolean).join(' / ')
-                    : [outbound.flightNumber, outbound.airline].filter(Boolean).join(' · ') || 'One-way'
+                    : [outbound.flightNumber, outbound.airline].filter(Boolean).join(' / ') || 'One-way'
 
                   const renderLeg = (flight: FlightRecord, directionLabel: string) => {
                     const fromAirportTitle = formatAirportTitle(flight.fromAirportResolvedName, flight.fromAirport)
@@ -3039,7 +3040,7 @@ export default function App() {
                       <div className="flight-timeline-leg" key={`${trip.id}-${directionLabel}`}>
                         <div className="flight-timeline-leg-header">
                           <strong>{directionLabel}</strong>
-                          <span>{[flight.flightNumber, flight.airline].filter(Boolean).join(' · ') || 'Flight entry'}</span>
+                          <span>{[flight.flightNumber, flight.airline].filter(Boolean).join(' / ') || 'Flight entry'}</span>
                         </div>
                         <div className="flight-timeline-leg-route">
                           <div>
@@ -3063,18 +3064,25 @@ export default function App() {
                   return (
                     <m.article
                       key={trip.id}
-                      className="flight-timeline-card"
+                      className="flight-timeline-item"
                       variants={{
                         hidden: { opacity: 0, y: 12, scale: 0.98 },
                         visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
                       }}
                     >
-                      <PanelCard
-                        className="flight-timeline-panel"
-                        icon={<AirplaneTilt size={18} weight="duotone" />}
-                        title={tripTitle}
-                        subtitle={tripLabel}
-                      >
+                      <div className="flight-timeline-rail" aria-hidden>
+                        <span className="flight-timeline-dot" />
+                        <span className="flight-timeline-line" />
+                      </div>
+                      <div className="flight-timeline-content">
+                        <div className="flight-timeline-topline">
+                          <span>{tripDateLabel}</span>
+                          <em>{tripLabel}</em>
+                        </div>
+                        <div className="flight-timeline-summary">
+                          <strong>{tripTitle}</strong>
+                          {stayDurationLabel && returnFlight ? <span>{stayDurationLabel} on location</span> : null}
+                        </div>
                         <div className="flight-timeline-stack">
                           {renderLeg(outbound, returnFlight ? 'Away' : 'Flight')}
                           {stayDurationLabel && returnFlight ? (
@@ -3083,14 +3091,14 @@ export default function App() {
                               <span>{stayDurationLabel}</span>
                               <em>
                                 {outbound.arrivalTime ? formatFlightDateTime(outbound.arrivalTime, outbound.toAirport) : ''}
-                                {' -> '}
+                                {' to '}
                                 {returnFlight.departureTime ? formatFlightDateTime(returnFlight.departureTime, returnFlight.fromAirport) : ''}
                               </em>
                             </div>
                           ) : null}
                           {returnFlight ? renderLeg(returnFlight, 'Return') : null}
                         </div>
-                      </PanelCard>
+                      </div>
                     </m.article>
                   )
                 })}

@@ -1451,25 +1451,93 @@ body {
 
 .flight-timeline {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  align-items: stretch;
+  gap: 18px;
+  max-width: 960px;
 }
 
-.flight-timeline-card,
-.flight-timeline-panel {
-  height: 100%;
+.flight-timeline-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
 }
 
-.flight-timeline-panel .panel-card-body {
-  margin-top: 10px;
+.flight-timeline-rail {
+  display: grid;
+  justify-items: center;
+  align-self: stretch;
+}
+
+.flight-timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 72%, white));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--panel-bg) 88%, transparent);
+}
+
+.flight-timeline-line {
+  width: 2px;
   flex: 1 1 auto;
+  min-height: 100%;
+  margin-top: 8px;
+  background: color-mix(in oklab, var(--text) 12%, transparent);
+}
+
+.flight-timeline-item:last-child .flight-timeline-line {
+  opacity: 0;
+}
+
+.flight-timeline-content {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: color-mix(in oklab, var(--panel-bg) 92%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.flight-timeline-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: var(--text-subtle);
+  font-size: 0.82rem;
+}
+
+.flight-timeline-topline em {
+  font-style: normal;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  background: color-mix(in oklab, var(--app-bg) 94%, transparent);
+  white-space: nowrap;
+}
+
+.flight-timeline-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.flight-timeline-summary strong {
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.flight-timeline-summary span {
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .flight-timeline-stack {
   display: grid;
   gap: 12px;
-  align-content: start;
 }
 
 .flight-timeline-leg,
@@ -1477,27 +1545,23 @@ body {
   display: grid;
   gap: 10px;
   padding: 14px 16px;
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--app-bg) 80%, var(--panel-bg));
   border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
-}
-
-.flight-timeline-leg-header,
-.flight-timeline-stay {
-  align-items: center;
 }
 
 .flight-timeline-leg-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  align-items: center;
 }
 
 .flight-timeline-leg-header strong,
 .flight-timeline-stay strong {
   color: var(--text);
-  font-size: 0.82rem;
-  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -1522,15 +1586,15 @@ body {
 
 .flight-timeline-leg-route b {
   color: var(--text);
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
 .flight-timeline-leg-route span,
 .flight-timeline-stay em {
   color: var(--text-subtle);
   font-size: 0.84rem;
+  line-height: 1.5;
   font-style: normal;
-  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
@@ -1552,7 +1616,7 @@ body {
   padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
-  background: color-mix(in oklab, var(--app-bg) 94%, transparent);
+  background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
   color: var(--text);
   font-size: 0.74rem;
   font-style: normal;
@@ -1562,23 +1626,66 @@ body {
 
 .flight-timeline-stay {
   justify-items: start;
+  align-items: center;
 }
 
-.app-shell.dark .flight-timeline-leg,
-.app-shell.dark .flight-timeline-stay {
-  background: linear-gradient(180deg, rgba(44, 47, 55, 0.96), rgba(34, 37, 44, 0.94));
-  border-color: rgba(255, 255, 255, 0.1);
+.app-shell.dark .flight-timeline-dot {
+  box-shadow: 0 0 0 4px rgba(35, 38, 45, 0.92);
 }
 
+.app-shell.dark .flight-timeline-line,
 .app-shell.dark .flight-timeline-leg-arrow span {
   background: rgba(255, 255, 255, 0.16);
 }
 
+.app-shell.dark .flight-timeline-content,
+.app-shell.dark .flight-timeline-leg,
+.app-shell.dark .flight-timeline-stay {
+  background: linear-gradient(180deg, rgba(44, 47, 55, 0.96), rgba(34, 37, 44, 0.94));
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.app-shell.dark .flight-timeline-topline em,
 .app-shell.dark .flight-timeline-leg-arrow em,
 .app-shell.dark .flight-timeline-stay span {
   color: #f8f9fc;
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 720px) {
+  .flight-timeline-item {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .flight-timeline-content {
+    padding: 16px;
+  }
+
+  .flight-timeline-topline,
+  .flight-timeline-leg-header,
+  .flight-timeline-leg-route {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .flight-timeline-topline {
+    gap: 8px;
+  }
+
+  .flight-timeline-topline em {
+    justify-self: start;
+  }
+
+  .flight-timeline-leg-header span {
+    text-align: left;
+  }
+
+  .flight-timeline-leg-arrow {
+    min-width: 0;
+  }
 }
 
 .flight-card {
