@@ -105,6 +105,26 @@ import type {
   UploadCookieState,
 } from './app/types'
 
+const AIRPORT_TIME_ZONES: Record<string, string> = {
+  AMS: 'Europe/Amsterdam',
+  ATH: 'Europe/Athens',
+  BRU: 'Europe/Brussels',
+  CGK: 'Asia/Jakarta',
+  CRL: 'Europe/Brussels',
+  DPS: 'Asia/Makassar',
+  EIN: 'Europe/Amsterdam',
+  EWR: 'America/New_York',
+  FAO: 'Europe/Lisbon',
+  KUL: 'Asia/Kuala_Lumpur',
+  LAX: 'America/Los_Angeles',
+  LCA: 'Asia/Nicosia',
+  LHR: 'Europe/London',
+  OPO: 'Europe/Lisbon',
+  SDR: 'Europe/Madrid',
+  SXF: 'Europe/Berlin',
+  ZAD: 'Europe/Zagreb',
+}
+
 const integrationRuntimeInfo: Record<IntegrationType, IntegrationRuntimeInfo> = {
   kubernetes: {
     connectivity: 'passing',
@@ -454,6 +474,11 @@ function toApiTimestamp(value: string): string {
   return value ? new Date(value).toISOString() : new Date().toISOString()
 }
 
+function getAirportTimeZone(airportCode?: string | null): string | undefined {
+  const normalizedCode = String(airportCode ?? '').trim().toUpperCase()
+  return normalizedCode ? AIRPORT_TIME_ZONES[normalizedCode] : undefined
+}
+
 function sortFlights(flights: FlightRecord[]) {
   return [...flights].sort((left, right) => {
     const leftValue = new Date(left.departureTime ?? left.arrivalTime ?? left.flightDate ?? 0).getTime()
@@ -462,11 +487,15 @@ function sortFlights(flights: FlightRecord[]) {
   })
 }
 
-function formatFlightTime(value?: string | null): string {
-  if (!value) return '--'
+function formatFlightTime(value?: string | null, airportCode?: string | null): string {
+  if (!value) return ''
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '--'
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: getAirportTimeZone(airportCode),
+  })
 }
 
 function formatFlightDate(value?: string | null): string {
@@ -476,7 +505,7 @@ function formatFlightDate(value?: string | null): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function formatFlightDateTime(value?: string | null): string {
+function formatFlightDateTime(value?: string | null, airportCode?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -486,6 +515,7 @@ function formatFlightDateTime(value?: string | null): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: getAirportTimeZone(airportCode),
   })
 }
 
@@ -501,6 +531,15 @@ function formatAirportLabel(value?: string | null): string | null {
     .join(', ')
 
   return compact.length > 42 ? `${compact.slice(0, 39).trimEnd()}...` : compact
+}
+
+function formatAirportTitle(value?: string | null, fallback?: string | null): string {
+  const normalized = String(value ?? '').trim()
+  if (normalized) {
+    return normalized.split(',')[0]?.trim() || normalized
+  }
+
+  return String(fallback ?? '').trim() || 'Unknown airport'
 }
 
 function formatFlightDuration(departureTime?: string | null, arrivalTime?: string | null): string | null {
@@ -2790,7 +2829,9 @@ export default function App() {
                   >
                     {(() => {
                       const durationLabel = formatFlightDuration(flight.departureTime, flight.arrivalTime)
-                      const routeTitle = `${flight.fromAirport || 'Unknown departure'} to ${flight.toAirport || 'Unknown arrival'}`
+                      const fromAirportTitle = formatAirportTitle(flight.fromAirportResolvedName, flight.fromAirport)
+                      const toAirportTitle = formatAirportTitle(flight.toAirportResolvedName, flight.toAirport)
+                      const routeTitle = `${fromAirportTitle} to ${toAirportTitle}`
                       const flightLabel = [flight.flightNumber, flight.airline].filter(Boolean).join(' · ') || 'Flight entry'
                       const fromAirportLabel = formatAirportLabel(flight.fromAirportResolvedName) ?? flight.fromAirport ?? 'Unknown departure'
                       const toAirportLabel = formatAirportLabel(flight.toAirportResolvedName) ?? flight.toAirport ?? 'Unknown arrival'
@@ -2803,9 +2844,10 @@ export default function App() {
                     >
                       <div className="flight-card-timeline">
                         <div className="flight-card-time-block">
-                          <strong>{formatFlightTime(flight.departureTime)}</strong>
+                          {flight.departureTime ? <strong>{formatFlightTime(flight.departureTime, flight.fromAirport)}</strong> : null}
                           <span>{flight.fromAirport || 'DEP'}</span>
                           <em title={flight.fromAirportResolvedName ?? flight.fromAirport ?? undefined}>{fromAirportLabel}</em>
+                          {flight.departureTime ? <small>{formatFlightDateTime(flight.departureTime, flight.fromAirport)}</small> : null}
                         </div>
                         <div className="flight-card-connector" aria-hidden>
                           <span />
@@ -2813,9 +2855,10 @@ export default function App() {
                           <span />
                         </div>
                         <div className="flight-card-time-block flight-card-time-block-arrival">
-                          <strong>{formatFlightTime(flight.arrivalTime)}</strong>
+                          {flight.arrivalTime ? <strong>{formatFlightTime(flight.arrivalTime, flight.toAirport)}</strong> : null}
                           <span>{flight.toAirport || 'ARR'}</span>
                           <em title={flight.toAirportResolvedName ?? flight.toAirport ?? undefined}>{toAirportLabel}</em>
+                          {flight.arrivalTime ? <small>{formatFlightDateTime(flight.arrivalTime, flight.toAirport)}</small> : null}
                         </div>
                       </div>
 
@@ -2825,32 +2868,14 @@ export default function App() {
                         {flight.aircraft ? <span>{flight.aircraft}</span> : null}
                       </div>
 
-                      <dl className="flight-meta-grid">
-                        {flight.departureTime ? (
-                          <div>
-                            <dt>Departure</dt>
-                            <dd>{formatFlightDateTime(flight.departureTime)}</dd>
-                          </div>
-                        ) : null}
-                        {flight.arrivalTime ? (
-                          <div>
-                            <dt>Arrival</dt>
-                            <dd>{formatFlightDateTime(flight.arrivalTime)}</dd>
-                          </div>
-                        ) : null}
-                        {durationLabel ? (
-                          <div>
-                            <dt>Duration</dt>
-                            <dd>{durationLabel}</dd>
-                          </div>
-                        ) : null}
-                        {flight.notes ? (
+                      {flight.notes ? (
+                        <dl className="flight-meta-grid">
                           <div className="flight-meta-grid-wide">
                             <dt>Notes</dt>
                             <dd>{flight.notes}</dd>
                           </div>
-                        ) : null}
-                      </dl>
+                        </dl>
+                      ) : null}
 
                       <div className="catalog-card-actions">
                         <m.button

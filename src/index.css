@@ -1445,15 +1445,19 @@ body {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: start;
 }
 
 .flight-card-panel {
-  height: 100%;
   border-radius: 22px;
   padding: 18px;
   background:
     linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 98%, transparent), color-mix(in oklab, var(--panel-bg) 94%, transparent)),
     linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent 48%);
+}
+
+.flight-card-panel .panel-card-body {
+  margin-top: 10px;
 }
 
 .flight-card-topline {
@@ -1504,6 +1508,7 @@ body {
 .flight-card-time-block {
   display: grid;
   gap: 2px;
+  align-content: start;
 }
 
 .flight-card-time-block strong {
@@ -1527,6 +1532,13 @@ body {
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.flight-card-time-block small {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .flight-card-time-block-arrival {

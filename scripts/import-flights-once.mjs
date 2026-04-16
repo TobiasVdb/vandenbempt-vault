@@ -4,6 +4,26 @@ import pg from 'pg'
 
 const { Pool } = pg
 
+const AIRPORT_TIME_ZONES = {
+  AMS: 'Europe/Amsterdam',
+  ATH: 'Europe/Athens',
+  BRU: 'Europe/Brussels',
+  CGK: 'Asia/Jakarta',
+  CRL: 'Europe/Brussels',
+  DPS: 'Asia/Makassar',
+  EIN: 'Europe/Amsterdam',
+  EWR: 'America/New_York',
+  FAO: 'Europe/Lisbon',
+  KUL: 'Asia/Kuala_Lumpur',
+  LAX: 'America/Los_Angeles',
+  LCA: 'Asia/Nicosia',
+  LHR: 'Europe/London',
+  OPO: 'Europe/Lisbon',
+  SDR: 'Europe/Madrid',
+  SXF: 'Europe/Berlin',
+  ZAD: 'Europe/Zagreb',
+}
+
 export const SOURCE_FLIGHTS = [
   { flightDate: '2026-08-08', flightNumber: 'SN3357', fromAirport: 'BRU', toAirport: 'ZAD', distance: 690, departureTime: '10:15', arrivalTime: '12:05', airline: 'BEL' },
   { flightDate: '2026-08-08', flightNumber: 'SN3357', fromAirport: 'BRU', toAirport: 'ZAD', distance: 690, departureTime: '10:15', arrivalTime: '12:05', airline: 'BEL' },
@@ -58,7 +78,74 @@ function toFlightDate(value) {
   return parsed.toISOString().slice(0, 10)
 }
 
-function toFlightTimestamp(date, time, referenceIso = null) {
+function getAirportTimeZone(airportCode) {
+  const normalizedCode = normalizeText(airportCode, true)
+  return normalizedCode ? AIRPORT_TIME_ZONES[normalizedCode] ?? null : null
+}
+
+function getTimeZoneFormatter(timeZone) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+}
+
+function getZonedDateParts(date, timeZone) {
+  const parts = getTimeZoneFormatter(timeZone).formatToParts(date)
+  const readPart = (type) => Number(parts.find((part) => part.type === type)?.value ?? '0')
+
+  return {
+    year: readPart('year'),
+    month: readPart('month'),
+    day: readPart('day'),
+    hour: readPart('hour'),
+    minute: readPart('minute'),
+    second: readPart('second'),
+  }
+}
+
+function zonedDateTimeToUtc(date, hours, minutes, seconds, timeZone) {
+  let timestamp = Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10)),
+    hours,
+    minutes,
+    seconds,
+    0,
+  )
+
+  for (let iteration = 0; iteration < 2; iteration += 1) {
+    const parts = getZonedDateParts(new Date(timestamp), timeZone)
+    const zonedUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, 0)
+    const desiredUtc = Date.UTC(
+      Number(date.slice(0, 4)),
+      Number(date.slice(5, 7)) - 1,
+      Number(date.slice(8, 10)),
+      hours,
+      minutes,
+      seconds,
+      0,
+    )
+    timestamp += desiredUtc - zonedUtc
+  }
+
+  return new Date(timestamp)
+}
+
+function addDaysToFlightDate(date, days) {
+  const nextDate = new Date(`${date}T00:00:00Z`)
+  nextDate.setUTCDate(nextDate.getUTCDate() + days)
+  return nextDate.toISOString().slice(0, 10)
+}
+
+function toFlightTimestamp(date, time, referenceIso = null, timeZone = null) {
   if (!date || !time) return null
 
   if (time instanceof Date) {
@@ -85,6 +172,15 @@ function toFlightTimestamp(date, time, referenceIso = null) {
   const hours = Number(hoursText)
   const minutes = Number(minutesText)
   const seconds = Number(secondsText ?? '0')
+
+  if (timeZone) {
+    const zonedDate = zonedDateTimeToUtc(date, hours, minutes, seconds, timeZone)
+    if (Number.isNaN(zonedDate.getTime())) {
+      throw new Error(`Invalid timestamp input: ${date} ${time}`)
+    }
+    return zonedDate.toISOString()
+  }
+
   const base = referenceIso ? new Date(referenceIso) : new Date(`${date}T${hoursText}:${minutesText}:${String(seconds).padStart(2, '0')}Z`)
   if (referenceIso) {
     base.setUTCHours(hours, minutes, seconds, 0)
@@ -99,13 +195,19 @@ function toFlightTimestamp(date, time, referenceIso = null) {
 
 export function normalizeFlightRecord(record) {
   const flightDate = toFlightDate(record.flightDate)
-  const departureTime = toFlightTimestamp(flightDate, record.departureTime)
-  let arrivalTime = toFlightTimestamp(flightDate, record.arrivalTime, departureTime)
+  const departureTimeZone = getAirportTimeZone(record.fromAirport)
+  const arrivalTimeZone = getAirportTimeZone(record.toAirport)
+  const departureTime = toFlightTimestamp(flightDate, record.departureTime, null, departureTimeZone)
+  let arrivalTime = toFlightTimestamp(flightDate, record.arrivalTime, departureTimeZone ? null : departureTime, arrivalTimeZone)
 
   if (departureTime && arrivalTime && new Date(arrivalTime).getTime() < new Date(departureTime).getTime()) {
-    const nextDayArrival = new Date(arrivalTime)
-    nextDayArrival.setUTCDate(nextDayArrival.getUTCDate() + 1)
-    arrivalTime = nextDayArrival.toISOString()
+    if (arrivalTimeZone && typeof record.arrivalTime === 'string') {
+      arrivalTime = toFlightTimestamp(addDaysToFlightDate(flightDate, 1), record.arrivalTime, null, arrivalTimeZone)
+    } else {
+      const nextDayArrival = new Date(arrivalTime)
+      nextDayArrival.setUTCDate(nextDayArrival.getUTCDate() + 1)
+      arrivalTime = nextDayArrival.toISOString()
+    }
   }
 
   return {
@@ -205,6 +307,7 @@ export async function ensureFlightsTable(pool) {
 async function loadExistingFlightKeys(pool) {
   const result = await pool.query(`
     SELECT
+      id,
       flight_date AS "flightDate",
       flight_number AS "flightNumber",
       from_airport AS "fromAirport",
@@ -218,7 +321,7 @@ async function loadExistingFlightKeys(pool) {
     FROM flights
   `)
 
-  return new Set(result.rows.map((row) => buildFlightKey(row)))
+  return result.rows
 }
 
 async function insertFlight(pool, flight) {
@@ -256,8 +359,56 @@ async function insertFlight(pool, flight) {
   )
 }
 
+async function updateFlight(pool, id, flight) {
+  await pool.query(
+    `
+      UPDATE flights
+      SET
+        flight_date = $2,
+        flight_number = $3,
+        from_airport = $4,
+        to_airport = $5,
+        distance = $6,
+        departure_time = $7,
+        arrival_time = $8,
+        airline = $9,
+        aircraft = $10,
+        notes = $11,
+        updated_at = NOW()
+      WHERE id = $1
+    `,
+    [
+      id,
+      flight.flightDate,
+      flight.flightNumber,
+      flight.fromAirport,
+      flight.toAirport,
+      flight.distance,
+      flight.departureTime,
+      flight.arrivalTime,
+      flight.airline,
+      flight.aircraft,
+      flight.notes,
+    ],
+  )
+}
+
 function isDuplicateFlightError(error) {
   return error && typeof error === 'object' && 'code' in error && error.code === '23505'
+}
+
+function buildFlightMatchKey(record) {
+  const normalized = normalizeFlightRecord(record)
+  return JSON.stringify([
+    normalized.flightDate,
+    normalized.flightNumber,
+    normalized.fromAirport,
+    normalized.toAirport,
+    normalized.distance,
+    normalized.airline,
+    normalized.aircraft,
+    normalized.notes,
+  ])
 }
 
 export async function seedFlights(pool) {
@@ -271,8 +422,11 @@ export async function seedFlights(pool) {
     uniqueFlights.push(normalizeFlightRecord(flight))
   }
 
-  const existingKeys = await loadExistingFlightKeys(pool)
+  const existingFlights = await loadExistingFlightKeys(pool)
+  const existingKeys = new Set(existingFlights.map((row) => buildFlightKey(row)))
+  const existingByMatchKey = new Map(existingFlights.map((row) => [buildFlightMatchKey(row), row]))
   let created = 0
+  let repaired = 0
   let skipped = 0
 
   for (const flight of uniqueFlights) {
@@ -282,9 +436,21 @@ export async function seedFlights(pool) {
       continue
     }
 
+    const matchKey = buildFlightMatchKey(flight)
+    const existingFlight = existingByMatchKey.get(matchKey)
+    if (existingFlight?.id) {
+      await updateFlight(pool, existingFlight.id, flight)
+      existingKeys.delete(buildFlightKey(existingFlight))
+      existingKeys.add(key)
+      existingByMatchKey.set(matchKey, { ...existingFlight, ...flight })
+      repaired += 1
+      continue
+    }
+
     try {
       await insertFlight(pool, flight)
       existingKeys.add(key)
+      existingByMatchKey.set(matchKey, flight)
       created += 1
     } catch (error) {
       if (isDuplicateFlightError(error)) {
@@ -298,6 +464,7 @@ export async function seedFlights(pool) {
 
   return {
     created,
+    repaired,
     skipped,
     sourceRows: SOURCE_FLIGHTS.length,
     uniqueRows: uniqueFlights.length,
