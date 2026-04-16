@@ -636,7 +636,16 @@ function formatAirportLabel(value?: string | null): string | null {
 function formatAirportTitle(value?: string | null, fallback?: string | null): string {
   const normalized = String(value ?? '').trim()
   if (normalized) {
-    return normalized.split(',')[0]?.trim() || normalized
+    const titleCandidates = normalized
+      .split(',')
+      .flatMap((part) => part.split('/'))
+      .map((part) => part.trim())
+      .filter(Boolean)
+
+    const latinCandidate = titleCandidates.find((part) => /[A-Za-z]/.test(part))
+    if (latinCandidate) return latinCandidate
+
+    return String(fallback ?? '').trim() || titleCandidates[0] || 'Unknown airport'
   }
 
   return String(fallback ?? '').trim() || 'Unknown airport'
