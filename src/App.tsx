@@ -614,6 +614,7 @@ export default function App() {
   const [movingLibraryItemId, setMovingLibraryItemId] = useState<string | null>(null)
   const [flights, setFlights] = useState<FlightRecord[]>([])
   const [flightViewMode, setFlightViewMode] = useState<'list' | 'map'>('list')
+  const [flightMapDimension, setFlightMapDimension] = useState<'2d' | '3d'>('2d')
   const [isFlightLoading, setIsFlightLoading] = useState(false)
   const [flightSheetMode, setFlightSheetMode] = useState<'create' | 'edit'>('create')
   const [editingFlightId, setEditingFlightId] = useState<string | null>(null)
@@ -2715,6 +2716,28 @@ export default function App() {
                       Map
                     </button>
                   </div>
+                  {flightViewMode === 'map' ? (
+                    <div className="view-toggle" role="tablist" aria-label="Flights map dimension">
+                      <button
+                        type="button"
+                        className={`view-toggle-btn ${flightMapDimension === '2d' ? 'active' : ''}`}
+                        role="tab"
+                        aria-selected={flightMapDimension === '2d'}
+                        onClick={() => setFlightMapDimension('2d')}
+                      >
+                        2D
+                      </button>
+                      <button
+                        type="button"
+                        className={`view-toggle-btn ${flightMapDimension === '3d' ? 'active' : ''}`}
+                        role="tab"
+                        aria-selected={flightMapDimension === '3d'}
+                        onClick={() => setFlightMapDimension('3d')}
+                      >
+                        3D
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             />
@@ -2740,9 +2763,9 @@ export default function App() {
                   <>
                     <div className="flights-map-status">
                       <strong>{mappableFlights.length} mapped routes</strong>
-                      <span>Map uses cached airport lookups populated when flights are saved.</span>
+                      <span>{flightMapDimension === '3d' ? '3D terrain view enabled.' : '2D route view enabled.'} Map uses cached airport lookups populated when flights are saved.</span>
                     </div>
-                    <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} />
+                    <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension={flightMapDimension} />
                   </>
                 )}
               </div>

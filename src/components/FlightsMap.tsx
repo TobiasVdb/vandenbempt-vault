@@ -6,9 +6,10 @@ type FlightsMapProps = {
   flights: FlightRecord[]
   theme: 'light' | 'dark'
   token: string
+  dimension: '2d' | '3d'
 }
 
-export function FlightsMap({ flights, theme, token }: FlightsMapProps) {
+export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -93,6 +94,20 @@ export function FlightsMap({ flights, theme, token }: FlightsMapProps) {
     map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right')
 
     map.on('load', () => {
+      if (dimension === '3d') {
+        map.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14,
+        })
+        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.15 })
+        map.setProjection('globe')
+      } else {
+        map.setTerrain(null)
+        map.setProjection('mercator')
+      }
+
       map.addSource('flight-routes', {
         type: 'geojson',
         data: {
@@ -145,6 +160,12 @@ export function FlightsMap({ flights, theme, token }: FlightsMapProps) {
         })
         map.fitBounds(bounds, { padding: 48, maxZoom: 5.5 })
       }
+
+      map.easeTo({
+        pitch: dimension === '3d' ? 58 : 0,
+        bearing: dimension === '3d' ? 14 : 0,
+        duration: 900,
+      })
     })
 
     map.on('click', 'flight-points-circle', (event) => {
@@ -170,7 +191,7 @@ export function FlightsMap({ flights, theme, token }: FlightsMapProps) {
     })
 
     return () => map.remove()
-  }, [flights, theme, token])
+  }, [dimension, flights, theme, token])
 
   return <div ref={containerRef} className="flights-map-canvas" />
 }

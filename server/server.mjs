@@ -304,6 +304,50 @@ async function initializeDatabase() {
   `)
 
   await pool.query(`
+    WITH ranked_flights AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (
+          PARTITION BY
+            COALESCE(flight_date, DATE '0001-01-01'),
+            COALESCE(flight_number, ''),
+            COALESCE(from_airport, ''),
+            COALESCE(to_airport, ''),
+            COALESCE(distance, -1),
+            COALESCE(departure_time, TIMESTAMPTZ '0001-01-01 00:00:00+00'),
+            COALESCE(arrival_time, TIMESTAMPTZ '0001-01-01 00:00:00+00'),
+            COALESCE(airline, ''),
+            COALESCE(aircraft, ''),
+            COALESCE(notes, '')
+          ORDER BY created_at ASC, id ASC
+        ) AS duplicate_rank
+      FROM flights
+    )
+    DELETE FROM flights
+    WHERE id IN (
+      SELECT id
+      FROM ranked_flights
+      WHERE duplicate_rank > 1
+    );
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS flights_dedup_idx
+    ON flights (
+      COALESCE(flight_date, DATE '0001-01-01'),
+      COALESCE(flight_number, ''),
+      COALESCE(from_airport, ''),
+      COALESCE(to_airport, ''),
+      COALESCE(distance, -1),
+      COALESCE(departure_time, TIMESTAMPTZ '0001-01-01 00:00:00+00'),
+      COALESCE(arrival_time, TIMESTAMPTZ '0001-01-01 00:00:00+00'),
+      COALESCE(airline, ''),
+      COALESCE(aircraft, ''),
+      COALESCE(notes, '')
+    );
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ${FLIGHT_AIRPORT_TABLE} (
       airport_key TEXT PRIMARY KEY,
       airport_label TEXT NOT NULL,
@@ -390,6 +434,10 @@ function mapWorkspaceUser(row) {
     sso: row.sso,
     canApproveProduction: Boolean(row.can_approve_production),
   }
+}
+
+function isDuplicateFlightError(error) {
+  return error && typeof error === 'object' && 'code' in error && error.code === '23505'
 }
 
 function resolveContentTable(kind) {
@@ -2385,6 +2433,10 @@ app.post('/api/flights', async (request, response) => {
     const createdFlight = await buildFlightsSelectQuery('WHERE flight.id = $1', [result.rows[0].id])
     response.status(201).json({ flight: mapFlight(createdFlight.rows[0]) })
   } catch (error) {
+    if (isDuplicateFlightError(error)) {
+      response.status(409).json({ error: 'This flight already exists.' })
+      return
+    }
     console.error('Failed to create flight:', error)
     response.status(500).json({ error: 'Failed to create flight.' })
   }
@@ -2445,6 +2497,10 @@ app.put('/api/flights/:id', async (request, response) => {
     const updatedFlight = await buildFlightsSelectQuery('WHERE flight.id = $1', [request.params.id])
     response.json({ flight: mapFlight(updatedFlight.rows[0]) })
   } catch (error) {
+    if (isDuplicateFlightError(error)) {
+      response.status(409).json({ error: 'This flight already exists.' })
+      return
+    }
     console.error('Failed to update flight:', error)
     response.status(500).json({ error: 'Failed to update flight.' })
   }
