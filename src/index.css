@@ -1568,6 +1568,35 @@ body {
   white-space: nowrap;
 }
 
+.app-shell.dark .flight-card-timeline {
+  background: linear-gradient(180deg, rgba(44, 47, 55, 0.96), rgba(34, 37, 44, 0.94));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.app-shell.dark .flight-card-time-block strong {
+  color: #f6f7fb;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
+.app-shell.dark .flight-card-time-block span {
+  color: #f1f3f8;
+}
+
+.app-shell.dark .flight-card-time-block small {
+  color: #d7dbe6;
+}
+
+.app-shell.dark .flight-card-connector span {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.app-shell.dark .flight-card-connector b {
+  color: #f8f9fc;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .flight-card-summary-row {
   display: flex;
   flex-wrap: wrap;
