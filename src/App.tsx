@@ -64,7 +64,6 @@ import {
   getPageFromPath,
   getPathFromPage,
   integrationTemplates,
-  linksSectionLinks,
   mainNavigationItems,
 } from './app/constants'
 import { Input } from './components/ui/Input'
@@ -4036,71 +4035,6 @@ export default function App() {
               />
             </div>
           </section>
-        ) : activePage === 'Links' ? (
-          <div className="playground-page">
-            <PageHeader
-              title="Links"
-              subtitle="Reference links for experiments, prototypes, previous iterations, and the latest pitch deck."
-            />
-
-            <m.div
-              className="playground-grid"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: {
-                  transition: {
-                    staggerChildren: 0.08,
-                    delayChildren: CONTENT_START_DELAY + 0.2,
-                  },
-                },
-              }}
-            >
-              {linksSectionLinks.map((link) => (
-                link.page ? (
-                  <m.button
-                    key={link.page}
-                    type="button"
-                    className="playground-tile"
-                    onClick={() => goToPage(link.page!)}
-                    variants={{
-                      hidden: { opacity: 0, y: 14, scale: 0.98 },
-                      visible: {
-                        opacity: 1,
-                        y: 0,
-                        scale: 1,
-                        transition: { duration: 0.42, ease: EASE_SOFT },
-                      },
-                    }}
-                  >
-                    <h3>{link.title}</h3>
-                    <p>{link.description}</p>
-                  </m.button>
-                ) : (
-                  <m.a
-                    key={link.url}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="playground-tile"
-                    variants={{
-                      hidden: { opacity: 0, y: 14, scale: 0.98 },
-                      visible: {
-                        opacity: 1,
-                        y: 0,
-                        scale: 1,
-                        transition: { duration: 0.42, ease: EASE_SOFT },
-                      },
-                    }}
-                  >
-                    <h3>{link.title}</h3>
-                    <p>{link.description}</p>
-                  </m.a>
-                )
-              ))}
-            </m.div>
-          </div>
         ) : activePage === 'Playground' ? (
           <section
             className={`playground-page ${previewModel ? 'playground-preview-active' : ''}`}

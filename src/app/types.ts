@@ -8,7 +8,6 @@ export type Page =
   | 'Flights'
   | 'Integrations'
   | 'Admin'
-  | 'Links'
   | 'Playground'
   | 'PitchDeck'
   | 'IntegrationDetail'
@@ -33,13 +32,6 @@ export type Integration = {
   description: string
   logo: string
   darkLogo?: string
-}
-
-export type LinkTile = {
-  title: string
-  description: string
-  url?: string
-  page?: Extract<Page, 'PitchDeck'>
 }
 
 export type GlbModelRecord = {

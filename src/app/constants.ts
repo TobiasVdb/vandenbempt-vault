@@ -3,12 +3,10 @@ import { Archive } from '@phosphor-icons/react/Archive'
 import { GameController } from '@phosphor-icons/react/GameController'
 import { GearSix } from '@phosphor-icons/react/GearSix'
 import { House } from '@phosphor-icons/react/House'
-import { Layout } from '@phosphor-icons/react/Layout'
 import { PlugCharging } from '@phosphor-icons/react/PlugCharging'
 import type {
   GlobalPolicyEngine,
   Integration,
-  LinkTile,
   Page,
   ReportPreferences,
   ThemeMode,
@@ -67,7 +65,6 @@ export const mainNavigationItems = [
     description: 'Link with cloud systems',
     icon: PlugCharging,
   },
-  { label: 'Links' as const, icon: Layout },
 ]
 
 export const bottomNavigationItems = [{ label: 'Admin' as const, description: 'Policy, lifecycle, audit', icon: GearSix }]
@@ -78,39 +75,6 @@ export const integrationTemplates: Integration[] = [
   { id: 'slack', type: 'gcp', title: 'Google Cloud', description: 'API Integration', logo: 'google.png' },
   { id: 'azure', type: 'azure', title: 'Azure Cloud', description: 'API Integration', logo: 'azure.png' },
   { id: 'kubernetes', type: 'kubernetes', title: 'Kubernetes', description: 'API Integration', logo: 'kubernetes.png' },
-]
-
-export const linksSectionLinks: LinkTile[] = [
-  {
-    title: 'Pitch Deck',
-    page: 'PitchDeck',
-    description: 'Open the in-app PDF viewer for the latest deck on its own page.',
-  },
-  {
-    title: 'First Version',
-    url: 'https://frost-design.be/kubetown/',
-    description: 'Original baseline release used as the starting point for later iterations.',
-  },
-  {
-    title: 'Performance Testing',
-    url: 'https://frost-design.be/kubetown/perf/',
-    description: 'Build variant for stress, rendering, and runtime performance checks.',
-  },
-  {
-    title: 'API Based',
-    url: 'https://frost-design.be/kubetown/api/',
-    description: 'Integration variant driven by API data and dynamic backend content.',
-  },
-  {
-    title: 'Manual Builder + Water',
-    url: 'https://frost-design.be/kubetown/2/',
-    description: 'Interactive manual builder concept with water surroundings.',
-  },
-  {
-    title: 'Landing Page Tryout',
-    url: 'https://frost-design.be/kubetown/landing/',
-    description: 'Standalone landing page experiment for messaging and visual direction.',
-  },
 ]
 
 export const defaultLibraryItemDraft = {
@@ -168,7 +132,6 @@ export function getPageFromPath(pathname: string): { page: Page; integrationId?:
   if (normalizedPath === '/flights') return { page: 'Flights' }
   if (normalizedPath === '/integrations') return { page: 'Integrations' }
   if (normalizedPath === '/admin') return { page: 'Admin' }
-  if (normalizedPath === '/links') return { page: 'Links' }
   if (normalizedPath === '/pitchdeck') return { page: 'PitchDeck' }
   if (normalizedPath.startsWith('/integrations/')) {
     return {
@@ -186,7 +149,6 @@ export function getPathFromPage(page: Page, integrationId?: string): string {
   if (page === 'Flights') return '/flights'
   if (page === 'Integrations') return '/integrations'
   if (page === 'Admin') return '/admin'
-  if (page === 'Links') return '/links'
   if (page === 'PitchDeck') return '/pitchdeck'
   if (page === 'IntegrationDetail' && integrationId) return `/integrations/${encodeURIComponent(integrationId)}`
   return '/integrations'
