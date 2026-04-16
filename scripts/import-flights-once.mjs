@@ -36,6 +36,28 @@ export function normalizeText(value, uppercase = false) {
   return uppercase ? normalized.toUpperCase() : normalized
 }
 
+function toFlightDate(value) {
+  if (!value) return null
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      throw new Error(`Invalid flight date input: ${value}`)
+    }
+    return value.toISOString().slice(0, 10)
+  }
+
+  const normalizedValue = String(value).trim()
+  if (!normalizedValue) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)) return normalizedValue
+
+  const parsed = new Date(normalizedValue)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid flight date input: ${value}`)
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
 function toFlightTimestamp(date, time, referenceIso = null) {
   if (!date || !time) return null
 
@@ -63,7 +85,7 @@ function toFlightTimestamp(date, time, referenceIso = null) {
   const hours = Number(hoursText)
   const minutes = Number(minutesText)
   const seconds = Number(secondsText ?? '0')
-  const base = referenceIso ? new Date(referenceIso) : new Date(`${date}T${hoursText}:${minutesText}:${String(seconds).padStart(2, '0')}`)
+  const base = referenceIso ? new Date(referenceIso) : new Date(`${date}T${hoursText}:${minutesText}:${String(seconds).padStart(2, '0')}Z`)
   if (referenceIso) {
     base.setUTCHours(hours, minutes, seconds, 0)
   }
@@ -76,7 +98,7 @@ function toFlightTimestamp(date, time, referenceIso = null) {
 }
 
 export function normalizeFlightRecord(record) {
-  const flightDate = normalizeText(record.flightDate)
+  const flightDate = toFlightDate(record.flightDate)
   const departureTime = toFlightTimestamp(flightDate, record.departureTime)
   let arrivalTime = toFlightTimestamp(flightDate, record.arrivalTime, departureTime)
 
@@ -234,6 +256,10 @@ async function insertFlight(pool, flight) {
   )
 }
 
+function isDuplicateFlightError(error) {
+  return error && typeof error === 'object' && 'code' in error && error.code === '23505'
+}
+
 export async function seedFlights(pool) {
   const uniqueFlights = []
   const sourceKeys = new Set()
@@ -256,9 +282,18 @@ export async function seedFlights(pool) {
       continue
     }
 
-    await insertFlight(pool, flight)
-    existingKeys.add(key)
-    created += 1
+    try {
+      await insertFlight(pool, flight)
+      existingKeys.add(key)
+      created += 1
+    } catch (error) {
+      if (isDuplicateFlightError(error)) {
+        existingKeys.add(key)
+        skipped += 1
+        continue
+      }
+      throw error
+    }
   }
 
   return {
