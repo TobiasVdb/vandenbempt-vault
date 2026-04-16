@@ -32,9 +32,11 @@ const CONTENT_GROUP_TABLES = {
   projects: 'project_groups',
   games: 'game_groups',
 }
+  
+
 const CONTENT_THUMBNAILS_TABLE = 'content_thumbnails'
 const FLIGHT_AIRPORT_TABLE = 'flight_airports'
-const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || process.env.VITE_MAPBOX_ACCESS_TOKEN || ''
+const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN || process.env.VITE_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1Ijoic25pbGxvY21vdCIsImEiOiJjbThxY2U2MmIwYWE2MmtzOHhyNjdqMjZnIn0.3b-7Y5j4Uxy5kNCqcLaaYw'
 const THUMBNAIL_WAIT_MS = 4000
 const THUMBNAIL_NAVIGATION_TIMEOUT_MS = 30000
 const THUMBNAIL_SCREENSHOT_TIMEOUT_MS = 10000
