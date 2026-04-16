@@ -2508,6 +2508,7 @@ export default function App() {
     { value: 'actions', label: 'Actions' },
     { value: 'activity', label: 'Activity' },
   ]
+  const totalFlightDistance = flights.reduce((sum, flight) => sum + (flight.distance ?? 0), 0)
   const homeMetricTiles = [
     { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.' },
     { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.' },
@@ -2517,6 +2518,7 @@ export default function App() {
       detail: `${homeLibraryStats.totalBooks} books available in total.`,
     },
     { label: 'Lifetime Flights', value: String(flights.length), detail: 'Flights taken across your lifetime.' },
+    { label: 'Total Flight Distance', value: `${Math.round(totalFlightDistance).toLocaleString()} km`, detail: 'Combined distance across all logged flights.' },
   ]
 
   return (
