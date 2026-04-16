@@ -39,10 +39,33 @@ export function normalizeText(value, uppercase = false) {
 function toFlightTimestamp(date, time, referenceIso = null) {
   if (!date || !time) return null
 
-  const base = referenceIso ? new Date(referenceIso) : new Date(`${date}T${time}:00`)
+  if (time instanceof Date) {
+    if (Number.isNaN(time.getTime())) {
+      throw new Error(`Invalid timestamp input: ${date} ${time}`)
+    }
+    return time.toISOString()
+  }
+
+  const normalizedTime = String(time).trim()
+  if (!normalizedTime) return null
+
+  const directTimestamp = new Date(normalizedTime)
+  if (!Number.isNaN(directTimestamp.getTime())) {
+    return directTimestamp.toISOString()
+  }
+
+  const timeMatch = normalizedTime.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if (!timeMatch) {
+    throw new Error(`Invalid timestamp input: ${date} ${time}`)
+  }
+
+  const [, hoursText, minutesText, secondsText] = timeMatch
+  const hours = Number(hoursText)
+  const minutes = Number(minutesText)
+  const seconds = Number(secondsText ?? '0')
+  const base = referenceIso ? new Date(referenceIso) : new Date(`${date}T${hoursText}:${minutesText}:${String(seconds).padStart(2, '0')}`)
   if (referenceIso) {
-    const [hours, minutes] = time.split(':').map(Number)
-    base.setUTCHours(hours, minutes, 0, 0)
+    base.setUTCHours(hours, minutes, seconds, 0)
   }
 
   if (Number.isNaN(base.getTime())) {
