@@ -1363,6 +1363,20 @@ body {
   gap: 8px;
   justify-content: flex-end;
   margin-top: auto;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.catalog-card:hover .catalog-card-actions,
+.catalog-card:focus-within .catalog-card-actions,
+.catalog-card-drag-handle:focus-within .catalog-card-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .catalog-empty {
