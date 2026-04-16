@@ -455,28 +455,121 @@ function getLibrarySectionStorageId(kind: LibraryItemKind, sectionId: string) {
   return `${kind}:${sectionId}`
 }
 
-function toDateTimeLocalValue(value?: string | null): string {
+function formatDateInputValue(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = String(date.getUTCFullYear())
+  return `${day}/${month}/${year}`
+}
+
+function formatDateTimeInputValue(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16)
+  const localDate = new Date(date.getTime() - timezoneOffsetMs)
+  const day = String(localDate.getUTCDate()).padStart(2, '0')
+  const month = String(localDate.getUTCMonth() + 1).padStart(2, '0')
+  const year = String(localDate.getUTCFullYear())
+  const hours = String(localDate.getUTCHours()).padStart(2, '0')
+  const minutes = String(localDate.getUTCMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
-function toDateValue(value?: string | null): string {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toISOString().slice(0, 10)
+function parseDateInputValue(value: string): string {
+  const normalizedValue = String(value).trim()
+  if (!normalizedValue) return ''
+
+  const match = normalizedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!match) {
+    throw new Error('Date must use dd/mm/yyyy.')
+  }
+
+  const [, dayText, monthText, yearText] = match
+  const day = Number(dayText)
+  const month = Number(monthText)
+  const year = Number(yearText)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    Number.isNaN(parsed.getTime())
+    || parsed.getUTCFullYear() !== year
+    || parsed.getUTCMonth() !== month - 1
+    || parsed.getUTCDate() !== day
+  ) {
+    throw new Error('Date must be valid.')
+  }
+
+  return `${yearText}-${monthText}-${dayText}`
+}
+
+function parseDateTimeInputValue(value: string): string {
+  const normalizedValue = String(value).trim()
+  if (!normalizedValue) return ''
+
+  const match = normalizedValue.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/)
+  if (!match) {
+    throw new Error('Date and time must use dd/mm/yyyy HH:mm.')
+  }
+
+  const [, dayText, monthText, yearText, hoursText, minutesText] = match
+  const day = Number(dayText)
+  const month = Number(monthText)
+  const year = Number(yearText)
+  const hours = Number(hoursText)
+  const minutes = Number(minutesText)
+
+  if (hours > 23 || minutes > 59) {
+    throw new Error('Time must use 24-hour format.')
+  }
+
+  const localTimestamp = new Date(year, month - 1, day, hours, minutes, 0, 0)
+  if (
+    Number.isNaN(localTimestamp.getTime())
+    || localTimestamp.getFullYear() !== year
+    || localTimestamp.getMonth() !== month - 1
+    || localTimestamp.getDate() !== day
+    || localTimestamp.getHours() !== hours
+    || localTimestamp.getMinutes() !== minutes
+  ) {
+    throw new Error('Date and time must be valid.')
+  }
+
+  return localTimestamp.toISOString()
 }
 
 function toApiTimestamp(value: string): string {
-  return value ? new Date(value).toISOString() : new Date().toISOString()
+  return value ? parseDateTimeInputValue(value) : new Date().toISOString()
 }
 
 function getAirportTimeZone(airportCode?: string | null): string | undefined {
   const normalizedCode = String(airportCode ?? '').trim().toUpperCase()
   return normalizedCode ? AIRPORT_TIME_ZONES[normalizedCode] : undefined
+}
+
+function getZonedDateTimeParts(date: Date, timeZone?: string) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+
+  const readPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+
+  return {
+    day: readPart('day'),
+    month: readPart('month'),
+    year: readPart('year'),
+    hour: readPart('hour'),
+    minute: readPart('minute'),
+  }
 }
 
 function sortFlights(flights: FlightRecord[]) {
@@ -491,32 +584,39 @@ function formatFlightTime(value?: string | null, airportCode?: string | null): s
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: getAirportTimeZone(airportCode),
-  })
+  const parts = getZonedDateTimeParts(date, getAirportTimeZone(airportCode))
+  return `${parts.hour}:${parts.minute}`
 }
 
 function formatFlightDate(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = String(date.getUTCFullYear())
+  return `${day}/${month}/${year}`
 }
 
 function formatFlightDateTime(value?: string | null, airportCode?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: getAirportTimeZone(airportCode),
-  })
+  const parts = getZonedDateTimeParts(date, getAirportTimeZone(airportCode))
+  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`
+}
+
+function formatUiDateTime(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = String(date.getFullYear())
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
 function formatAirportLabel(value?: string | null): string | null {
@@ -634,7 +734,7 @@ export default function App() {
   const [editingLibraryItemId, setEditingLibraryItemId] = useState<string | null>(null)
   const [libraryDraft, setLibraryDraft] = useState<LibraryItemDraft>({
     ...defaultLibraryItemDraft,
-    timestamp: toDateTimeLocalValue(new Date().toISOString()),
+    timestamp: formatDateTimeInputValue(new Date().toISOString()),
   })
   const [isLibrarySaving, setIsLibrarySaving] = useState(false)
   const [deleteSheetType, setDeleteSheetType] = useState<LibraryItemKind | null>(null)
@@ -1122,7 +1222,7 @@ export default function App() {
   const resetLibraryEditor = useCallback(() => {
     setLibraryDraft({
       ...defaultLibraryItemDraft,
-      timestamp: toDateTimeLocalValue(new Date().toISOString()),
+      timestamp: formatDateTimeInputValue(new Date().toISOString()),
     })
     setEditingLibraryItemId(null)
     setLibrarySheetMode('create')
@@ -1150,7 +1250,7 @@ export default function App() {
       imageUrl: item.imageUrl ?? '',
       description: item.description ?? '',
       rating: String(item.rating),
-      timestamp: toDateTimeLocalValue(item.timestamp),
+      timestamp: formatDateTimeInputValue(item.timestamp),
       groupId: item.groupId ?? '',
     })
   }, [])
@@ -1260,13 +1360,13 @@ export default function App() {
     setEditingFlightId(flight.id)
     setFlightSheetMode('edit')
     setFlightDraft({
-      flightDate: toDateValue(flight.flightDate),
+      flightDate: formatDateInputValue(flight.flightDate),
       flightNumber: flight.flightNumber ?? '',
       fromAirport: flight.fromAirport ?? '',
       toAirport: flight.toAirport ?? '',
       distance: flight.distance === null ? '' : String(flight.distance),
-      departureTime: toDateTimeLocalValue(flight.departureTime),
-      arrivalTime: toDateTimeLocalValue(flight.arrivalTime),
+      departureTime: formatDateTimeInputValue(flight.departureTime),
+      arrivalTime: formatDateTimeInputValue(flight.arrivalTime),
       airline: flight.airline ?? '',
       aircraft: flight.aircraft ?? '',
       notes: flight.notes ?? '',
@@ -1298,17 +1398,20 @@ export default function App() {
     setIsFlightSaving(true)
 
     try {
+      const parsedFlightDate = flightDraft.flightDate ? parseDateInputValue(flightDraft.flightDate) : null
+      const parsedDepartureTime = flightDraft.departureTime ? toApiTimestamp(flightDraft.departureTime) : null
+      const parsedArrivalTime = flightDraft.arrivalTime ? toApiTimestamp(flightDraft.arrivalTime) : null
       const response = await fetch(apiUrl(editingFlightId ? `/flights/${editingFlightId}` : '/flights'), {
         method: editingFlightId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          flightDate: flightDraft.flightDate || null,
+          flightDate: parsedFlightDate,
           flightNumber: flightDraft.flightNumber || null,
           fromAirport: flightDraft.fromAirport || null,
           toAirport: flightDraft.toAirport || null,
           distance: flightDraft.distance || null,
-          departureTime: flightDraft.departureTime ? toApiTimestamp(flightDraft.departureTime) : null,
-          arrivalTime: flightDraft.arrivalTime ? toApiTimestamp(flightDraft.arrivalTime) : null,
+          departureTime: parsedDepartureTime,
+          arrivalTime: parsedArrivalTime,
           airline: flightDraft.airline || null,
           aircraft: flightDraft.aircraft || null,
           notes: flightDraft.notes || null,
@@ -1367,6 +1470,7 @@ export default function App() {
     setIsLibrarySaving(true)
 
     try {
+      const parsedTimestamp = toApiTimestamp(libraryDraft.timestamp)
       const response = await fetch(apiUrl(editingLibraryItemId ? `/${librarySheetType}/${editingLibraryItemId}` : `/${librarySheetType}`), {
         method: editingLibraryItemId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1376,7 +1480,7 @@ export default function App() {
           imageUrl: libraryDraft.imageUrl.trim() || null,
           description: libraryDraft.description.trim() || null,
           rating: Number(libraryDraft.rating),
-          timestamp: toApiTimestamp(libraryDraft.timestamp),
+          timestamp: parsedTimestamp,
           groupId: libraryDraft.groupId || null,
         }),
       })
@@ -2655,7 +2759,7 @@ export default function App() {
                                         <dl className="catalog-meta">
                                           <div>
                                             <dt>Timestamp</dt>
-                                            <dd>{new Date(item.timestamp).toLocaleString()}</dd>
+                                            <dd>{formatUiDateTime(item.timestamp)}</dd>
                                           </div>
                                           <div>
                                             <dt>Link</dt>
@@ -3352,7 +3456,7 @@ export default function App() {
                   {auditLog.slice(0, 6).map((entry) => (
                     <li key={entry.id}>
                       <span>{entry.action}</span>
-                      <em>{new Date(entry.at).toLocaleString()}</em>
+                      <em>{formatUiDateTime(entry.at)}</em>
                     </li>
                   ))}
                 </ul>
@@ -3947,7 +4051,7 @@ export default function App() {
                           >
                             <h3>{model.fileName}</h3>
                             <p>{formatFileSize(model.fileSize)}</p>
-                            <p>{new Date(model.createdAt).toLocaleString()}</p>
+                            <p>{formatUiDateTime(model.createdAt)}</p>
                             <div className="glb-tile-actions">
                               <button
                                 type="button"
@@ -4161,8 +4265,9 @@ export default function App() {
               <label>
                 Date
                 <Input
-                  type="date"
                   value={flightDraft.flightDate}
+                  inputMode="numeric"
+                  placeholder="dd/mm/yyyy"
                   onChange={(event) => setFlightDraft((current) => ({ ...current, flightDate: event.target.value }))}
                 />
               </label>
@@ -4202,16 +4307,18 @@ export default function App() {
               <label>
                 Departure Time
                 <Input
-                  type="datetime-local"
                   value={flightDraft.departureTime}
+                  inputMode="numeric"
+                  placeholder="dd/mm/yyyy HH:mm"
                   onChange={(event) => setFlightDraft((current) => ({ ...current, departureTime: event.target.value }))}
                 />
               </label>
               <label>
                 Arrival Time
                 <Input
-                  type="datetime-local"
                   value={flightDraft.arrivalTime}
+                  inputMode="numeric"
+                  placeholder="dd/mm/yyyy HH:mm"
                   onChange={(event) => setFlightDraft((current) => ({ ...current, arrivalTime: event.target.value }))}
                 />
               </label>
@@ -4393,8 +4500,9 @@ export default function App() {
               <label>
                 Timestamp
                 <Input
-                  type="datetime-local"
                   value={libraryDraft.timestamp}
+                  inputMode="numeric"
+                  placeholder="dd/mm/yyyy HH:mm"
                   onChange={(event) => setLibraryDraft((current) => ({ ...current, timestamp: event.target.value }))}
                 />
               </label>
