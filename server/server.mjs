@@ -36,7 +36,6 @@ const CONTENT_GROUP_TABLES = {
 
 const CONTENT_THUMBNAILS_TABLE = 'content_thumbnails'
 const FLIGHT_AIRPORT_TABLE = 'flight_airports'
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoic25pbGxvY21vdCIsImEiOiJjbThxY2U2MmIwYWE2MmtzOHhyNjdqMjZnIn0.3b-7Y5j4Uxy5kNCqcLaaYw'
 const THUMBNAIL_WAIT_MS = 4000
 const THUMBNAIL_NAVIGATION_TIMEOUT_MS = 40000
 const THUMBNAIL_SCREENSHOT_TIMEOUT_MS = 30000
@@ -501,6 +500,66 @@ async function upsertAirportCache(label, resolvedName, latitude, longitude, feat
   )
 }
 
+function buildAirportSearchQueries(label) {
+  const normalizedLabel = String(label ?? '').trim()
+  if (!normalizedLabel) return []
+
+  const queries = [normalizedLabel]
+  if (!/\bairport\b/i.test(normalizedLabel)) {
+    queries.push(`${normalizedLabel} airport`)
+  }
+
+  return [...new Set(queries)]
+}
+
+function selectNominatimAirportCandidate(candidates) {
+  if (!Array.isArray(candidates)) return null
+
+  return (
+    candidates.find((candidate) => candidate?.category === 'aeroway' && candidate?.type === 'aerodrome')
+    ?? candidates.find((candidate) => candidate?.category === 'aeroway')
+    ?? candidates.find((candidate) => /airport/i.test(candidate?.display_name ?? '') || /airport/i.test(candidate?.name ?? ''))
+    ?? null
+  )
+}
+
+async function resolveAirportWithNominatim(label) {
+  for (const query of buildAirportSearchQueries(label)) {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('q', query)
+    url.searchParams.set('format', 'jsonv2')
+    url.searchParams.set('limit', '5')
+
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'house-of-tobias/1.0',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Nominatim airport lookup failed with status ${response.status}.`)
+    }
+
+    const payload = await response.json()
+    const candidate = selectNominatimAirportCandidate(payload)
+    if (!candidate) continue
+
+    const latitude = Number(candidate.lat)
+    const longitude = Number(candidate.lon)
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue
+
+    return {
+      resolvedName: candidate.display_name ?? candidate.name ?? query,
+      latitude,
+      longitude,
+      featureId: candidate.osm_type && candidate.osm_id ? `${candidate.osm_type}:${candidate.osm_id}` : null,
+    }
+  }
+
+  return null
+}
+
 async function resolveAirportCoordinates(label) {
   const normalizedLabel = String(label ?? '').trim()
   if (!normalizedLabel) return null
@@ -510,38 +569,20 @@ async function resolveAirportCoordinates(label) {
     return cached
   }
 
-  if (!MAPBOX_TOKEN) return cached
-
-  const url = new URL(`https://api.mapbox.com/search/geocode/v6/forward`)
-  url.searchParams.set('q', normalizedLabel)
-  url.searchParams.set('types', 'airport')
-  url.searchParams.set('autocomplete', 'false')
-  url.searchParams.set('limit', '1')
-  url.searchParams.set('access_token', MAPBOX_TOKEN)
-
-  const response = await fetch(url, { headers: { 'User-Agent': 'house-of-tobias/1.0' } })
-  if (!response.ok) {
-    throw new Error(`Mapbox airport lookup failed with status ${response.status}.`)
-  }
-
-  const payload = await response.json()
-  const feature = Array.isArray(payload.features) ? payload.features[0] : null
-
-  if (!feature || !Array.isArray(feature.geometry?.coordinates) || feature.geometry.coordinates.length < 2) {
+  const resolvedAirport = await resolveAirportWithNominatim(normalizedLabel).catch((error) => {
+    console.warn(`Airport lookup failed for "${normalizedLabel}":`, error)
     return cached
-  }
-
-  const [longitude, latitude] = feature.geometry.coordinates
-  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+  })
+  if (!resolvedAirport) {
     return cached
   }
 
   await upsertAirportCache(
     normalizedLabel,
-    feature.properties?.full_address ?? feature.properties?.name ?? feature.properties?.place_formatted ?? normalizedLabel,
-    latitude,
-    longitude,
-    feature.properties?.mapbox_id ?? null,
+    resolvedAirport.resolvedName,
+    resolvedAirport.latitude,
+    resolvedAirport.longitude,
+    resolvedAirport.featureId,
   )
 
   return await getCachedAirportByLabel(normalizedLabel)
