@@ -32,7 +32,6 @@ export const SOURCE_FLIGHTS = [
   { flightDate: '2024-07-26', flightNumber: 'SN3801', fromAirport: 'BRU', toAirport: 'FAO', distance: 1140, departureTime: '09:20', arrivalTime: '11:20', airline: 'BEL', aircraft: 'A320' },
   { flightDate: '2023-02-05', flightNumber: 'LH8855', fromAirport: 'EWR', toAirport: 'BRU', distance: 3675, departureTime: '18:55', arrivalTime: '08:05', airline: 'DLH' },
   { flightDate: '2023-02-03', flightNumber: 'LH8854', fromAirport: 'BRU', toAirport: 'EWR', distance: 3675, departureTime: '11:15', arrivalTime: '13:30', airline: 'DLH' },
-  { flightDate: '2019-05-17', fromAirport: 'EIN', toAirport: 'NAO', distance: 360 },
   { flightDate: '2018-08-27', flightNumber: 'FR2092', fromAirport: 'LCA', toAirport: 'BRU', distance: 1827 },
   { flightDate: '2018-08-24', flightNumber: 'FR2091', fromAirport: 'BRU', toAirport: 'ATH', distance: 1307, departureTime: '06:15', arrivalTime: '09:45', airline: 'RYR', aircraft: 'B738' },
   { flightDate: '2018-05-04', flightNumber: 'FR163', fromAirport: 'BRU', toAirport: 'SXF', distance: 401, departureTime: '08:15', arrivalTime: '09:40', airline: 'RYR', aircraft: 'B738' },
