@@ -3843,6 +3843,29 @@ body {
   color: var(--text-subtle);
 }
 
+.sheet-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sheet-inline-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sheet-inline-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .sheet-inline-control {
   display: inline-flex !important;
   align-items: center;

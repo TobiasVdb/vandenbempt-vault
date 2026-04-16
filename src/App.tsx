@@ -822,6 +822,7 @@ export default function App() {
     timestamp: formatDateTimeInputValue(new Date().toISOString()),
   })
   const [isLibrarySaving, setIsLibrarySaving] = useState(false)
+  const [isLibraryScreenshotRefreshing, setIsLibraryScreenshotRefreshing] = useState(false)
   const [deleteSheetType, setDeleteSheetType] = useState<LibraryItemKind | null>(null)
   const [deletingLibraryItem, setDeletingLibraryItem] = useState<LibraryItemRecord | null>(null)
   const [isLibraryDeleting, setIsLibraryDeleting] = useState(false)
@@ -1612,6 +1613,38 @@ export default function App() {
       setIsLibrarySaving(false)
     }
   }, [closeLibrarySheet, editingLibraryItemId, games, libraryDraft, librarySheetType, projects, setLibraryItemsByType])
+
+  const refreshLibraryItemScreenshot = useCallback(async () => {
+    if (!librarySheetType || !editingLibraryItemId) return
+
+    setIsLibraryScreenshotRefreshing(true)
+
+    try {
+      const response = await fetch(apiUrl(`/${librarySheetType}/${editingLibraryItemId}/refresh-thumbnail`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const payload = await readJsonResponse<LibraryItemResponse>(response, `Failed to refresh ${librarySheetType.slice(0, -1)} screenshot.`)
+
+      if (!response.ok || !payload.item) {
+        throw new Error(payload.error ?? `Failed to refresh ${librarySheetType.slice(0, -1)} screenshot.`)
+      }
+
+      setLibraryItemsByType(
+        librarySheetType,
+        (librarySheetType === 'projects' ? projects : games)
+          .filter((item) => item.id !== payload.item!.id)
+          .concat(payload.item!)
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()),
+      )
+      setLibraryDraft((current) => ({ ...current, imageUrl: payload.item?.imageUrl ?? '' }))
+      setToast({ kind: 'success', message: `${payload.item.name} screenshot refreshed.` })
+    } catch (error) {
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : `Failed to refresh ${librarySheetType.slice(0, -1)} screenshot.` })
+    } finally {
+      setIsLibraryScreenshotRefreshing(false)
+    }
+  }, [editingLibraryItemId, games, librarySheetType, projects, setLibraryItemsByType])
 
   const moveLibraryItemToGroup = useCallback(async (kind: LibraryItemKind, item: LibraryItemRecord, groupId: string | null) => {
     if (item.groupId === groupId) return
@@ -4645,7 +4678,21 @@ export default function App() {
                 />
               </label>
               <label>
-                Image URL
+                <div className="sheet-field-header">
+                  <span>Image URL</span>
+                  {librarySheetMode === 'edit' && editingLibraryItemId ? (
+                    <button
+                      type="button"
+                      className="sheet-inline-action"
+                      disabled={isLibraryScreenshotRefreshing || isLibrarySaving}
+                      onClick={() => {
+                        void refreshLibraryItemScreenshot()
+                      }}
+                    >
+                      {isLibraryScreenshotRefreshing ? 'Refreshing...' : 'Refresh Screenshot'}
+                    </button>
+                  ) : null}
+                </div>
                 <Input
                   type="url"
                   value={libraryDraft.imageUrl}

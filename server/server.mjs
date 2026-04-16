@@ -947,6 +947,88 @@ async function generateMissingContentThumbnails({ retryFailed = false, limit = T
   }
 }
 
+async function loadContentItemById(kind, itemId) {
+  const tableName = resolveContentTable(kind)
+  const groupTableName = resolveContentGroupTable(kind)
+  if (!tableName || !groupTableName) return null
+
+  const result = await pool.query(
+    `
+    SELECT
+      item.id,
+      item.name,
+      item.url,
+      item.image_url,
+      item.description,
+      item.rating,
+      item.timestamp,
+      item.group_id,
+      group_item.name AS group_name
+    FROM ${tableName} AS item
+    LEFT JOIN ${groupTableName} AS group_item ON group_item.id = item.group_id
+    WHERE item.id = $1
+    `,
+    [itemId],
+  )
+
+  if (!result.rowCount) return null
+  return mapContentItem(result.rows[0])
+}
+
+async function generateContentThumbnailForItem(kind, itemId) {
+  const tableName = resolveContentTable(kind)
+  if (!tableName) {
+    return { error: 'Unknown content type.', status: 400 }
+  }
+
+  const itemResult = await pool.query(
+    `
+    SELECT id, url
+    FROM ${tableName}
+    WHERE id = $1
+    `,
+    [itemId],
+  )
+
+  if (!itemResult.rowCount) {
+    return { error: 'Item not found.', status: 404 }
+  }
+
+  const item = { kind, id: itemResult.rows[0].id, url: itemResult.rows[0].url }
+
+  if (!isThumbnailHostAllowed(item.url)) {
+    const message = 'Thumbnail generation is not allowed for this host.'
+    await markThumbnailFailure(kind, itemId, message)
+    return { error: message, status: 400 }
+  }
+
+  let chromium
+  let browser
+  let context
+
+  try {
+    ;({ chromium } = await import('@playwright/test'))
+    browser = await chromium.launch({ headless: true })
+    context = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+      deviceScaleFactor: 1,
+      ignoreHTTPSErrors: true,
+    })
+    const page = await context.newPage()
+    const imageBuffer = await captureItemThumbnail(page, item)
+    await saveGeneratedThumbnail(kind, itemId, imageBuffer)
+    const refreshedItem = await loadContentItemById(kind, itemId)
+    return { item: refreshedItem, status: 200 }
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split('\n')[0] : String(error)
+    await markThumbnailFailure(kind, itemId, message)
+    return { error: message, status: 500 }
+  } finally {
+    await context?.close().catch(() => {})
+    await browser?.close().catch(() => {})
+  }
+}
+
 function buildFlightsSelectQuery(whereClause = '', values = []) {
   return pool.query(
     `
@@ -2232,6 +2314,23 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
   } catch (error) {
     console.error(`Failed to update ${request.params.kind.slice(0, -1)}:`, error)
     response.status(500).json({ error: `Failed to update ${request.params.kind.slice(0, -1)}.` })
+  }
+})
+
+app.post('/api/:kind(projects|games)/:id/refresh-thumbnail', async (request, response) => {
+  if (!ensureDbReady(response)) return
+
+  try {
+    const result = await generateContentThumbnailForItem(request.params.kind, request.params.id)
+    if (result.error || !result.item) {
+      response.status(result.status ?? 500).json({ error: result.error ?? 'Failed to refresh thumbnail.' })
+      return
+    }
+
+    response.json({ item: result.item })
+  } catch (error) {
+    console.error(`Failed to refresh thumbnail for ${request.params.kind}/${request.params.id}:`, error)
+    response.status(500).json({ error: 'Failed to refresh thumbnail.' })
   }
 })
 
