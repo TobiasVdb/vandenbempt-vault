@@ -543,10 +543,24 @@ body {
 }
 
 .home-kpi-card {
+  display: grid;
+  gap: 4px;
   background: var(--app-bg);
   border-radius: 14px;
   border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
   padding: 14px;
+}
+
+.home-kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  color: color-mix(in oklab, var(--accent) 78%, var(--text));
 }
 
 .home-kpi-card p {
@@ -793,11 +807,12 @@ body {
   line-height: 1.5;
 }
 
-.home-map-panel .panel-card-body {
-  margin-top: 14px;
+.home-map-shell {
+  display: grid;
+  gap: 12px;
 }
 
-.home-map-shell {
+.home-map-panel {
   display: grid;
   gap: 12px;
 }

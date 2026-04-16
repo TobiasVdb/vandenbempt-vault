@@ -2543,15 +2543,16 @@ export default function App() {
   ]
   const totalFlightDistance = flights.reduce((sum, flight) => sum + (flight.distance ?? 0), 0)
   const homeMetricTiles = [
-    { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.' },
-    { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.' },
+    { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.', icon: <Play size={18} weight="duotone" /> },
+    { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.', icon: <Archive size={18} weight="duotone" /> },
     {
       label: 'Books (Physical / Digital)',
       value: `${homeLibraryStats.physicalBooks} / ${homeLibraryStats.digitalBooks}`,
       detail: `${homeLibraryStats.totalBooks} books available in total.`,
+      icon: <ClipboardText size={18} weight="duotone" />,
     },
-    { label: 'Lifetime Flights', value: String(flights.length), detail: 'Flights taken across your lifetime.' },
-    { label: 'Total Flight Distance', value: `${Math.round(totalFlightDistance).toLocaleString()} km`, detail: 'Combined distance across all logged flights.' },
+    { label: 'Lifetime Flights', value: String(flights.length), detail: 'Flights taken across your lifetime.', icon: <AirplaneTilt size={18} weight="duotone" /> },
+    { label: 'Total Flight Distance', value: `${Math.round(totalFlightDistance).toLocaleString()} km`, detail: 'Combined distance across all logged flights.', icon: <ClockCounterClockwise size={18} weight="duotone" /> },
   ]
 
   return (
@@ -2735,6 +2736,9 @@ export default function App() {
                     ease: EASE_SOFT,
                   }}
                 >
+                  <span className="home-kpi-icon" aria-hidden>
+                    {metric.icon}
+                  </span>
                   <p>{metric.label}</p>
                   <strong>{metric.value}</strong>
                   <p>{metric.detail}</p>
@@ -2742,12 +2746,11 @@ export default function App() {
               ))}
             </m.div>
 
-            <PanelCard
+            <m.section
               className="home-map-panel"
-              icon={<AirplaneTilt size={18} weight="duotone" />}
-              title="Flight Map"
-              subtitle="All logged flights with resolved airport coordinates."
-              delay={CONTENT_START_DELAY + 0.34}
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: CONTENT_START_DELAY + 0.34, duration: 0.35, ease: EASE_SOFT }}
             >
               {!mapboxToken ? (
                 <div className="home-chart-empty">
@@ -2768,7 +2771,7 @@ export default function App() {
                   <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
                 </div>
               )}
-            </PanelCard>
+            </m.section>
           </section>
         ) : activePage === 'Projects' || activePage === 'Games' ? (
           <section className="catalog-page" aria-label={`${activePage} collection`}>
