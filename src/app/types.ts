@@ -190,6 +190,13 @@ export type FlightDraft = {
 export type FlightListResponse = { error?: string; flights?: FlightRecord[] }
 export type FlightResponse = { error?: string; flight?: FlightRecord }
 export type ResolveFlightAirportsResponse = { error?: string; ok?: boolean; resolved?: number }
+export type HomeLibraryStatsResponse = {
+  error?: string
+  totalBooks?: number
+  booksRead?: number
+  physicalBooks?: number
+  digitalBooks?: number
+}
 
 export type PanelCardProps = {
   icon: ReactNode

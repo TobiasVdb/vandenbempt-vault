@@ -80,6 +80,7 @@ import type {
   FlightResponse,
   GlbModelRecord,
   GlobalPolicyEngine,
+  HomeLibraryStatsResponse,
   Integration,
   IntegrationDetailTab,
   IntegrationField,
@@ -542,6 +543,12 @@ export default function App() {
   const [toast, setToast] = useState<ToastState>(null)
   const [integrationTileFeedback, setIntegrationTileFeedback] = useState<IntegrationTileFeedback>(null)
   const [isHomeSummarySheetOpen, setIsHomeSummarySheetOpen] = useState(false)
+  const [homeLibraryStats, setHomeLibraryStats] = useState({
+    totalBooks: 0,
+    booksRead: 0,
+    physicalBooks: 0,
+    digitalBooks: 0,
+  })
   const [isCreatingIntegration, setIsCreatingIntegration] = useState(false)
   const [createIntegrationType, setCreateIntegrationType] = useState<IntegrationType | null>(null)
   const [projects, setProjects] = useState<LibraryItemRecord[]>([])
@@ -1650,6 +1657,40 @@ export default function App() {
   }, [loadFlights, loadLibraryGroups, loadLibraryItems])
 
   useEffect(() => {
+    let isCancelled = false
+
+    const loadHomeLibraryStats = async () => {
+      try {
+        const response = await fetch(apiUrl('/home/library-stats'))
+        const payload = await readJsonResponse<HomeLibraryStatsResponse>(response, 'Failed to load home library stats.')
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Failed to load home library stats.')
+        }
+
+        if (isCancelled) return
+
+        setHomeLibraryStats({
+          totalBooks: payload.totalBooks ?? 0,
+          booksRead: payload.booksRead ?? 0,
+          physicalBooks: payload.physicalBooks ?? 0,
+          digitalBooks: payload.digitalBooks ?? 0,
+        })
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to load home library stats:', error)
+        }
+      }
+    }
+
+    void loadHomeLibraryStats()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (activePage !== 'Flights' || flightViewMode !== 'map') return
     const hasUnresolvedFlights = flights.some(
       (flight) =>
@@ -2234,7 +2275,12 @@ export default function App() {
   const homeMetricTiles = [
     { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.' },
     { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.' },
-    { label: 'Physical vs Digital Books', value: '0 / 0', detail: 'Physical books compared with digital ones.' },
+    {
+      label: 'Books (Physical / Digital)',
+      value: `${homeLibraryStats.physicalBooks} / ${homeLibraryStats.digitalBooks}`,
+      detail: `${homeLibraryStats.totalBooks} books available in total.`,
+    },
+    { label: 'Amount of Books Read', value: String(homeLibraryStats.booksRead), detail: 'Books marked as read in Scribe.' },
     { label: 'Lifetime Flights', value: String(flights.length), detail: 'Flights taken across your lifetime.' },
   ]
 
@@ -2431,18 +2477,6 @@ export default function App() {
             <PageHeader
               title={activePage}
               subtitle={activePage === 'Projects' ? 'Track projects with links, images, ratings, and timestamps.' : 'Track games with links, images, ratings, and timestamps.'}
-              actions={currentLibraryKind ? (
-                <div className="catalog-header-actions">
-                  <m.button
-                    type="button"
-                    className="sheet-nav-btn"
-                    whileTap={ACTION_BUTTON_PRESS}
-                    onClick={() => openCreateGroupSheet(currentLibraryKind)}
-                  >
-                    New Group
-                  </m.button>
-                </div>
-              ) : null}
             />
 
             {!isLibraryLoading && !currentLibraryItems.length && !currentLibraryGroups.length ? (
@@ -2631,18 +2665,33 @@ export default function App() {
               </m.div>
             )}
 
-            <m.button
-              type="button"
-              className="page-fab"
-              aria-label={`Add new ${currentLibraryKind === 'projects' ? 'project' : 'game'}`}
-              whileTap={ACTION_BUTTON_PRESS}
-              onClick={() => openCreateLibrarySheet(currentLibraryKind!)}
-            >
-              <Plus size={22} weight="bold" />
-            </m.button>
+            {currentLibraryKind ? (
+              <div className="page-fab-stack" aria-label={`${activePage} creation actions`}>
+                <m.button
+                  type="button"
+                  className="page-fab page-fab-secondary"
+                  aria-label={`Create new ${currentLibraryKind === 'projects' ? 'project' : 'game'} group`}
+                  title={`Create new ${currentLibraryKind === 'projects' ? 'project' : 'game'} group`}
+                  whileTap={ACTION_BUTTON_PRESS}
+                  onClick={() => openCreateGroupSheet(currentLibraryKind)}
+                >
+                  <Layout size={18} weight="bold" />
+                </m.button>
+                <m.button
+                  type="button"
+                  className="page-fab"
+                  aria-label={`Add new ${currentLibraryKind === 'projects' ? 'project' : 'game'}`}
+                  title={`Add new ${currentLibraryKind === 'projects' ? 'project' : 'game'}`}
+                  whileTap={ACTION_BUTTON_PRESS}
+                  onClick={() => openCreateLibrarySheet(currentLibraryKind)}
+                >
+                  <Plus size={22} weight="bold" />
+                </m.button>
+              </div>
+            ) : null}
           </section>
         ) : activePage === 'Flights' ? (
-          <section className="flights-page" aria-label="Flights collection">
+          <section className={`flights-page ${flightViewMode === 'map' ? 'map-active' : ''}`} aria-label="Flights collection">
             <PageHeader
               title="Flights"
               subtitle="Track the flights you've taken and switch between a logbook list and route map."
@@ -2668,14 +2717,6 @@ export default function App() {
                       Map
                     </button>
                   </div>
-                  <m.button
-                    type="button"
-                    className="sheet-nav-btn"
-                    whileTap={ACTION_BUTTON_PRESS}
-                    onClick={openCreateFlightSheet}
-                  >
-                    New Flight
-                  </m.button>
                 </div>
               )}
             />
@@ -2690,7 +2731,7 @@ export default function App() {
                 {!mapboxToken ? (
                   <div className="catalog-empty flights-map-empty">
                     <strong>Mapbox token required</strong>
-                    <p>Set `VITE_MAPBOX_ACCESS_TOKEN` to render the flights map and resolve airport coordinates.</p>
+                    <p>Add a Mapbox token to render the flights map and resolve airport coordinates.</p>
                   </div>
                 ) : !mappableFlights.length && !isResolvingFlightAirports ? (
                   <div className="catalog-empty flights-map-empty">
@@ -2830,6 +2871,17 @@ export default function App() {
                 ))}
               </m.div>
             )}
+
+            <m.button
+              type="button"
+              className="page-fab"
+              aria-label="Add new flight"
+              title="Add new flight"
+              whileTap={ACTION_BUTTON_PRESS}
+              onClick={openCreateFlightSheet}
+            >
+              <Plus size={22} weight="bold" />
+            </m.button>
           </section>
         ) : activePage === 'Integrations' ? (
           <>

@@ -484,13 +484,34 @@ body {
   padding: 0;
 }
 
-.content-header h2,
+.page-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.page-topbar-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.page-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.page-topbar h2,
 .empty-page h2 {
   margin: 0;
   font-size: 1.25rem;
 }
 
-.content-header p,
+.page-topbar p,
 .empty-page p {
   margin: 2px 0 0;
   color: var(--text-subtle);
@@ -1381,6 +1402,11 @@ body {
   gap: 18px;
 }
 
+.flights-page.map-active {
+  min-height: calc(100dvh - 44px);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .flights-header-actions {
   display: flex;
   justify-content: flex-end;
@@ -1583,6 +1609,11 @@ body {
 .flights-map-shell {
   display: grid;
   gap: 12px;
+  min-height: 0;
+}
+
+.flights-page.map-active .flights-map-shell {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .flights-map-status {
@@ -1608,10 +1639,15 @@ body {
 .flights-map-canvas {
   width: 100%;
   min-height: 520px;
+  height: 100%;
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
   box-shadow: 0 16px 36px rgb(0 0 0 / 10%);
+}
+
+.flights-page.map-active .flights-map-canvas {
+  min-height: 0;
 }
 
 .flights-map-empty {
@@ -1622,10 +1658,18 @@ body {
   color: var(--text);
 }
 
-.page-fab {
+.page-fab-stack {
   position: fixed;
   right: 28px;
   bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 4;
+}
+
+.page-fab {
   width: 56px;
   height: 56px;
   border: 0;
@@ -1637,11 +1681,21 @@ body {
   color: var(--text-inverse);
   background: color-mix(in oklab, var(--accent) 78%, rgb(16 18 22 / 92%));
   box-shadow: 0 16px 34px rgb(0 0 0 / 22%);
-  z-index: 4;
   transition:
     transform 0.18s ease,
     filter 0.2s ease,
     box-shadow 0.24s ease;
+}
+
+.page-fab:not(.page-fab-secondary) {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 4;
+}
+
+.page-fab-stack .page-fab {
+  position: static;
 }
 
 .page-fab:hover {
@@ -1652,6 +1706,16 @@ body {
 
 .page-fab:active {
   transform: translateY(0);
+}
+
+.page-fab-secondary {
+  position: static;
+  width: 48px;
+  height: 48px;
+  color: var(--text);
+  background: color-mix(in oklab, var(--panel-bg) 86%, rgb(255 255 255 / 92%));
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  box-shadow: 0 12px 24px rgb(0 0 0 / 16%);
 }
 
 .users-fab {
@@ -3645,6 +3709,21 @@ body {
 
   .content-panel {
     padding: 16px;
+  }
+
+  .page-topbar {
+    flex-wrap: wrap;
+  }
+
+  .page-topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .page-fab-stack,
+  .page-fab:not(.page-fab-secondary) {
+    right: 16px;
+    bottom: 92px;
   }
 
   .settings-sidesheet {

@@ -36,6 +36,7 @@ const CONTENT_GROUP_TABLES = {
 
 const CONTENT_THUMBNAILS_TABLE = 'content_thumbnails'
 const FLIGHT_AIRPORT_TABLE = 'flight_airports'
+const SCRIBE_API_BASE_URL = 'https://scribe-qui2s.ondigitalocean.app/api'
 const THUMBNAIL_WAIT_MS = 4000
 const THUMBNAIL_NAVIGATION_TIMEOUT_MS = 40000
 const THUMBNAIL_SCREENSHOT_TIMEOUT_MS = 30000
@@ -586,6 +587,70 @@ async function resolveAirportCoordinates(label) {
   )
 
   return await getCachedAirportByLabel(normalizedLabel)
+}
+
+function flattenScribeBooks(items) {
+  if (!Array.isArray(items)) return []
+
+  return items.flatMap((item) => {
+    if (item?.type === 'book' && item.book) return [item.book]
+    if (item?.type === 'series' && Array.isArray(item.books)) return item.books
+    return []
+  })
+}
+
+async function fetchScribeLibrarySummary() {
+  const pageSize = 100
+  let page = 1
+  let totalBooks = 0
+  let totalGroups = 0
+  let booksRead = 0
+  let physicalBooks = 0
+  let digitalBooks = 0
+
+  while (true) {
+    const url = new URL('books', `${SCRIBE_API_BASE_URL}/`)
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('pageSize', String(pageSize))
+
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'house-of-tobias/1.0',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Scribe books lookup failed with status ${response.status}.`)
+    }
+
+    const payload = await response.json()
+    const books = flattenScribeBooks(payload.items)
+
+    if (page === 1) {
+      totalBooks = Number(payload.totalBooks ?? 0)
+      totalGroups = Number(payload.totalGroups ?? 0)
+      booksRead = Number(payload.quickFilterCounts?.read ?? 0)
+    }
+
+    for (const book of books) {
+      if (book?.hasFile) digitalBooks += 1
+      else physicalBooks += 1
+    }
+
+    if (!books.length || page * pageSize >= totalGroups) {
+      break
+    }
+
+    page += 1
+  }
+
+  return {
+    totalBooks,
+    booksRead,
+    physicalBooks,
+    digitalBooks,
+  }
 }
 
 async function saveGeneratedThumbnail(kind, itemId, imageBuffer, contentType = 'image/jpeg') {
@@ -1614,6 +1679,16 @@ app.get('/swagger', (request, response) => {
 
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true, dbReady })
+})
+
+app.get('/api/home/library-stats', async (_request, response) => {
+  try {
+    const summary = await fetchScribeLibrarySummary()
+    response.json(summary)
+  } catch (error) {
+    console.error('Failed to load home library stats:', error)
+    response.status(500).json({ error: 'Failed to load home library stats.' })
+  }
 })
 
 app.get('/api/integrations/state', async (_request, response) => {

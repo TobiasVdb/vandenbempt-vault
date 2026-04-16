@@ -1,6 +1,5 @@
 import { AirplaneTilt } from '@phosphor-icons/react/AirplaneTilt'
 import { Archive } from '@phosphor-icons/react/Archive'
-import { ChartBar } from '@phosphor-icons/react/ChartBar'
 import { GameController } from '@phosphor-icons/react/GameController'
 import { GearSix } from '@phosphor-icons/react/GearSix'
 import { House } from '@phosphor-icons/react/House'
@@ -69,7 +68,6 @@ export const mainNavigationItems = [
     icon: PlugCharging,
   },
   { label: 'Links' as const, icon: Layout },
-  { label: 'Playground' as const, icon: ChartBar },
 ]
 
 export const bottomNavigationItems = [{ label: 'Admin' as const, description: 'Policy, lifecycle, audit', icon: GearSix }]
@@ -171,7 +169,6 @@ export function getPageFromPath(pathname: string): { page: Page; integrationId?:
   if (normalizedPath === '/integrations') return { page: 'Integrations' }
   if (normalizedPath === '/admin') return { page: 'Admin' }
   if (normalizedPath === '/links') return { page: 'Links' }
-  if (normalizedPath === '/playground') return { page: 'Playground' }
   if (normalizedPath === '/pitchdeck') return { page: 'PitchDeck' }
   if (normalizedPath.startsWith('/integrations/')) {
     return {
@@ -190,7 +187,6 @@ export function getPathFromPage(page: Page, integrationId?: string): string {
   if (page === 'Integrations') return '/integrations'
   if (page === 'Admin') return '/admin'
   if (page === 'Links') return '/links'
-  if (page === 'Playground') return '/playground'
   if (page === 'PitchDeck') return '/pitchdeck'
   if (page === 'IntegrationDetail' && integrationId) return `/integrations/${encodeURIComponent(integrationId)}`
   return '/integrations'

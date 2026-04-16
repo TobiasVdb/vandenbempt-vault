@@ -18,22 +18,24 @@ export function PageHeader({
   className?: string
 }) {
   return (
-    <header className={className}>
-      {actions}
-      <m.h2
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay, duration: 0.38, ease: EASE_SOFT }}
-      >
-        {title}
-      </m.h2>
-      <m.p
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: delay + 0.14, duration: 0.38, ease: EASE_SOFT }}
-      >
-        {subtitle}
-      </m.p>
+    <header className={`page-topbar ${className}`.trim()}>
+      <div className="page-topbar-copy">
+        <m.h2
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay, duration: 0.38, ease: EASE_SOFT }}
+        >
+          {title}
+        </m.h2>
+        <m.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: delay + 0.14, duration: 0.38, ease: EASE_SOFT }}
+        >
+          {subtitle}
+        </m.p>
+      </div>
+      {actions ? <div className="page-topbar-actions">{actions}</div> : null}
     </header>
   )
 }

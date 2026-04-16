@@ -10,6 +10,7 @@
     "start": "node server/server.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "import:flights": "node scripts/import-flights-once.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest",
