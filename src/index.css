@@ -3476,7 +3476,7 @@ body {
   border-left: 1px solid color-mix(in oklab, var(--text) 16%, transparent);
   padding: 18px;
   z-index: 50;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -3547,6 +3547,8 @@ body {
   gap: 12px;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .sheet-fields {
@@ -3619,6 +3621,7 @@ body {
   justify-content: space-between;
   gap: 10px;
   background: color-mix(in oklab, var(--app-bg) 92%, transparent);
+  z-index: 1;
 }
 
 .sheet-footer-actions {
