@@ -1445,10 +1445,16 @@ body {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  align-items: start;
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+.flight-card {
+  height: 100%;
 }
 
 .flight-card-panel {
+  height: 100%;
   border-radius: 22px;
   padding: 18px;
   background:
@@ -1458,6 +1464,8 @@ body {
 
 .flight-card-panel .panel-card-body {
   margin-top: 10px;
+  flex: 1 1 auto;
+  align-content: start;
 }
 
 .flight-card-topline {
