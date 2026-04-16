@@ -583,7 +583,7 @@ export default function App() {
   const [deletingFlight, setDeletingFlight] = useState<FlightRecord | null>(null)
   const [isFlightDeleting, setIsFlightDeleting] = useState(false)
   const [isResolvingFlightAirports, setIsResolvingFlightAirports] = useState(false)
-  const mapboxToken = (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined) ?? ''
+  const mapboxToken = 'pk.eyJ1Ijoic25pbGxvY21vdCIsImEiOiJjbThxY2U2MmIwYWE2MmtzOHhyNjdqMjZnIn0.3b-7Y5j4Uxy5kNCqcLaaYw'
 
   const integrationCatalog = useMemo(() => [...integrationTemplates, ...customIntegrations], [customIntegrations])
   const createIntegrationTemplate = useMemo(
