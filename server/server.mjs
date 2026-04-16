@@ -58,6 +58,13 @@ const THUMBNAIL_BLOCKED_HOSTS = new Set(
 const TEAM_NAMES = ['Platform', 'Security', 'Compliance', 'Leadership']
 const USER_ROLES = ['owner', 'platform_admin', 'security_reviewer', 'compliance_auditor', 'viewer']
 const USER_SSO_MODES = ['enforced', 'optional', 'break_glass']
+const AIRPORT_OVERRIDES = {
+  SXF: {
+    resolvedName: 'Berlin Schoenefeld Airport',
+    latitude: 52.380001,
+    longitude: 13.5225,
+  },
+}
 const INITIAL_WORKSPACE_USERS = [
   {
     id: 'user-1',
@@ -506,6 +513,11 @@ function normalizeAirportKey(value) {
   return String(value ?? '').trim().toUpperCase()
 }
 
+function getAirportOverride(label) {
+  const airportKey = normalizeAirportKey(label)
+  return airportKey ? AIRPORT_OVERRIDES[airportKey] ?? null : null
+}
+
 function mapFlight(row) {
   return {
     id: row.id,
@@ -631,7 +643,31 @@ async function resolveAirportCoordinates(label) {
 
   const cached = await getCachedAirportByLabel(normalizedLabel)
   if (cached && cached.latitude !== null && cached.longitude !== null) {
+    const override = getAirportOverride(normalizedLabel)
+    if (override && cached.resolved_name !== override.resolvedName) {
+      await upsertAirportCache(
+        normalizedLabel,
+        override.resolvedName,
+        Number(cached.latitude),
+        Number(cached.longitude),
+        cached.mapbox_feature_id ?? null,
+      )
+      return await getCachedAirportByLabel(normalizedLabel)
+    }
+
     return cached
+  }
+
+  const override = getAirportOverride(normalizedLabel)
+  if (override && override.latitude !== null && override.longitude !== null) {
+    await upsertAirportCache(
+      normalizedLabel,
+      override.resolvedName,
+      override.latitude,
+      override.longitude,
+      cached?.mapbox_feature_id ?? null,
+    )
+    return await getCachedAirportByLabel(normalizedLabel)
   }
 
   const resolvedAirport = await resolveAirportWithNominatim(normalizedLabel).catch((error) => {

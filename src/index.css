@@ -1509,11 +1509,13 @@ body {
   display: grid;
   gap: 2px;
   align-content: start;
+  min-width: 0;
 }
 
 .flight-card-time-block strong {
-  font-size: 1.75rem;
+  font-size: clamp(1.45rem, 3vw, 1.75rem);
   line-height: 1;
+  min-width: 0;
 }
 
 .flight-card-time-block span {
@@ -1532,6 +1534,7 @@ body {
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .flight-card-time-block small {
@@ -1539,6 +1542,7 @@ body {
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .flight-card-time-block-arrival {
