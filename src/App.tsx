@@ -580,6 +580,82 @@ function sortFlights(flights: FlightRecord[]) {
   })
 }
 
+function getFlightSortTime(flight: FlightRecord) {
+  return new Date(flight.departureTime ?? flight.arrivalTime ?? flight.flightDate ?? 0).getTime()
+}
+
+function formatStayDuration(start?: string | null, end?: string | null): string | null {
+  if (!start || !end) return null
+  const startTime = new Date(start).getTime()
+  const endTime = new Date(end).getTime()
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) return null
+
+  const totalMinutes = Math.round((endTime - startTime) / (1000 * 60))
+  const days = Math.floor(totalMinutes / (60 * 24))
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
+  const minutes = totalMinutes % 60
+
+  const parts = [
+    days ? `${days}d` : null,
+    hours ? `${hours}h` : null,
+    minutes && !days ? `${minutes}m` : null,
+  ].filter(Boolean)
+
+  return parts.length ? parts.join(' ') : '0m'
+}
+
+type FlightTimelineTrip = {
+  id: string
+  outbound: FlightRecord
+  returnFlight: FlightRecord | null
+}
+
+function buildFlightTimelineTrips(flights: FlightRecord[]): FlightTimelineTrip[] {
+  const chronologicalFlights = [...flights].sort((left, right) => getFlightSortTime(left) - getFlightSortTime(right))
+  const usedFlightIds = new Set<string>()
+  const trips: FlightTimelineTrip[] = []
+
+  for (let index = 0; index < chronologicalFlights.length; index += 1) {
+    const outbound = chronologicalFlights[index]
+    if (usedFlightIds.has(outbound.id)) continue
+
+    const outboundTime = getFlightSortTime(outbound)
+    let returnFlight: FlightRecord | null = null
+
+    for (let candidateIndex = index + 1; candidateIndex < chronologicalFlights.length; candidateIndex += 1) {
+      const candidate = chronologicalFlights[candidateIndex]
+      if (usedFlightIds.has(candidate.id)) continue
+
+      const candidateTime = getFlightSortTime(candidate)
+      const isReciprocalRoute =
+        outbound.fromAirport
+        && outbound.toAirport
+        && candidate.fromAirport
+        && candidate.toAirport
+        && outbound.fromAirport === candidate.toAirport
+        && outbound.toAirport === candidate.fromAirport
+
+      if (!isReciprocalRoute || candidateTime < outboundTime) continue
+
+      returnFlight = candidate
+      break
+    }
+
+    usedFlightIds.add(outbound.id)
+    if (returnFlight) {
+      usedFlightIds.add(returnFlight.id)
+    }
+
+    trips.push({
+      id: returnFlight ? `${outbound.id}:${returnFlight.id}` : outbound.id,
+      outbound,
+      returnFlight,
+    })
+  }
+
+  return trips.sort((left, right) => getFlightSortTime(right.outbound) - getFlightSortTime(left.outbound))
+}
+
 function formatFlightTime(value?: string | null, airportCode?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
@@ -761,7 +837,7 @@ export default function App() {
   const [dragHoverSectionId, setDragHoverSectionId] = useState<string | null>(null)
   const [movingLibraryItemId, setMovingLibraryItemId] = useState<string | null>(null)
   const [flights, setFlights] = useState<FlightRecord[]>([])
-  const [flightViewMode, setFlightViewMode] = useState<'list' | 'map'>('list')
+  const [flightViewMode, setFlightViewMode] = useState<'list' | 'map' | 'timeline'>('list')
   const [flightMapDimension, setFlightMapDimension] = useState<'2d' | '3d'>('2d')
   const [isFlightLoading, setIsFlightLoading] = useState(false)
   const [flightSheetMode, setFlightSheetMode] = useState<'create' | 'edit'>('create')
@@ -2146,6 +2222,7 @@ export default function App() {
       && flight.toAirportLatitude !== null
       && flight.toAirportLongitude !== null,
   )
+  const flightTimelineTrips = useMemo(() => buildFlightTimelineTrips(flights), [flights])
   const integrationDetailsInfo = integrationPage ? integrationRuntimeInfo[integrationPage.type] : null
   const enabledIntegrationList = integrationCatalog.filter((integration) => enabledIntegrations[integration.id])
   const degradedEnabledCount = enabledIntegrationList.filter(
@@ -2867,6 +2944,15 @@ export default function App() {
                     >
                       Map
                     </button>
+                    <button
+                      type="button"
+                      className={`view-toggle-btn ${flightViewMode === 'timeline' ? 'active' : ''}`}
+                      role="tab"
+                      aria-selected={flightViewMode === 'timeline'}
+                      onClick={() => setFlightViewMode('timeline')}
+                    >
+                      Timeline
+                    </button>
                   </div>
                   {flightViewMode === 'map' ? (
                     <div className="view-toggle" role="tablist" aria-label="Flights map dimension">
@@ -2921,6 +3007,94 @@ export default function App() {
                   </>
                 )}
               </div>
+            ) : flightViewMode === 'timeline' ? (
+              <m.div
+                className="flight-timeline"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: {},
+                  visible: { transition: { staggerChildren: 0.08, delayChildren: CONTENT_START_DELAY + 0.2 } },
+                }}
+              >
+                {flightTimelineTrips.map((trip) => {
+                  const outbound = trip.outbound
+                  const returnFlight = trip.returnFlight
+                  const destinationTitle = formatAirportTitle(outbound.toAirportResolvedName, outbound.toAirport)
+                  const originTitle = formatAirportTitle(outbound.fromAirportResolvedName, outbound.fromAirport)
+                  const tripTitle = returnFlight
+                    ? `${originTitle} to ${destinationTitle}`
+                    : `${originTitle} to ${destinationTitle}`
+                  const stayDurationLabel = returnFlight ? formatStayDuration(outbound.arrivalTime, returnFlight.departureTime) : null
+                  const tripLabel = returnFlight
+                    ? [outbound.flightNumber, returnFlight.flightNumber].filter(Boolean).join(' / ')
+                    : [outbound.flightNumber, outbound.airline].filter(Boolean).join(' · ') || 'One-way'
+
+                  const renderLeg = (flight: FlightRecord, directionLabel: string) => {
+                    const fromAirportTitle = formatAirportTitle(flight.fromAirportResolvedName, flight.fromAirport)
+                    const toAirportTitle = formatAirportTitle(flight.toAirportResolvedName, flight.toAirport)
+                    const legDuration = formatFlightDuration(flight.departureTime, flight.arrivalTime)
+
+                    return (
+                      <div className="flight-timeline-leg" key={`${trip.id}-${directionLabel}`}>
+                        <div className="flight-timeline-leg-header">
+                          <strong>{directionLabel}</strong>
+                          <span>{[flight.flightNumber, flight.airline].filter(Boolean).join(' · ') || 'Flight entry'}</span>
+                        </div>
+                        <div className="flight-timeline-leg-route">
+                          <div>
+                            <b>{fromAirportTitle}</b>
+                            <span>{flight.departureTime ? formatFlightDateTime(flight.departureTime, flight.fromAirport) : formatFlightDate(flight.flightDate)}</span>
+                          </div>
+                          <div className="flight-timeline-leg-arrow" aria-hidden>
+                            <span />
+                            {legDuration ? <em>{legDuration}</em> : null}
+                            <span />
+                          </div>
+                          <div>
+                            <b>{toAirportTitle}</b>
+                            <span>{flight.arrivalTime ? formatFlightDateTime(flight.arrivalTime, flight.toAirport) : formatFlightDate(flight.flightDate)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <m.article
+                      key={trip.id}
+                      className="flight-timeline-card"
+                      variants={{
+                        hidden: { opacity: 0, y: 12, scale: 0.98 },
+                        visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_SOFT } },
+                      }}
+                    >
+                      <PanelCard
+                        className="flight-timeline-panel"
+                        icon={<AirplaneTilt size={18} weight="duotone" />}
+                        title={tripTitle}
+                        subtitle={tripLabel}
+                      >
+                        <div className="flight-timeline-stack">
+                          {renderLeg(outbound, returnFlight ? 'Away' : 'Flight')}
+                          {stayDurationLabel && returnFlight ? (
+                            <div className="flight-timeline-stay">
+                              <strong>On Location</strong>
+                              <span>{stayDurationLabel}</span>
+                              <em>
+                                {outbound.arrivalTime ? formatFlightDateTime(outbound.arrivalTime, outbound.toAirport) : ''}
+                                {' -> '}
+                                {returnFlight.departureTime ? formatFlightDateTime(returnFlight.departureTime, returnFlight.fromAirport) : ''}
+                              </em>
+                            </div>
+                          ) : null}
+                          {returnFlight ? renderLeg(returnFlight, 'Return') : null}
+                        </div>
+                      </PanelCard>
+                    </m.article>
+                  )
+                })}
+              </m.div>
             ) : (
               <m.div
                 className="flights-list"
