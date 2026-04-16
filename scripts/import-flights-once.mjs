@@ -1,4 +1,7 @@
-const API_BASE_URL = getArgValue('--base-url') ?? process.env.HOT_API_BASE_URL ?? 'http://localhost:8080/api'
+import { randomUUID } from 'node:crypto'
+import pg from 'pg'
+
+const { Pool } = pg
 
 const SOURCE_FLIGHTS = [
   { flightDate: '2026-08-08', flightNumber: 'SN3357', fromAirport: 'BRU', toAirport: 'ZAD', distance: 690, departureTime: '10:15', arrivalTime: '12:05', airline: 'BEL' },
@@ -26,24 +29,19 @@ const SOURCE_FLIGHTS = [
   { flightDate: '2012-04-04', fromAirport: 'BRU', toAirport: 'LHR', distance: 218 },
 ]
 
-function getArgValue(flag) {
-  const index = process.argv.indexOf(flag)
-  return index >= 0 ? process.argv[index + 1] : null
-}
-
 function normalizeText(value, uppercase = false) {
   const normalized = String(value ?? '').trim()
   if (!normalized) return null
   return uppercase ? normalized.toUpperCase() : normalized
 }
 
-function toApiTimestamp(date, time, referenceDate = null) {
+function toFlightTimestamp(date, time, referenceIso = null) {
   if (!date || !time) return null
 
-  const base = referenceDate ? new Date(referenceDate) : new Date(`${date}T${time}`)
-  if (referenceDate) {
+  const base = referenceIso ? new Date(referenceIso) : new Date(`${date}T${time}:00`)
+  if (referenceIso) {
     const [hours, minutes] = time.split(':').map(Number)
-    base.setHours(hours, minutes, 0, 0)
+    base.setUTCHours(hours, minutes, 0, 0)
   }
 
   if (Number.isNaN(base.getTime())) {
@@ -55,13 +53,13 @@ function toApiTimestamp(date, time, referenceDate = null) {
 
 function normalizeFlightRecord(record) {
   const flightDate = normalizeText(record.flightDate)
-  const departureIso = toApiTimestamp(flightDate, record.departureTime)
-  let arrivalIso = toApiTimestamp(flightDate, record.arrivalTime, departureIso ? new Date(departureIso) : null)
+  const departureTime = toFlightTimestamp(flightDate, record.departureTime)
+  let arrivalTime = toFlightTimestamp(flightDate, record.arrivalTime, departureTime)
 
-  if (departureIso && arrivalIso && new Date(arrivalIso).getTime() < new Date(departureIso).getTime()) {
-    const rolloverArrival = new Date(arrivalIso)
-    rolloverArrival.setDate(rolloverArrival.getDate() + 1)
-    arrivalIso = rolloverArrival.toISOString()
+  if (departureTime && arrivalTime && new Date(arrivalTime).getTime() < new Date(departureTime).getTime()) {
+    const nextDayArrival = new Date(arrivalTime)
+    nextDayArrival.setUTCDate(nextDayArrival.getUTCDate() + 1)
+    arrivalTime = nextDayArrival.toISOString()
   }
 
   return {
@@ -70,8 +68,8 @@ function normalizeFlightRecord(record) {
     fromAirport: normalizeText(record.fromAirport, true),
     toAirport: normalizeText(record.toAirport, true),
     distance: Number.isFinite(Number(record.distance)) ? Number(record.distance) : null,
-    departureTime: departureIso,
-    arrivalTime: arrivalIso,
+    departureTime,
+    arrivalTime,
     airline: normalizeText(record.airline, true),
     aircraft: normalizeText(record.aircraft, true),
     notes: normalizeText(record.notes),
@@ -94,12 +92,122 @@ function buildFlightKey(record) {
   ])
 }
 
-async function readJson(response) {
-  const payload = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    throw new Error(payload.error ?? `Request failed with status ${response.status}`)
+function getPoolConfig() {
+  const rejectUnauthorized = process.env.PG_SSL_REJECT_UNAUTHORIZED === 'true'
+
+  if (process.env.DATABASE_URL) {
+    const rawDatabaseUrl = String(process.env.DATABASE_URL).trim()
+
+    if (rawDatabaseUrl.startsWith('${') && rawDatabaseUrl.endsWith('}')) {
+      throw new Error(`DATABASE_URL is a literal placeholder (${rawDatabaseUrl}).`)
+    }
+
+    let url
+    try {
+      url = new URL(rawDatabaseUrl)
+    } catch {
+      throw new Error('DATABASE_URL is present but not a valid URL.')
+    }
+
+    if (!url.searchParams.has('sslmode')) {
+      url.searchParams.set('sslmode', 'require')
+    }
+    if (!url.searchParams.has('uselibpqcompat')) {
+      url.searchParams.set('uselibpqcompat', 'true')
+    }
+
+    return {
+      connectionString: url.toString(),
+      ssl: { rejectUnauthorized },
+    }
   }
-  return payload
+
+  if (!process.env.PGHOST) {
+    throw new Error('Database is not configured. Set DATABASE_URL or PGHOST/PGDATABASE/PGUSER/PGPASSWORD.')
+  }
+
+  return {
+    host: process.env.PGHOST,
+    port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+    database: process.env.PGDATABASE,
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
+    ssl: { rejectUnauthorized },
+  }
+}
+
+async function ensureFlightsTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS flights (
+      id UUID PRIMARY KEY,
+      flight_date DATE,
+      flight_number TEXT,
+      from_airport TEXT,
+      to_airport TEXT,
+      distance NUMERIC(10,2),
+      departure_time TIMESTAMPTZ,
+      arrival_time TIMESTAMPTZ,
+      airline TEXT,
+      aircraft TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `)
+}
+
+async function loadExistingFlightKeys(pool) {
+  const result = await pool.query(`
+    SELECT
+      flight_date AS "flightDate",
+      flight_number AS "flightNumber",
+      from_airport AS "fromAirport",
+      to_airport AS "toAirport",
+      distance,
+      departure_time AS "departureTime",
+      arrival_time AS "arrivalTime",
+      airline,
+      aircraft,
+      notes
+    FROM flights
+  `)
+
+  return new Set(result.rows.map((row) => buildFlightKey(row)))
+}
+
+async function insertFlight(pool, flight) {
+  await pool.query(
+    `
+      INSERT INTO flights (
+        id,
+        flight_date,
+        flight_number,
+        from_airport,
+        to_airport,
+        distance,
+        departure_time,
+        arrival_time,
+        airline,
+        aircraft,
+        notes,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+    `,
+    [
+      randomUUID(),
+      flight.flightDate,
+      flight.flightNumber,
+      flight.fromAirport,
+      flight.toAirport,
+      flight.distance,
+      flight.departureTime,
+      flight.arrivalTime,
+      flight.airline,
+      flight.aircraft,
+      flight.notes,
+    ],
+  )
 }
 
 async function main() {
@@ -113,32 +221,31 @@ async function main() {
     uniqueFlights.push(normalizeFlightRecord(flight))
   }
 
-  const existingResponse = await fetch(`${API_BASE_URL}/flights`)
-  const existingPayload = await readJson(existingResponse)
-  const existingKeys = new Set((existingPayload.flights ?? []).map((flight) => buildFlightKey(flight)))
+  const pool = new Pool(getPoolConfig())
 
-  let created = 0
-  let skipped = 0
+  try {
+    await ensureFlightsTable(pool)
 
-  for (const flight of uniqueFlights) {
-    const key = buildFlightKey(flight)
-    if (existingKeys.has(key)) {
-      skipped += 1
-      continue
+    const existingKeys = await loadExistingFlightKeys(pool)
+    let created = 0
+    let skipped = 0
+
+    for (const flight of uniqueFlights) {
+      const key = buildFlightKey(flight)
+      if (existingKeys.has(key)) {
+        skipped += 1
+        continue
+      }
+
+      await insertFlight(pool, flight)
+      existingKeys.add(key)
+      created += 1
     }
 
-    const createResponse = await fetch(`${API_BASE_URL}/flights`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(flight),
-    })
-
-    await readJson(createResponse)
-    existingKeys.add(key)
-    created += 1
+    console.log(`Imported ${created} flights, skipped ${skipped} existing flights, source rows ${SOURCE_FLIGHTS.length}, unique rows ${uniqueFlights.length}.`)
+  } finally {
+    await pool.end()
   }
-
-  console.log(`Imported ${created} flights, skipped ${skipped} existing flights, source rows ${SOURCE_FLIGHTS.length}, unique rows ${uniqueFlights.length}.`)
 }
 
 main().catch((error) => {
