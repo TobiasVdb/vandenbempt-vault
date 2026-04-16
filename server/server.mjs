@@ -331,6 +331,18 @@ async function initializeDatabase() {
   const flightSeedResult = await seedFlights(pool)
   console.log('Imported ' + flightSeedResult.created + ' flights, skipped ' + flightSeedResult.skipped + ' existing flights, source rows ' + flightSeedResult.sourceRows + ', unique rows ' + flightSeedResult.uniqueRows + '.')
 
+  const unresolvedAirportLabels = await pool.query(`
+    SELECT DISTINCT airport_label
+    FROM (
+      SELECT TRIM(from_airport) AS airport_label FROM flights WHERE from_airport IS NOT NULL AND TRIM(from_airport) <> ''
+      UNION
+      SELECT TRIM(to_airport) AS airport_label FROM flights WHERE to_airport IS NOT NULL AND TRIM(to_airport) <> ''
+    ) AS labels
+    ORDER BY airport_label ASC
+  `)
+  const resolvedAirportCount = await resolveAirportLabels(unresolvedAirportLabels.rows.map((row) => row.airport_label))
+  console.log('Resolved ' + resolvedAirportCount + ' airport coordinates during initialization.')
+
   const userCountResult = await pool.query('SELECT COUNT(*)::int AS count FROM workspace_users')
   if (userCountResult.rows[0]?.count === 0) {
     for (const user of INITIAL_WORKSPACE_USERS) {
@@ -591,6 +603,33 @@ async function resolveAirportCoordinates(label) {
   )
 
   return await getCachedAirportByLabel(normalizedLabel)
+}
+
+async function resolveAirportLabels(labels) {
+  const uniqueLabels = Array.from(
+    new Set(
+      labels
+        .map((label) => String(label ?? '').trim())
+        .filter(Boolean),
+    ),
+  )
+
+  let resolved = 0
+  for (const label of uniqueLabels) {
+    const cached = await getCachedAirportByLabel(label)
+    if (cached && cached.latitude !== null && cached.longitude !== null) continue
+
+    const airport = await resolveAirportCoordinates(label)
+    if (airport && airport.latitude !== null && airport.longitude !== null) {
+      resolved += 1
+    }
+  }
+
+  return resolved
+}
+
+async function resolveAirportsForFlight(flight) {
+  return await resolveAirportLabels([flight?.fromAirport, flight?.toAirport])
 }
 
 function flattenScribeBooks(items) {
@@ -2341,6 +2380,8 @@ app.post('/api/flights', async (request, response) => {
       ],
     )
 
+    await resolveAirportsForFlight(flight)
+
     const createdFlight = await buildFlightsSelectQuery('WHERE flight.id = $1', [result.rows[0].id])
     response.status(201).json({ flight: mapFlight(createdFlight.rows[0]) })
   } catch (error) {
@@ -2398,6 +2439,8 @@ app.put('/api/flights/:id', async (request, response) => {
       response.status(404).json({ error: 'Flight not found.' })
       return
     }
+
+    await resolveAirportsForFlight(flight)
 
     const updatedFlight = await buildFlightsSelectQuery('WHERE flight.id = $1', [request.params.id])
     response.json({ flight: mapFlight(updatedFlight.rows[0]) })
@@ -2489,16 +2532,7 @@ app.post('/api/flights/resolve-airports', async (_request, response) => {
       ORDER BY airport_label ASC
     `)
 
-    let resolved = 0
-    for (const row of result.rows) {
-      const cached = await getCachedAirportByLabel(row.airport_label)
-      if (cached && cached.latitude !== null && cached.longitude !== null) continue
-
-      const airport = await resolveAirportCoordinates(row.airport_label)
-      if (airport && airport.latitude !== null && airport.longitude !== null) {
-        resolved += 1
-      }
-    }
+    const resolved = await resolveAirportLabels(result.rows.map((row) => row.airport_label))
 
     response.json({ ok: true, resolved })
   } catch (error) {

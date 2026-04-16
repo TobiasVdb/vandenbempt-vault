@@ -1519,10 +1519,14 @@ body {
 }
 
 .flight-card-time-block em {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--text-subtle);
   font-size: 0.84rem;
   font-style: normal;
   line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .flight-card-time-block-arrival {

@@ -100,7 +100,6 @@ import type {
   LibraryItemResponse,
   Page,
   ReportPreferences,
-  ResolveFlightAirportsResponse,
   ThemeMode,
   ToastState,
   UploadCookieState,
@@ -470,6 +469,40 @@ function formatFlightTime(value?: string | null): string {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+function formatFlightDate(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatFlightDateTime(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function formatAirportLabel(value?: string | null): string | null {
+  const normalized = String(value ?? '').trim()
+  if (!normalized) return null
+
+  const compact = normalized
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(', ')
+
+  return compact.length > 42 ? `${compact.slice(0, 39).trimEnd()}...` : compact
+}
+
 function formatFlightDuration(departureTime?: string | null, arrivalTime?: string | null): string | null {
   if (!departureTime || !arrivalTime) return null
   const departure = new Date(departureTime).getTime()
@@ -589,7 +622,6 @@ export default function App() {
   const [isFlightSaving, setIsFlightSaving] = useState(false)
   const [deletingFlight, setDeletingFlight] = useState<FlightRecord | null>(null)
   const [isFlightDeleting, setIsFlightDeleting] = useState(false)
-  const [isResolvingFlightAirports, setIsResolvingFlightAirports] = useState(false)
   const mapboxToken = 'pk.eyJ1Ijoic25pbGxvY21vdCIsImEiOiJjbThxY2U2MmIwYWE2MmtzOHhyNjdqMjZnIn0.3b-7Y5j4Uxy5kNCqcLaaYw'
 
   const integrationCatalog = useMemo(() => [...integrationTemplates, ...customIntegrations], [customIntegrations])
@@ -1282,28 +1314,6 @@ export default function App() {
     }
   }, [deletingFlight])
 
-  const resolveFlightAirports = useCallback(async () => {
-    if (isResolvingFlightAirports || !mapboxToken) return
-
-    setIsResolvingFlightAirports(true)
-    try {
-      const response = await fetch(apiUrl('/flights/resolve-airports'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      const payload = await readJsonResponse<ResolveFlightAirportsResponse>(response, 'Failed to resolve flight airports.')
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to resolve flight airports.')
-      }
-
-      await loadFlights()
-    } catch (error) {
-      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Failed to resolve flight airports.' })
-    } finally {
-      setIsResolvingFlightAirports(false)
-    }
-  }, [isResolvingFlightAirports, loadFlights, mapboxToken])
-
   const saveLibraryItem = useCallback(async () => {
     if (!librarySheetType) return
 
@@ -1689,18 +1699,6 @@ export default function App() {
       isCancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    if (activePage !== 'Flights' || flightViewMode !== 'map') return
-    const hasUnresolvedFlights = flights.some(
-      (flight) =>
-        (flight.fromAirport && (flight.fromAirportLatitude === null || flight.fromAirportLongitude === null))
-        || (flight.toAirport && (flight.toAirportLatitude === null || flight.toAirportLongitude === null)),
-    )
-
-    if (!hasUnresolvedFlights) return
-    void resolveFlightAirports()
-  }, [activePage, flightViewMode, flights, resolveFlightAirports])
 
   useEffect(() => {
     setSettingsSheetPage(1)
@@ -2733,16 +2731,16 @@ export default function App() {
                     <strong>Mapbox token required</strong>
                     <p>Add a Mapbox token to render the flights map and resolve airport coordinates.</p>
                   </div>
-                ) : !mappableFlights.length && !isResolvingFlightAirports ? (
+                ) : !mappableFlights.length ? (
                   <div className="catalog-empty flights-map-empty">
                     <strong>No mappable flights yet</strong>
-                    <p>Add flights with recognizable airport names or codes. Route rendering starts after airport coordinates are resolved.</p>
+                    <p>Add flights with recognizable airport names or codes. Route rendering starts after airport coordinates are resolved and cached by the server.</p>
                   </div>
                 ) : (
                   <>
                     <div className="flights-map-status">
                       <strong>{mappableFlights.length} mapped routes</strong>
-                      <span>{isResolvingFlightAirports ? 'Resolving airport coordinates…' : 'Map uses cached airport lookups when available.'}</span>
+                      <span>Map uses cached airport lookups populated when flights are saved.</span>
                     </div>
                     <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} />
                   </>
@@ -2770,28 +2768,21 @@ export default function App() {
                     {(() => {
                       const durationLabel = formatFlightDuration(flight.departureTime, flight.arrivalTime)
                       const routeTitle = `${flight.fromAirport || 'Unknown departure'} to ${flight.toAirport || 'Unknown arrival'}`
+                      const flightLabel = [flight.flightNumber, flight.airline].filter(Boolean).join(' · ') || 'Flight entry'
+                      const fromAirportLabel = formatAirportLabel(flight.fromAirportResolvedName) ?? flight.fromAirport ?? 'Unknown departure'
+                      const toAirportLabel = formatAirportLabel(flight.toAirportResolvedName) ?? flight.toAirport ?? 'Unknown arrival'
                       return (
                     <PanelCard
                       className="flight-card-panel"
                       icon={<AirplaneTilt size={18} weight="duotone" />}
-                      title={flight.airline || flight.flightNumber || routeTitle}
-                      subtitle={flight.flightNumber ? `${flight.flightNumber}${flight.aircraft ? ` • ${flight.aircraft}` : ''}` : (flight.aircraft || 'Flight entry')}
+                      title={routeTitle}
+                      subtitle={flightLabel}
                     >
-                      <div className="flight-card-topline">
-                        <div className="flight-card-badge">
-                          <AirplaneTilt size={18} weight="fill" />
-                        </div>
-                        <div className="flight-card-heading">
-                          <strong>{flight.airline || 'Flight'}</strong>
-                          <span>{flight.flightNumber || routeTitle}</span>
-                        </div>
-                      </div>
-
                       <div className="flight-card-timeline">
                         <div className="flight-card-time-block">
                           <strong>{formatFlightTime(flight.departureTime)}</strong>
                           <span>{flight.fromAirport || 'DEP'}</span>
-                          {flight.fromAirportResolvedName ? <em>{flight.fromAirportResolvedName}</em> : null}
+                          <em title={flight.fromAirportResolvedName ?? flight.fromAirport ?? undefined}>{fromAirportLabel}</em>
                         </div>
                         <div className="flight-card-connector" aria-hidden>
                           <span />
@@ -2801,12 +2792,12 @@ export default function App() {
                         <div className="flight-card-time-block flight-card-time-block-arrival">
                           <strong>{formatFlightTime(flight.arrivalTime)}</strong>
                           <span>{flight.toAirport || 'ARR'}</span>
-                          {flight.toAirportResolvedName ? <em>{flight.toAirportResolvedName}</em> : null}
+                          <em title={flight.toAirportResolvedName ?? flight.toAirport ?? undefined}>{toAirportLabel}</em>
                         </div>
                       </div>
 
                       <div className="flight-card-summary-row">
-                        {flight.flightDate ? <span>{new Date(flight.flightDate).toLocaleDateString()}</span> : null}
+                        {flight.flightDate ? <span>{formatFlightDate(flight.flightDate)}</span> : null}
                         {flight.distance !== null ? <span>{flight.distance} km</span> : null}
                         {flight.aircraft ? <span>{flight.aircraft}</span> : null}
                       </div>
@@ -2815,13 +2806,13 @@ export default function App() {
                         {flight.departureTime ? (
                           <div>
                             <dt>Departure</dt>
-                            <dd>{new Date(flight.departureTime).toLocaleString()}</dd>
+                            <dd>{formatFlightDateTime(flight.departureTime)}</dd>
                           </div>
                         ) : null}
                         {flight.arrivalTime ? (
                           <div>
                             <dt>Arrival</dt>
-                            <dd>{new Date(flight.arrivalTime).toLocaleString()}</dd>
+                            <dd>{formatFlightDateTime(flight.arrivalTime)}</dd>
                           </div>
                         ) : null}
                         {durationLabel ? (
@@ -2834,12 +2825,6 @@ export default function App() {
                           <div className="flight-meta-grid-wide">
                             <dt>Notes</dt>
                             <dd>{flight.notes}</dd>
-                          </div>
-                        ) : null}
-                        {!flight.departureTime && !flight.arrivalTime && !durationLabel && !flight.notes ? (
-                          <div className="flight-meta-grid-wide">
-                            <dt>Route</dt>
-                            <dd>{routeTitle}</dd>
                           </div>
                         ) : null}
                       </dl>
