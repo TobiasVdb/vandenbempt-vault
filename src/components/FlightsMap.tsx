@@ -9,6 +9,77 @@ type FlightsMapProps = {
   dimension: '2d' | '3d'
 }
 
+function toRadians(value: number) {
+  return (value * Math.PI) / 180
+}
+
+function toDegrees(value: number) {
+  return (value * 180) / Math.PI
+}
+
+function normalizeLongitude(value: number) {
+  return ((((value + 180) % 360) + 360) % 360) - 180
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function buildGreatCircleCoordinates(
+  fromLongitude: number,
+  fromLatitude: number,
+  toLongitude: number,
+  toLatitude: number,
+) {
+  const startLatitude = toRadians(fromLatitude)
+  const startLongitude = toRadians(fromLongitude)
+  const endLatitude = toRadians(toLatitude)
+  const endLongitude = toRadians(toLongitude)
+
+  const startVector = [
+    Math.cos(startLatitude) * Math.cos(startLongitude),
+    Math.cos(startLatitude) * Math.sin(startLongitude),
+    Math.sin(startLatitude),
+  ] as const
+  const endVector = [
+    Math.cos(endLatitude) * Math.cos(endLongitude),
+    Math.cos(endLatitude) * Math.sin(endLongitude),
+    Math.sin(endLatitude),
+  ] as const
+
+  const omega = Math.acos(clamp(
+    startVector[0] * endVector[0] + startVector[1] * endVector[1] + startVector[2] * endVector[2],
+    -1,
+    1,
+  ))
+
+  if (!Number.isFinite(omega) || omega < 1e-6) {
+    return [
+      [fromLongitude, fromLatitude],
+      [toLongitude, toLatitude],
+    ] as [number, number][]
+  }
+
+  const sinOmega = Math.sin(omega)
+  const segmentCount = Math.max(24, Math.ceil(omega * 18))
+  const coordinates: [number, number][] = []
+
+  for (let index = 0; index <= segmentCount; index += 1) {
+    const progress = index / segmentCount
+    const startWeight = Math.sin((1 - progress) * omega) / sinOmega
+    const endWeight = Math.sin(progress * omega) / sinOmega
+    const x = startWeight * startVector[0] + endWeight * endVector[0]
+    const y = startWeight * startVector[1] + endWeight * endVector[1]
+    const z = startWeight * startVector[2] + endWeight * endVector[2]
+    const longitude = normalizeLongitude(toDegrees(Math.atan2(y, x)))
+    const latitude = toDegrees(Math.atan2(z, Math.sqrt((x * x) + (y * y))))
+
+    coordinates.push([longitude, latitude])
+  }
+
+  return coordinates
+}
+
 export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -45,39 +116,59 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
         },
         geometry: {
           type: 'LineString' as const,
-          coordinates: [
-            [flight.fromAirportLongitude, flight.fromAirportLatitude],
-            [flight.toAirportLongitude, flight.toAirportLatitude],
-          ],
+          coordinates: buildGreatCircleCoordinates(
+            flight.fromAirportLongitude,
+            flight.fromAirportLatitude,
+            flight.toAirportLongitude,
+            flight.toAirportLatitude,
+          ),
         },
       }))
 
-    const pointFeatures = routeFeatures.flatMap((feature) => {
-      const [fromCoordinates, toCoordinates] = feature.geometry.coordinates
+    const pointFeatures = flights
+      .filter(
+        (
+          flight,
+        ): flight is FlightRecord & {
+          fromAirportLatitude: number
+          fromAirportLongitude: number
+          toAirportLatitude: number
+          toAirportLongitude: number
+        } =>
+          flight.fromAirportLongitude !== null
+          && flight.fromAirportLatitude !== null
+          && flight.toAirportLongitude !== null
+          && flight.toAirportLatitude !== null,
+      )
+      .flatMap((flight) => {
+        const flightLabel =
+          [flight.flightNumber, flight.airline].filter(Boolean).join(' · ')
+          || [flight.fromAirport, flight.toAirport].filter(Boolean).join(' to ')
+          || 'Flight'
 
       return [
         {
           type: 'Feature' as const,
           properties: {
-            label: feature.properties.fromAirport,
+            label: flight.fromAirportResolvedName ?? flight.fromAirport ?? 'Unknown departure',
             kind: 'departure',
-            flight: feature.properties.label,
+            flight: flightLabel,
           },
           geometry: {
             type: 'Point' as const,
-            coordinates: fromCoordinates,
+            coordinates: [flight.fromAirportLongitude, flight.fromAirportLatitude],
           },
         },
         {
           type: 'Feature' as const,
           properties: {
-            label: feature.properties.toAirport,
+            label: flight.toAirportResolvedName ?? flight.toAirport ?? 'Unknown arrival',
             kind: 'arrival',
-            flight: feature.properties.label,
+            flight: flightLabel,
           },
           geometry: {
             type: 'Point' as const,
-            coordinates: toCoordinates,
+            coordinates: [flight.toAirportLongitude, flight.toAirportLatitude],
           },
         },
       ]
