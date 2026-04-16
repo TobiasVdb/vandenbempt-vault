@@ -2741,6 +2741,34 @@ export default function App() {
                 </m.article>
               ))}
             </m.div>
+
+            <PanelCard
+              className="home-map-panel"
+              icon={<AirplaneTilt size={18} weight="duotone" />}
+              title="Flight Map"
+              subtitle="All logged flights with resolved airport coordinates."
+              delay={CONTENT_START_DELAY + 0.34}
+            >
+              {!mapboxToken ? (
+                <div className="home-chart-empty">
+                  <strong>Mapbox token required</strong>
+                  <p>Add a Mapbox token to render your flight map.</p>
+                </div>
+              ) : !mappableFlights.length ? (
+                <div className="home-chart-empty">
+                  <strong>No mappable flights yet</strong>
+                  <p>Add flights with recognizable airport names or codes to populate the route map.</p>
+                </div>
+              ) : (
+                <div className="home-map-shell">
+                  <div className="home-map-status">
+                    <strong>{mappableFlights.length} mapped routes</strong>
+                    <span>Great-circle routes rendered from cached airport coordinates.</span>
+                  </div>
+                  <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
+                </div>
+              )}
+            </PanelCard>
           </section>
         ) : activePage === 'Projects' || activePage === 'Games' ? (
           <section className="catalog-page" aria-label={`${activePage} collection`}>

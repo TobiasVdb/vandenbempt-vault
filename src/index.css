@@ -793,6 +793,35 @@ body {
   line-height: 1.5;
 }
 
+.home-map-panel .panel-card-body {
+  margin-top: 14px;
+}
+
+.home-map-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.home-map-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel-bg) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+}
+
+.home-map-status strong {
+  font-size: 0.92rem;
+}
+
+.home-map-status span {
+  color: var(--text-subtle);
+  font-size: 0.8rem;
+}
+
 .app-shell.dark .home-chart-empty {
   border-color: rgba(255, 255, 255, 0.1);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.03));
