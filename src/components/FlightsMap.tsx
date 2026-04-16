@@ -182,8 +182,6 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
       attributionControl: false,
     })
 
-    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right')
-
     map.on('load', () => {
       if (dimension === '3d') {
         map.addSource('mapbox-dem', {
