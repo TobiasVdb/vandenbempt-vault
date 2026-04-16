@@ -1491,11 +1491,7 @@ body {
 .flight-timeline-content {
   display: grid;
   gap: 12px;
-  padding: 18px 20px;
-  border-radius: 24px;
-  background: color-mix(in oklab, var(--panel-bg) 92%, transparent);
-  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+  padding: 4px 0 22px;
 }
 
 .flight-timeline-topline {
@@ -1537,17 +1533,21 @@ body {
 
 .flight-timeline-stack {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .flight-timeline-leg,
 .flight-timeline-stay {
   display: grid;
   gap: 10px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: color-mix(in oklab, var(--app-bg) 80%, var(--panel-bg));
-  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
+  padding: 0;
+}
+
+.flight-timeline-leg + .flight-timeline-leg,
+.flight-timeline-leg + .flight-timeline-stay,
+.flight-timeline-stay + .flight-timeline-leg {
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
 }
 
 .flight-timeline-leg-header {
@@ -1616,7 +1616,7 @@ body {
   padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
-  background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
+  background: color-mix(in oklab, var(--app-bg) 88%, transparent);
   color: var(--text);
   font-size: 0.74rem;
   font-style: normal;
@@ -1638,12 +1638,10 @@ body {
   background: rgba(255, 255, 255, 0.16);
 }
 
-.app-shell.dark .flight-timeline-content,
-.app-shell.dark .flight-timeline-leg,
-.app-shell.dark .flight-timeline-stay {
-  background: linear-gradient(180deg, rgba(44, 47, 55, 0.96), rgba(34, 37, 44, 0.94));
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
+.app-shell.dark .flight-timeline-leg + .flight-timeline-leg,
+.app-shell.dark .flight-timeline-leg + .flight-timeline-stay,
+.app-shell.dark .flight-timeline-stay + .flight-timeline-leg {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .app-shell.dark .flight-timeline-topline em,
@@ -1661,7 +1659,7 @@ body {
   }
 
   .flight-timeline-content {
-    padding: 16px;
+    padding: 2px 0 18px;
   }
 
   .flight-timeline-topline,
