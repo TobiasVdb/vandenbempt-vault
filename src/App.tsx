@@ -1435,6 +1435,25 @@ export default function App() {
     resetFlightEditor()
   }, [isFlightSaving, resetFlightEditor])
 
+  const closeAllSideSheets = useCallback(() => {
+    setSelectedIntegration(null)
+    setDetailsIntegration(null)
+    setIsCreatingIntegration(false)
+    setCreateIntegrationType(null)
+    setIsHomeSummarySheetOpen(false)
+    setLibrarySheetType(null)
+    setDeleteSheetType(null)
+    setDeletingLibraryItem(null)
+    setGroupSheetType(null)
+    setDeleteGroupSheetType(null)
+    setDeletingGroup(null)
+    setIsFlightSheetOpen(false)
+    setDeletingFlight(null)
+    resetLibraryEditor()
+    resetGroupEditor()
+    resetFlightEditor()
+  }, [resetFlightEditor, resetGroupEditor, resetLibraryEditor])
+
   const openCreateFlightSheet = useCallback(() => {
     resetFlightEditor()
     setIsFlightSheetOpen(true)
@@ -1949,19 +1968,8 @@ export default function App() {
   }, [settingsSheetPageCount])
 
   useEffect(() => {
-    setSelectedIntegration(null)
-    setDetailsIntegration(null)
-    setIsCreatingIntegration(false)
-    setCreateIntegrationType(null)
-    setLibrarySheetType(null)
-    setDeleteSheetType(null)
-    setDeletingLibraryItem(null)
-    setGroupSheetType(null)
-    setDeleteGroupSheetType(null)
-    setDeletingGroup(null)
-    resetLibraryEditor()
-    resetGroupEditor()
-  }, [activePage, resetGroupEditor, resetLibraryEditor])
+    closeAllSideSheets()
+  }, [activePage, closeAllSideSheets])
 
   useEffect(() => {
     if (activePage !== 'Playground') {
