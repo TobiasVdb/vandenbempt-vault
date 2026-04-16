@@ -550,10 +550,10 @@ function getAirportTimeZone(airportCode?: string | null): string | undefined {
 }
 
 function getZonedDateTimeParts(date: Date, timeZone?: string) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
-    day: '2-digit',
-    month: '2-digit',
+    day: 'numeric',
+    month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
@@ -667,10 +667,12 @@ function formatFlightDate(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const year = String(date.getUTCFullYear())
-  return `${day}/${month}/${year}`
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
 }
 
 function formatFlightDateTime(value?: string | null, airportCode?: string | null): string {
@@ -678,20 +680,23 @@ function formatFlightDateTime(value?: string | null, airportCode?: string | null
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   const parts = getZonedDateTimeParts(date, getAirportTimeZone(airportCode))
-  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`
+  return `${parts.month} ${parts.day}, ${parts.year} ${parts.hour}:${parts.minute}`
 }
 
 function formatUiDateTime(value?: string | null): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = String(date.getFullYear())
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${day}/${month}/${year} ${hours}:${minutes}`
+  const parts = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+  const readPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${readPart('month')} ${readPart('day')}, ${readPart('year')} ${readPart('hour')}:${readPart('minute')}`
 }
 
 function formatAirportLabel(value?: string | null): string | null {
