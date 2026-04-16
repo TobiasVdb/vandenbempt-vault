@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 import pg from 'pg'
 
 const { Pool } = pg
 
-const SOURCE_FLIGHTS = [
+export const SOURCE_FLIGHTS = [
   { flightDate: '2026-08-08', flightNumber: 'SN3357', fromAirport: 'BRU', toAirport: 'ZAD', distance: 690, departureTime: '10:15', arrivalTime: '12:05', airline: 'BEL' },
   { flightDate: '2026-08-08', flightNumber: 'SN3357', fromAirport: 'BRU', toAirport: 'ZAD', distance: 690, departureTime: '10:15', arrivalTime: '12:05', airline: 'BEL' },
   { flightDate: '2024-11-18', flightNumber: 'UA994', fromAirport: 'EWR', toAirport: 'BRU', distance: 3675, departureTime: '18:55', arrivalTime: '08:05', airline: 'UAL' },
@@ -29,7 +30,7 @@ const SOURCE_FLIGHTS = [
   { flightDate: '2012-04-04', fromAirport: 'BRU', toAirport: 'LHR', distance: 218 },
 ]
 
-function normalizeText(value, uppercase = false) {
+export function normalizeText(value, uppercase = false) {
   const normalized = String(value ?? '').trim()
   if (!normalized) return null
   return uppercase ? normalized.toUpperCase() : normalized
@@ -51,7 +52,7 @@ function toFlightTimestamp(date, time, referenceIso = null) {
   return base.toISOString()
 }
 
-function normalizeFlightRecord(record) {
+export function normalizeFlightRecord(record) {
   const flightDate = normalizeText(record.flightDate)
   const departureTime = toFlightTimestamp(flightDate, record.departureTime)
   let arrivalTime = toFlightTimestamp(flightDate, record.arrivalTime, departureTime)
@@ -76,7 +77,7 @@ function normalizeFlightRecord(record) {
   }
 }
 
-function buildFlightKey(record) {
+export function buildFlightKey(record) {
   const normalized = normalizeFlightRecord(record)
   return JSON.stringify([
     normalized.flightDate,
@@ -136,7 +137,7 @@ function getPoolConfig() {
   }
 }
 
-async function ensureFlightsTable(pool) {
+export async function ensureFlightsTable(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS flights (
       id UUID PRIMARY KEY,
@@ -210,7 +211,7 @@ async function insertFlight(pool, flight) {
   )
 }
 
-async function main() {
+export async function seedFlights(pool) {
   const uniqueFlights = []
   const sourceKeys = new Set()
 
@@ -221,34 +222,47 @@ async function main() {
     uniqueFlights.push(normalizeFlightRecord(flight))
   }
 
+  const existingKeys = await loadExistingFlightKeys(pool)
+  let created = 0
+  let skipped = 0
+
+  for (const flight of uniqueFlights) {
+    const key = buildFlightKey(flight)
+    if (existingKeys.has(key)) {
+      skipped += 1
+      continue
+    }
+
+    await insertFlight(pool, flight)
+    existingKeys.add(key)
+    created += 1
+  }
+
+  return {
+    created,
+    skipped,
+    sourceRows: SOURCE_FLIGHTS.length,
+    uniqueRows: uniqueFlights.length,
+  }
+}
+
+async function main() {
   const pool = new Pool(getPoolConfig())
 
   try {
     await ensureFlightsTable(pool)
-
-    const existingKeys = await loadExistingFlightKeys(pool)
-    let created = 0
-    let skipped = 0
-
-    for (const flight of uniqueFlights) {
-      const key = buildFlightKey(flight)
-      if (existingKeys.has(key)) {
-        skipped += 1
-        continue
-      }
-
-      await insertFlight(pool, flight)
-      existingKeys.add(key)
-      created += 1
-    }
-
-    console.log(`Imported ${created} flights, skipped ${skipped} existing flights, source rows ${SOURCE_FLIGHTS.length}, unique rows ${uniqueFlights.length}.`)
+    const result = await seedFlights(pool)
+    console.log(`Imported ${result.created} flights, skipped ${result.skipped} existing flights, source rows ${result.sourceRows}, unique rows ${result.uniqueRows}.`)
   } finally {
     await pool.end()
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+const executedDirectly = Boolean(process.argv[1]) && pathToFileURL(process.argv[1]).href === import.meta.url
+
+if (executedDirectly) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })
+}

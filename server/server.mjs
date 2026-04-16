@@ -4,6 +4,7 @@ import path from 'node:path'
 import express from 'express'
 import multer from 'multer'
 import pg from 'pg'
+import { seedFlights } from '../scripts/import-flights-once.mjs'
 
 const { Pool } = pg
 const app = express()
@@ -326,6 +327,9 @@ async function initializeDatabase() {
       UNIQUE (content_kind, content_item_id)
     );
   `)
+
+  const flightSeedResult = await seedFlights(pool)
+  console.log('Imported ' + flightSeedResult.created + ' flights, skipped ' + flightSeedResult.skipped + ' existing flights, source rows ' + flightSeedResult.sourceRows + ', unique rows ' + flightSeedResult.uniqueRows + '.')
 
   const userCountResult = await pool.query('SELECT COUNT(*)::int AS count FROM workspace_users')
   if (userCountResult.rows[0]?.count === 0) {
