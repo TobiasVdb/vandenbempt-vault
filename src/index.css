@@ -2003,7 +2003,7 @@ body {
 }
 
 .flights-page.map-active .flights-map-shell {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .flights-map-status {
