@@ -495,6 +495,14 @@ body {
   min-width: 0;
   display: grid;
   gap: 2px;
+  flex: 0 1 auto;
+}
+
+.page-topbar-center {
+  flex: 1 1 420px;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
 }
 
 .page-topbar-actions {
@@ -516,6 +524,35 @@ body {
   margin: 2px 0 0;
   color: var(--text-subtle);
   font-weight: 400;
+}
+
+.library-topbar-search {
+  width: min(100%, 440px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in oklab, var(--text) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--app-bg) 92%, white 8%);
+}
+
+.library-topbar-search svg {
+  flex: 0 0 auto;
+  color: var(--text-subtle);
+}
+
+.library-topbar-search .ui-input {
+  width: 100%;
+  border: 0;
+  padding: 12px 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.library-topbar-search .ui-input:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .playground-page p {
@@ -4095,8 +4132,13 @@ body {
     flex-wrap: wrap;
   }
 
+  .page-topbar-center,
   .page-topbar-actions {
     width: 100%;
+  }
+
+  .page-topbar-center,
+  .page-topbar-actions {
     justify-content: flex-start;
   }
 

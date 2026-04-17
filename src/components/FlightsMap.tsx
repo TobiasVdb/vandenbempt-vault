@@ -9,6 +9,13 @@ type FlightsMapProps = {
   dimension: '2d' | '3d'
 }
 
+type MappableFlight = FlightRecord & {
+  fromAirportLatitude: number
+  fromAirportLongitude: number
+  toAirportLatitude: number
+  toAirportLongitude: number
+}
+
 function toRadians(value: number) {
   return (value * Math.PI) / 180
 }
@@ -23,6 +30,32 @@ function normalizeLongitude(value: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function isMappableFlight(flight: FlightRecord): flight is MappableFlight {
+  return (
+    flight.fromAirportLongitude !== null
+    && flight.fromAirportLatitude !== null
+    && flight.toAirportLongitude !== null
+    && flight.toAirportLatitude !== null
+  )
+}
+
+function buildFlightLabel(flight: FlightRecord) {
+  return (
+    [flight.flightNumber, flight.airline].filter(Boolean).join(' · ')
+    || [flight.fromAirport, flight.toAirport].filter(Boolean).join(' to ')
+    || 'Flight'
+  )
 }
 
 function buildGreatCircleCoordinates(
@@ -88,63 +121,33 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
 
     mapboxgl.accessToken = token
 
-    const routeFeatures = flights
-      .filter(
-        (
-          flight,
-        ): flight is FlightRecord & {
-          fromAirportLatitude: number
-          fromAirportLongitude: number
-          toAirportLatitude: number
-          toAirportLongitude: number
-        } =>
-          flight.fromAirportLongitude !== null
-          && flight.fromAirportLatitude !== null
-          && flight.toAirportLongitude !== null
-          && flight.toAirportLatitude !== null,
-      )
-      .map((flight) => ({
-        type: 'Feature' as const,
-        properties: {
-          id: flight.id,
-          label:
-            [flight.flightNumber, flight.airline].filter(Boolean).join(' · ')
-            || [flight.fromAirport, flight.toAirport].filter(Boolean).join(' to ')
-            || 'Flight',
-          fromAirport: flight.fromAirportResolvedName ?? flight.fromAirport ?? 'Unknown departure',
-          toAirport: flight.toAirportResolvedName ?? flight.toAirport ?? 'Unknown arrival',
-        },
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: buildGreatCircleCoordinates(
-            flight.fromAirportLongitude,
-            flight.fromAirportLatitude,
-            flight.toAirportLongitude,
-            flight.toAirportLatitude,
-          ),
-        },
-      }))
+    const mappableFlights = flights.filter(isMappableFlight)
 
-    const pointFeatures = flights
-      .filter(
-        (
-          flight,
-        ): flight is FlightRecord & {
-          fromAirportLatitude: number
-          fromAirportLongitude: number
-          toAirportLatitude: number
-          toAirportLongitude: number
-        } =>
-          flight.fromAirportLongitude !== null
-          && flight.fromAirportLatitude !== null
-          && flight.toAirportLongitude !== null
-          && flight.toAirportLatitude !== null,
-      )
-      .flatMap((flight) => {
-        const flightLabel =
-          [flight.flightNumber, flight.airline].filter(Boolean).join(' · ')
-          || [flight.fromAirport, flight.toAirport].filter(Boolean).join(' to ')
-          || 'Flight'
+    const routeFeatures = mappableFlights.map((flight) => ({
+      type: 'Feature' as const,
+      properties: {
+        id: flight.id,
+        label: buildFlightLabel(flight),
+        fromAirport: flight.fromAirportResolvedName ?? flight.fromAirport ?? 'Unknown departure',
+        toAirport: flight.toAirportResolvedName ?? flight.toAirport ?? 'Unknown arrival',
+        airline: flight.airline ?? '',
+        aircraft: flight.aircraft ?? '',
+        flightNumber: flight.flightNumber ?? '',
+        flightDate: flight.flightDate ?? '',
+      },
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: buildGreatCircleCoordinates(
+          flight.fromAirportLongitude,
+          flight.fromAirportLatitude,
+          flight.toAirportLongitude,
+          flight.toAirportLatitude,
+        ),
+      },
+    }))
+
+    const pointFeatures = mappableFlights.flatMap((flight) => {
+      const flightLabel = buildFlightLabel(flight)
 
       return [
         {
@@ -156,7 +159,7 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
           },
           geometry: {
             type: 'Point' as const,
-            coordinates: [flight.fromAirportLongitude, flight.fromAirportLatitude],
+            coordinates: [flight.fromAirportLongitude, flight.fromAirportLatitude] as [number, number],
           },
         },
         {
@@ -168,7 +171,7 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
           },
           geometry: {
             type: 'Point' as const,
-            coordinates: [flight.toAirportLongitude, flight.toAirportLatitude],
+            coordinates: [flight.toAirportLongitude, flight.toAirportLatitude] as [number, number],
           },
         },
       ]
@@ -245,7 +248,7 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
       if (pointFeatures.length) {
         const bounds = new LngLatBounds()
         pointFeatures.forEach((feature) => {
-          bounds.extend(feature.geometry.coordinates as [number, number])
+          bounds.extend(feature.geometry.coordinates)
         })
         map.fitBounds(bounds, { padding: 48, maxZoom: 5.5 })
       }
@@ -267,7 +270,31 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
 
       new mapboxgl.Popup({ closeButton: false, offset: 12 })
         .setLngLat(coordinates)
-        .setHTML(`<strong>${label}</strong><p>${flightLabel}</p>`)
+        .setHTML(`<strong>${escapeHtml(label)}</strong><p>${escapeHtml(flightLabel)}</p>`)
+        .addTo(map)
+    })
+
+    map.on('click', 'flight-routes-line', (event) => {
+      const feature = event.features?.[0]
+      if (!feature) return
+
+      const label = String(feature.properties?.label ?? 'Flight')
+      const fromAirport = String(feature.properties?.fromAirport ?? 'Unknown departure')
+      const toAirport = String(feature.properties?.toAirport ?? 'Unknown arrival')
+      const details = [
+        String(feature.properties?.flightDate ?? ''),
+        String(feature.properties?.airline ?? ''),
+        String(feature.properties?.aircraft ?? ''),
+      ]
+        .filter(Boolean)
+        .map((value) => `<p>${escapeHtml(value)}</p>`)
+        .join('')
+
+      new mapboxgl.Popup({ closeButton: false, offset: 12 })
+        .setLngLat(event.lngLat)
+        .setHTML(
+          `<strong>${escapeHtml(label)}</strong><p>${escapeHtml(fromAirport)} to ${escapeHtml(toAirport)}</p>${details}`,
+        )
         .addTo(map)
     })
 
@@ -276,6 +303,14 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
     })
 
     map.on('mouseleave', 'flight-points-circle', () => {
+      map.getCanvas().style.cursor = ''
+    })
+
+    map.on('mouseenter', 'flight-routes-line', () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+
+    map.on('mouseleave', 'flight-routes-line', () => {
       map.getCanvas().style.cursor = ''
     })
 

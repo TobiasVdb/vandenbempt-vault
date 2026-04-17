@@ -12,6 +12,7 @@ import { Eye } from '@phosphor-icons/react/Eye'
 import { GearSix } from '@phosphor-icons/react/GearSix'
 import { Layout } from '@phosphor-icons/react/Layout'
 import { MagicWand } from '@phosphor-icons/react/MagicWand'
+import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass'
 import { Moon } from '@phosphor-icons/react/Moon'
 import { Pause } from '@phosphor-icons/react/Pause'
 import { PencilSimple } from '@phosphor-icons/react/PencilSimple'
@@ -841,9 +842,13 @@ export default function App() {
   const [draggedLibraryItem, setDraggedLibraryItem] = useState<{ kind: LibraryItemKind; itemId: string } | null>(null)
   const [dragHoverSectionId, setDragHoverSectionId] = useState<string | null>(null)
   const [movingLibraryItemId, setMovingLibraryItemId] = useState<string | null>(null)
+  const [librarySearchQueries, setLibrarySearchQueries] = useState<Record<LibraryItemKind, string>>({
+    projects: '',
+    games: '',
+  })
   const [flights, setFlights] = useState<FlightRecord[]>([])
-  const [flightViewMode, setFlightViewMode] = useState<'list' | 'map' | 'timeline'>('list')
-  const [flightMapDimension, setFlightMapDimension] = useState<'2d' | '3d'>('2d')
+  const [flightViewMode, setFlightViewMode] = useState<'list' | 'map' | 'timeline'>('map')
+  const flightMapDimension: '2d' | '3d' = '2d'
   const [isFlightLoading, setIsFlightLoading] = useState(false)
   const [flightSheetMode, setFlightSheetMode] = useState<'create' | 'edit'>('create')
   const [editingFlightId, setEditingFlightId] = useState<string | null>(null)
@@ -2184,8 +2189,21 @@ export default function App() {
         : `menu-tab-${activePage.toLowerCase()}`
   const currentLibraryKind: LibraryItemKind | null =
     activePage === 'Projects' ? 'projects' : activePage === 'Games' ? 'games' : null
+  const currentLibrarySearchQuery = currentLibraryKind ? librarySearchQueries[currentLibraryKind] : ''
   const currentLibraryItems = currentLibraryKind === 'projects' ? projects : currentLibraryKind === 'games' ? games : []
   const currentLibraryGroups = currentLibraryKind === 'projects' ? projectGroups : currentLibraryKind === 'games' ? gameGroups : []
+  const filteredCurrentLibraryItems = useMemo(() => {
+    if (!currentLibrarySearchQuery.trim()) return currentLibraryItems
+
+    const normalizedQuery = currentLibrarySearchQuery.trim().toLowerCase()
+    return currentLibraryItems.filter((item) =>
+      [
+        item.name,
+        item.description ?? '',
+        item.url,
+      ].some((value) => value.toLowerCase().includes(normalizedQuery)),
+    )
+  }, [currentLibraryItems, currentLibrarySearchQuery])
   const groupedLibrarySections = useMemo<Array<{ id: string; name: string; group: LibraryGroupRecord | null; items: LibraryItemRecord[] }>>(() => {
     if (!currentLibraryKind) return []
 
@@ -2193,10 +2211,10 @@ export default function App() {
       id: group.id,
       name: group.name,
       group,
-      items: currentLibraryItems.filter((item) => item.groupId === group.id),
+      items: filteredCurrentLibraryItems.filter((item) => item.groupId === group.id),
     }))
 
-    const ungroupedItems = currentLibraryItems.filter((item) => !item.groupId)
+    const ungroupedItems = filteredCurrentLibraryItems.filter((item) => !item.groupId)
     if (ungroupedItems.length) {
       sections.push({
         id: 'ungrouped',
@@ -2206,8 +2224,8 @@ export default function App() {
       })
     }
 
-    return sections
-  }, [currentLibraryGroups, currentLibraryItems, currentLibraryKind])
+    return currentLibrarySearchQuery.trim() ? sections.filter((section) => section.items.length) : sections
+  }, [currentLibraryGroups, currentLibraryKind, currentLibrarySearchQuery, filteredCurrentLibraryItems])
   const toggleLibrarySection = useCallback((kind: LibraryItemKind, sectionId: string) => {
     const storageId = getLibrarySectionStorageId(kind, sectionId)
     setCollapsedLibrarySections((current) => ({
@@ -2782,12 +2800,31 @@ export default function App() {
             <PageHeader
               title={activePage}
               subtitle={activePage === 'Projects' ? 'Track projects with links, images, ratings, and timestamps.' : 'Track games with links, images, ratings, and timestamps.'}
+              centerContent={currentLibraryKind ? (
+                <label className="library-topbar-search">
+                  <MagnifyingGlass size={16} weight="bold" aria-hidden />
+                  <Input
+                    aria-label={`Search ${currentLibraryKind}`}
+                    placeholder={`Search ${currentLibraryKind}...`}
+                    value={librarySearchQueries[currentLibraryKind]}
+                    onChange={(event) => {
+                      const nextValue = event.target.value
+                      setLibrarySearchQueries((current) => ({ ...current, [currentLibraryKind]: nextValue }))
+                    }}
+                  />
+                </label>
+              ) : null}
             />
 
             {!isLibraryLoading && !currentLibraryItems.length && !currentLibraryGroups.length ? (
               <div className="catalog-empty">
                 <strong>No {currentLibraryKind} yet</strong>
                 <p>Create your first {currentLibraryKind === 'projects' ? 'project' : 'game'} from the floating add button.</p>
+              </div>
+            ) : !isLibraryLoading && currentLibrarySearchQuery.trim() && !groupedLibrarySections.length ? (
+              <div className="catalog-empty">
+                <strong>No matching {currentLibraryKind}</strong>
+                <p>Try a different search term for {currentLibraryKind === 'projects' ? 'projects' : 'games'}.</p>
               </div>
             ) : (
               <m.div
@@ -3000,9 +3037,18 @@ export default function App() {
             <PageHeader
               title="Flights"
               subtitle="Track the flights you've taken and switch between a logbook list and route map."
-              actions={(
+              actions={flightViewMode === 'map' ? null : (
                 <div className="flights-header-actions">
                   <div className="view-toggle" role="tablist" aria-label="Flights view mode">
+                    <button
+                      type="button"
+                      className="view-toggle-btn"
+                      role="tab"
+                      aria-selected={false}
+                      onClick={() => setFlightViewMode('map')}
+                    >
+                      Map
+                    </button>
                     <button
                       type="button"
                       className={`view-toggle-btn ${flightViewMode === 'list' ? 'active' : ''}`}
@@ -3014,15 +3060,6 @@ export default function App() {
                     </button>
                     <button
                       type="button"
-                      className={`view-toggle-btn ${flightViewMode === 'map' ? 'active' : ''}`}
-                      role="tab"
-                      aria-selected={flightViewMode === 'map'}
-                      onClick={() => setFlightViewMode('map')}
-                    >
-                      Map
-                    </button>
-                    <button
-                      type="button"
                       className={`view-toggle-btn ${flightViewMode === 'timeline' ? 'active' : ''}`}
                       role="tab"
                       aria-selected={flightViewMode === 'timeline'}
@@ -3031,28 +3068,6 @@ export default function App() {
                       Timeline
                     </button>
                   </div>
-                  {flightViewMode === 'map' ? (
-                    <div className="view-toggle" role="tablist" aria-label="Flights map dimension">
-                      <button
-                        type="button"
-                        className={`view-toggle-btn ${flightMapDimension === '2d' ? 'active' : ''}`}
-                        role="tab"
-                        aria-selected={flightMapDimension === '2d'}
-                        onClick={() => setFlightMapDimension('2d')}
-                      >
-                        2D
-                      </button>
-                      <button
-                        type="button"
-                        className={`view-toggle-btn ${flightMapDimension === '3d' ? 'active' : ''}`}
-                        role="tab"
-                        aria-selected={flightMapDimension === '3d'}
-                        onClick={() => setFlightMapDimension('3d')}
-                      >
-                        3D
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               )}
             />
@@ -3078,7 +3093,7 @@ export default function App() {
                   <>
                     <div className="flights-map-status">
                       <strong>{mappableFlights.length} mapped routes</strong>
-                      <span>{flightMapDimension === '3d' ? '3D terrain view enabled.' : '2D route view enabled.'} Map uses cached airport lookups populated when flights are saved.</span>
+                      <span>2D route view enabled. Map uses cached airport lookups populated when flights are saved.</span>
                     </div>
                     <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension={flightMapDimension} />
                   </>

@@ -9,12 +9,14 @@ export function PageHeader({
   subtitle,
   delay = CONTENT_START_DELAY,
   actions,
+  centerContent,
   className = 'content-header',
 }: {
   title: string
   subtitle: ReactNode
   delay?: number
   actions?: ReactNode
+  centerContent?: ReactNode
   className?: string
 }) {
   return (
@@ -35,6 +37,7 @@ export function PageHeader({
           {subtitle}
         </m.p>
       </div>
+      {centerContent ? <div className="page-topbar-center">{centerContent}</div> : null}
       {actions ? <div className="page-topbar-actions">{actions}</div> : null}
     </header>
   )
