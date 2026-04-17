@@ -1,4 +1,5 @@
 import mapboxgl, { LngLatBounds } from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import { useEffect, useRef } from 'react'
 import type { FlightRecord } from '../app/types'
 
@@ -319,3 +320,5 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
 
   return <div ref={containerRef} className="flights-map-canvas" />
 }
+
+export default FlightsMap

@@ -5,6 +5,19 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: command === 'build' ? process.env.VITE_BASE_PATH ?? '/' : '/',
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('mapbox-gl')) return 'mapbox'
+          if (id.includes('framer-motion')) return 'motion'
+          if (id.includes('recharts')) return 'charts'
+          return undefined
+        },
+      },
+    },
+  },
   server: {
     port: 5174,
     strictPort: true,

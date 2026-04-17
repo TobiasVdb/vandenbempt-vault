@@ -27,7 +27,7 @@ import { Trash } from '@phosphor-icons/react/Trash'
 import { WarningDiamond } from '@phosphor-icons/react/WarningDiamond'
 import { X } from '@phosphor-icons/react/X'
 import { AnimatePresence, m } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -68,7 +68,6 @@ import {
   mainNavigationItems,
 } from './app/constants'
 import { Input } from './components/ui/Input'
-import { FlightsMap } from './components/FlightsMap'
 import { Select } from './components/ui/Select'
 import { Textarea } from './components/ui/Textarea'
 import type {
@@ -104,6 +103,8 @@ import type {
   ToastState,
   UploadCookieState,
 } from './app/types'
+
+const FlightsMap = lazy(() => import('./components/FlightsMap'))
 
 const AIRPORT_TIME_ZONES: Record<string, string> = {
   AMS: 'Europe/Amsterdam',
@@ -848,7 +849,7 @@ export default function App() {
   })
   const [flights, setFlights] = useState<FlightRecord[]>([])
   const [flightViewMode, setFlightViewMode] = useState<'list' | 'map' | 'timeline'>('map')
-  const flightMapDimension: '2d' | '3d' = '2d'
+  const [flightMapDimension, setFlightMapDimension] = useState<'2d' | '3d'>('2d')
   const [isFlightLoading, setIsFlightLoading] = useState(false)
   const [flightSheetMode, setFlightSheetMode] = useState<'create' | 'edit'>('create')
   const [editingFlightId, setEditingFlightId] = useState<string | null>(null)
@@ -2790,7 +2791,9 @@ export default function App() {
                     <strong>{mappableFlights.length} mapped routes</strong>
                     <span>Great-circle routes rendered from cached airport coordinates.</span>
                   </div>
-                  <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
+                  <Suspense fallback={<div className="home-chart-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
+                    <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
+                  </Suspense>
                 </div>
               )}
             </m.section>
@@ -3037,14 +3040,14 @@ export default function App() {
             <PageHeader
               title="Flights"
               subtitle="Track the flights you've taken and switch between a logbook list and route map."
-              actions={flightViewMode === 'map' ? null : (
+              actions={(
                 <div className="flights-header-actions">
                   <div className="view-toggle" role="tablist" aria-label="Flights view mode">
                     <button
                       type="button"
-                      className="view-toggle-btn"
+                      className={`view-toggle-btn ${flightViewMode === 'map' ? 'active' : ''}`}
                       role="tab"
-                      aria-selected={false}
+                      aria-selected={flightViewMode === 'map'}
                       onClick={() => setFlightViewMode('map')}
                     >
                       Map
@@ -3068,6 +3071,28 @@ export default function App() {
                       Timeline
                     </button>
                   </div>
+                  {flightViewMode === 'map' ? (
+                    <div className="view-toggle" role="tablist" aria-label="Flight map dimension">
+                      <button
+                        type="button"
+                        className={`view-toggle-btn ${flightMapDimension === '2d' ? 'active' : ''}`}
+                        role="tab"
+                        aria-selected={flightMapDimension === '2d'}
+                        onClick={() => setFlightMapDimension('2d')}
+                      >
+                        2D
+                      </button>
+                      <button
+                        type="button"
+                        className={`view-toggle-btn ${flightMapDimension === '3d' ? 'active' : ''}`}
+                        role="tab"
+                        aria-selected={flightMapDimension === '3d'}
+                        onClick={() => setFlightMapDimension('3d')}
+                      >
+                        3D
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             />
@@ -3091,11 +3116,9 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    <div className="flights-map-status">
-                      <strong>{mappableFlights.length} mapped routes</strong>
-                      <span>2D route view enabled. Map uses cached airport lookups populated when flights are saved.</span>
-                    </div>
-                    <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension={flightMapDimension} />
+                    <Suspense fallback={<div className="catalog-empty flights-map-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
+                      <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension={flightMapDimension} />
+                    </Suspense>
                   </>
                 )}
               </div>

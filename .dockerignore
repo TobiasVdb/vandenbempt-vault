@@ -1,0 +1,10 @@
+.git
+.gitignore
+dist
+node_modules
+node_modules_broken
+coverage
+playwright-report
+test-results
+npm-debug.log*
+.DS_Store
