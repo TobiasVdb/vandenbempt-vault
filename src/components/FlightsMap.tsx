@@ -1,6 +1,6 @@
 import mapboxgl, { LngLatBounds, type GeoJSONSource } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FlightRecord } from '../app/types'
 
 type FlightsMapProps = {
@@ -147,6 +147,8 @@ export function FlightsMap({ flights, boundsFlights, theme, token, dimension, an
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const playbackFrameRef = useRef<number>(0)
+  const hasAppliedBoundsRef = useRef(false)
+  const [isMapReady, setIsMapReady] = useState(false)
 
   const mappableFlights = useMemo(() => flights.filter(isMappableFlight), [flights])
   const mappableBoundsFlights = useMemo(() => (boundsFlights ?? flights).filter(isMappableFlight), [boundsFlights, flights])
@@ -165,6 +167,8 @@ export function FlightsMap({ flights, boundsFlights, theme, token, dimension, an
     })
 
     mapRef.current = map
+    hasAppliedBoundsRef.current = false
+    setIsMapReady(false)
 
     map.on('load', () => {
       if (dimension === '3d') {
@@ -265,20 +269,13 @@ export function FlightsMap({ flights, boundsFlights, theme, token, dimension, an
         },
       })
 
-      if (mappableBoundsFlights.length) {
-        const bounds = new LngLatBounds()
-        mappableBoundsFlights.forEach((flight) => {
-          bounds.extend([flight.fromAirportLongitude, flight.fromAirportLatitude])
-          bounds.extend([flight.toAirportLongitude, flight.toAirportLatitude])
-        })
-        map.fitBounds(bounds, { padding: 48, maxZoom: 5.5 })
-      }
-
       map.easeTo({
         pitch: dimension === '3d' ? 58 : 0,
         bearing: dimension === '3d' ? 14 : 0,
         duration: 900,
       })
+
+      setIsMapReady(true)
     })
 
     map.on('click', 'flight-points-circle', (event) => {
@@ -337,14 +334,28 @@ export function FlightsMap({ flights, boundsFlights, theme, token, dimension, an
 
     return () => {
       if (playbackFrameRef.current) window.cancelAnimationFrame(playbackFrameRef.current)
+      setIsMapReady(false)
       mapRef.current = null
       map.remove()
     }
-  }, [dimension, mappableBoundsFlights, theme, token])
+  }, [dimension, theme, token])
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !map.isStyleLoaded()) return
+    if (!map || !isMapReady || hasAppliedBoundsRef.current || !mappableBoundsFlights.length) return
+
+    const bounds = new LngLatBounds()
+    mappableBoundsFlights.forEach((flight) => {
+      bounds.extend([flight.fromAirportLongitude, flight.fromAirportLatitude])
+      bounds.extend([flight.toAirportLongitude, flight.toAirportLatitude])
+    })
+    map.fitBounds(bounds, { padding: 48, maxZoom: 5.5 })
+    hasAppliedBoundsRef.current = true
+  }, [isMapReady, mappableBoundsFlights])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !isMapReady || !map.isStyleLoaded()) return
 
     const routesByKey = new Map<string, {
       count: number
@@ -520,7 +531,7 @@ export function FlightsMap({ flights, boundsFlights, theme, token, dimension, an
 
       playbackFrameRef.current = window.requestAnimationFrame(animateProgress)
     }
-  }, [animatedFlightId, mappableFlights])
+  }, [animatedFlightId, isMapReady, mappableFlights])
 
   return <div ref={containerRef} className="flights-map-canvas" />
 }
