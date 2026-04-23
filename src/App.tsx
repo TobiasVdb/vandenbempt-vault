@@ -5262,39 +5262,43 @@ export default function App() {
                 transition={{ duration: 0.18 }}
               />
               <m.div
-                key={`video-lightbox-panel-${activeVideo.id}`}
-                className="video-lightbox"
-                role="dialog"
-                aria-modal="true"
-                aria-label={`${activeVideo.name} video player`}
+                key={`video-lightbox-shell-${activeVideo.id}`}
+                className="video-lightbox-shell"
                 initial={{ opacity: 0, y: 16, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 16, scale: 0.98 }}
                 transition={{ duration: 0.22, ease: EASE_SOFT }}
               >
-                <header className="video-lightbox-header">
-                  <div className="video-lightbox-copy">
-                    <p>Video Player</p>
-                    <h3>{activeVideo.name}</h3>
+                <div
+                  className="video-lightbox"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`${activeVideo.name} video player`}
+                >
+                  <header className="video-lightbox-header">
+                    <div className="video-lightbox-copy">
+                      <p>Video Player</p>
+                      <h3>{activeVideo.name}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label="Close video player"
+                      onClick={() => setActiveVideo(null)}
+                    >
+                      <X size={18} />
+                    </button>
+                  </header>
+                  <div className="video-lightbox-frame-shell">
+                    <iframe
+                      src={getYoutubeEmbedUrl(activeVideo.url) ?? undefined}
+                      title={activeVideo.name}
+                      allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                      loading="lazy"
+                    />
                   </div>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label="Close video player"
-                    onClick={() => setActiveVideo(null)}
-                  >
-                    <X size={18} />
-                  </button>
-                </header>
-                <div className="video-lightbox-frame-shell">
-                  <iframe
-                    src={getYoutubeEmbedUrl(activeVideo.url) ?? undefined}
-                    title={activeVideo.name}
-                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                    loading="lazy"
-                  />
                 </div>
               </m.div>
             </>
