@@ -132,6 +132,15 @@ const LIBRARY_KIND_META: Record<LibraryItemKind, { page: Extract<Page, 'Projects
   videos: { page: 'Videos', singular: 'video', plural: 'videos' },
 }
 
+const HOME_FEATURED_HEADLINES = [
+  'Remember this?',
+  'Ancient lore from the vault',
+  'This one still has range',
+  'A certified Tobias artifact',
+  'Worth another look, honestly',
+  'Pulled from the memory attic',
+]
+
 function getLibraryKindFromPage(page: Page): LibraryItemKind | null {
   if (page === 'Projects') return 'projects'
   if (page === 'Games') return 'games'
@@ -174,6 +183,14 @@ function getYoutubeEmbedUrl(rawUrl: string): string | null {
 function getYoutubeThumbnailUrl(rawUrl: string): string | null {
   const videoId = getYoutubeVideoId(rawUrl)
   return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null
+}
+
+function getLibraryItemVisual(kind: LibraryItemKind, item: LibraryItemRecord): string | null {
+  if (kind === 'videos') {
+    return getYoutubeThumbnailUrl(item.url)
+  }
+
+  return item.imageUrl
 }
 
 const integrationRuntimeInfo: Record<IntegrationType, IntegrationRuntimeInfo> = {
@@ -2669,6 +2686,26 @@ export default function App() {
     { value: 'activity', label: 'Activity' },
   ]
   const totalFlightDistance = flights.reduce((sum, flight) => sum + (flight.distance ?? 0), 0)
+  const featuredLibraryEntry = useMemo(() => {
+    const entries = [
+      ...projects.map((item) => ({ kind: 'projects' as const, item })),
+      ...games.map((item) => ({ kind: 'games' as const, item })),
+      ...videos.map((item) => ({ kind: 'videos' as const, item })),
+    ]
+      .sort((left, right) => new Date(right.item.timestamp).getTime() - new Date(left.item.timestamp).getTime())
+
+    if (!entries.length) return null
+
+    const daySeed = Math.floor(new Date().getTime() / (1000 * 60 * 60 * 24))
+    const featuredEntry = entries[daySeed % entries.length]
+    const headline = HOME_FEATURED_HEADLINES[daySeed % HOME_FEATURED_HEADLINES.length]
+
+    return {
+      ...featuredEntry,
+      headline,
+      visual: getLibraryItemVisual(featuredEntry.kind, featuredEntry.item),
+    }
+  }, [games, projects, videos])
   const homeMetricTiles = [
     { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.', icon: <Play size={18} weight="duotone" /> },
     { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.', icon: <Archive size={18} weight="duotone" /> },
@@ -2874,11 +2911,55 @@ export default function App() {
               ))}
             </m.div>
 
+            {featuredLibraryEntry ? (
+              <m.section
+                className="home-featured-panel"
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: CONTENT_START_DELAY + 0.28, duration: 0.35, ease: EASE_SOFT }}
+              >
+                <div className="home-featured-copy">
+                  <span className="home-featured-eyebrow">{featuredLibraryEntry.headline}</span>
+                  <h3>{featuredLibraryEntry.item.name}</h3>
+                  <p>
+                    {featuredLibraryEntry.item.description
+                      ?? `A ${LIBRARY_KIND_META[featuredLibraryEntry.kind].singular} from ${formatUiDateTime(featuredLibraryEntry.item.timestamp)}.`}
+                  </p>
+                  <div className="home-featured-meta">
+                    <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].page}</span>
+                    <span>{formatUiDateTime(featuredLibraryEntry.item.timestamp)}</span>
+                  </div>
+                  <div className="home-featured-actions">
+                    <m.button
+                      type="button"
+                      className="sheet-nav-btn"
+                      whileTap={ACTION_BUTTON_PRESS}
+                      onClick={() => goToPage(LIBRARY_KIND_META[featuredLibraryEntry.kind].page)}
+                    >
+                      Open {LIBRARY_KIND_META[featuredLibraryEntry.kind].page}
+                    </m.button>
+                    <a href={featuredLibraryEntry.item.url} target="_blank" rel="noreferrer" className="link-button">
+                      Open Link
+                    </a>
+                  </div>
+                </div>
+                <div className="home-featured-visual">
+                  {featuredLibraryEntry.visual ? (
+                    <img src={featuredLibraryEntry.visual} alt="" loading="lazy" />
+                  ) : (
+                    <div className="home-featured-placeholder">
+                      <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].singular}</span>
+                    </div>
+                  )}
+                </div>
+              </m.section>
+            ) : null}
+
             <m.section
               className="home-map-panel"
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: CONTENT_START_DELAY + 0.34, duration: 0.35, ease: EASE_SOFT }}
+              transition={{ delay: CONTENT_START_DELAY + 0.36, duration: 0.35, ease: EASE_SOFT }}
             >
               {!mapboxToken ? (
                 <div className="home-chart-empty">
