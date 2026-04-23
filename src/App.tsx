@@ -3392,6 +3392,7 @@ export default function App() {
                     <Suspense fallback={<div className="catalog-empty flights-map-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
                       <FlightsMap
                         flights={visibleMapFlights}
+                        boundsFlights={mappableFlights}
                         theme={effectiveTheme}
                         token={mapboxToken}
                         dimension={flightMapDimension}
@@ -3613,7 +3614,7 @@ export default function App() {
                 onClick={() => {
                   if (!playbackFlights.length) return
                   setIsFlightPlaybackActive(true)
-                  setFlightPlaybackVisibleCount(1)
+                  setFlightPlaybackVisibleCount(0)
                 }}
               >
                 <Play size={22} weight="fill" />

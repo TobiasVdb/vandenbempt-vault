@@ -1,10 +1,11 @@
-import mapboxgl, { LngLatBounds } from 'mapbox-gl'
+import mapboxgl, { LngLatBounds, type GeoJSONSource } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { FlightRecord } from '../app/types'
 
 type FlightsMapProps = {
   flights: FlightRecord[]
+  boundsFlights?: FlightRecord[]
   theme: 'light' | 'dark'
   token: string
   dimension: '2d' | '3d'
@@ -142,15 +143,208 @@ function interpolateCoordinates(coordinates: [number, number][], progress: numbe
   ]
 }
 
-export function FlightsMap({ flights, theme, token, dimension, animatedFlightId = null }: FlightsMapProps) {
+export function FlightsMap({ flights, boundsFlights, theme, token, dimension, animatedFlightId = null }: FlightsMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<mapboxgl.Map | null>(null)
+  const playbackFrameRef = useRef<number>(0)
+
+  const mappableFlights = useMemo(() => flights.filter(isMappableFlight), [flights])
+  const mappableBoundsFlights = useMemo(() => (boundsFlights ?? flights).filter(isMappableFlight), [boundsFlights, flights])
 
   useEffect(() => {
     if (!containerRef.current || !token) return
 
     mapboxgl.accessToken = token
 
-    const mappableFlights = flights.filter(isMappableFlight)
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
+      center: [4.3517, 50.8503],
+      zoom: 2.1,
+      attributionControl: false,
+    })
+
+    mapRef.current = map
+
+    map.on('load', () => {
+      if (dimension === '3d') {
+        map.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14,
+        })
+        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.15 })
+        map.setProjection('globe')
+      } else {
+        map.setTerrain(null)
+        map.setProjection('mercator')
+      }
+
+      map.addSource('flight-routes', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addSource('flight-points', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addSource('active-flight-route', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addSource('active-flight-progress', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+
+      map.addLayer({
+        id: 'flight-routes-line',
+        type: 'line',
+        source: 'flight-routes',
+        paint: {
+          'line-color': theme === 'dark' ? '#ff9360' : '#f05a28',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['coalesce', ['get', 'routeCount'], 1],
+            1,
+            3,
+            2,
+            4.5,
+            3,
+            6,
+            5,
+            8.5,
+          ],
+          'line-opacity': 0.74,
+        },
+      })
+
+      map.addLayer({
+        id: 'flight-points-circle',
+        type: 'circle',
+        source: 'flight-points',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': [
+            'match',
+            ['get', 'kind'],
+            'departure',
+            theme === 'dark' ? '#77d4ff' : '#1976d2',
+            theme === 'dark' ? '#ffd166' : '#ef6c00',
+          ],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': theme === 'dark' ? '#0d1117' : '#ffffff',
+        },
+      })
+
+      map.addLayer({
+        id: 'active-flight-route-line',
+        type: 'line',
+        source: 'active-flight-route',
+        paint: {
+          'line-color': theme === 'dark' ? '#9be7ff' : '#1565c0',
+          'line-width': 5,
+          'line-opacity': 0.95,
+        },
+      })
+
+      map.addLayer({
+        id: 'active-flight-progress-circle',
+        type: 'circle',
+        source: 'active-flight-progress',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': theme === 'dark' ? '#ffffff' : '#fef3c7',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': theme === 'dark' ? '#1565c0' : '#f05a28',
+        },
+      })
+
+      if (mappableBoundsFlights.length) {
+        const bounds = new LngLatBounds()
+        mappableBoundsFlights.forEach((flight) => {
+          bounds.extend([flight.fromAirportLongitude, flight.fromAirportLatitude])
+          bounds.extend([flight.toAirportLongitude, flight.toAirportLatitude])
+        })
+        map.fitBounds(bounds, { padding: 48, maxZoom: 5.5 })
+      }
+
+      map.easeTo({
+        pitch: dimension === '3d' ? 58 : 0,
+        bearing: dimension === '3d' ? 14 : 0,
+        duration: 900,
+      })
+    })
+
+    map.on('click', 'flight-points-circle', (event) => {
+      const feature = event.features?.[0]
+      if (!feature || feature.geometry.type !== 'Point') return
+
+      const coordinates = [...feature.geometry.coordinates] as [number, number]
+      const label = String(feature.properties?.label ?? 'Airport')
+      const flightLabel = String(feature.properties?.flight ?? 'Flight')
+
+      new mapboxgl.Popup({ closeButton: false, offset: 12 })
+        .setLngLat(coordinates)
+        .setHTML(`<strong>${escapeHtml(label)}</strong><p>${escapeHtml(flightLabel)}</p>`)
+        .addTo(map)
+    })
+
+    map.on('click', 'flight-routes-line', (event) => {
+      const feature = event.features?.[0]
+      if (!feature) return
+
+      const label = String(feature.properties?.label ?? 'Flight')
+      const fromAirport = String(feature.properties?.fromAirport ?? 'Unknown departure')
+      const toAirport = String(feature.properties?.toAirport ?? 'Unknown arrival')
+      const details = [
+        String(feature.properties?.flightDate ?? ''),
+        String(feature.properties?.airline ?? ''),
+        String(feature.properties?.aircraft ?? ''),
+      ]
+        .filter(Boolean)
+        .map((value) => `<p>${escapeHtml(value)}</p>`)
+        .join('')
+
+      new mapboxgl.Popup({ closeButton: false, offset: 12 })
+        .setLngLat(event.lngLat)
+        .setHTML(
+          `<strong>${escapeHtml(label)}</strong><p>${escapeHtml(fromAirport)} to ${escapeHtml(toAirport)}</p>${details}`,
+        )
+        .addTo(map)
+    })
+
+    map.on('mouseenter', 'flight-points-circle', () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+
+    map.on('mouseleave', 'flight-points-circle', () => {
+      map.getCanvas().style.cursor = ''
+    })
+
+    map.on('mouseenter', 'flight-routes-line', () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+
+    map.on('mouseleave', 'flight-routes-line', () => {
+      map.getCanvas().style.cursor = ''
+    })
+
+    return () => {
+      if (playbackFrameRef.current) window.cancelAnimationFrame(playbackFrameRef.current)
+      mapRef.current = null
+      map.remove()
+    }
+  }, [dimension, mappableBoundsFlights, theme, token])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
 
     const routesByKey = new Map<string, {
       count: number
@@ -255,249 +449,78 @@ export function FlightsMap({ flights, theme, token, dimension, animatedFlightId 
       ]
     })
 
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: theme === 'dark' ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
-      center: [4.3517, 50.8503],
-      zoom: 2.1,
-      attributionControl: false,
+    ;(map.getSource('flight-routes') as GeoJSONSource | undefined)?.setData({
+      type: 'FeatureCollection',
+      features: routeFeatures,
     })
-    let animationFrameId = 0
 
-    map.on('load', () => {
-      if (dimension === '3d') {
-        map.addSource('mapbox-dem', {
-          type: 'raster-dem',
-          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-          tileSize: 512,
-          maxzoom: 14,
-        })
-        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.15 })
-        map.setProjection('globe')
-      } else {
-        map.setTerrain(null)
-        map.setProjection('mercator')
-      }
+    ;(map.getSource('flight-points') as GeoJSONSource | undefined)?.setData({
+      type: 'FeatureCollection',
+      features: pointFeatures,
+    })
 
-      map.addSource('flight-routes', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: routeFeatures,
-        },
-      })
-
-      map.addSource('flight-points', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: pointFeatures,
-        },
-      })
-
-      map.addLayer({
-        id: 'flight-routes-line',
-        type: 'line',
-        source: 'flight-routes',
-        paint: {
-          'line-color': theme === 'dark' ? '#ff9360' : '#f05a28',
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['coalesce', ['get', 'routeCount'], 1],
-            1,
-            3,
-            2,
-            4.5,
-            3,
-            6,
-            5,
-            8.5,
-          ],
-          'line-opacity': 0.74,
-        },
-      })
-
-      map.addLayer({
-        id: 'flight-points-circle',
-        type: 'circle',
-        source: 'flight-points',
-        paint: {
-          'circle-radius': 5,
-          'circle-color': [
-            'match',
-            ['get', 'kind'],
-            'departure',
-            theme === 'dark' ? '#77d4ff' : '#1976d2',
-            theme === 'dark' ? '#ffd166' : '#ef6c00',
-          ],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': theme === 'dark' ? '#0d1117' : '#ffffff',
-        },
-      })
-
-      if (animatedRouteCoordinates?.length) {
-        map.addSource('active-flight-route', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'LineString',
-                  coordinates: animatedRouteCoordinates,
-                },
-              },
-            ],
+    ;(map.getSource('active-flight-route') as GeoJSONSource | undefined)?.setData({
+      type: 'FeatureCollection',
+      features: animatedRouteCoordinates?.length
+        ? [{
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: animatedRouteCoordinates,
           },
-        })
+        }]
+        : [],
+    })
 
-        map.addSource('active-flight-progress', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'Point',
-                  coordinates: animatedRouteCoordinates[0],
-                },
-              },
-            ],
+    const progressSource = (map.getSource('active-flight-progress') as GeoJSONSource | undefined)
+    progressSource?.setData({
+      type: 'FeatureCollection',
+      features: animatedRouteCoordinates?.length
+        ? [{
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Point',
+            coordinates: animatedRouteCoordinates[0],
           },
-        })
-
-        map.addLayer({
-          id: 'active-flight-route-line',
-          type: 'line',
-          source: 'active-flight-route',
-          paint: {
-            'line-color': theme === 'dark' ? '#9be7ff' : '#1565c0',
-            'line-width': 5,
-            'line-opacity': 0.95,
-          },
-        })
-
-        map.addLayer({
-          id: 'active-flight-progress-circle',
-          type: 'circle',
-          source: 'active-flight-progress',
-          paint: {
-            'circle-radius': 7,
-            'circle-color': theme === 'dark' ? '#ffffff' : '#fef3c7',
-            'circle-stroke-width': 3,
-            'circle-stroke-color': theme === 'dark' ? '#1565c0' : '#f05a28',
-          },
-        })
-      }
-
-      if (pointFeatures.length) {
-        const bounds = new LngLatBounds()
-        pointFeatures.forEach((feature) => {
-          bounds.extend(feature.geometry.coordinates)
-        })
-        map.fitBounds(bounds, { padding: 48, maxZoom: 5.5 })
-      }
-
-      map.easeTo({
-        pitch: dimension === '3d' ? 58 : 0,
-        bearing: dimension === '3d' ? 14 : 0,
-        duration: 900,
-      })
-
-      if (animatedRouteCoordinates?.length && map.getSource('active-flight-progress')) {
-        const progressSource = map.getSource('active-flight-progress') as mapboxgl.GeoJSONSource
-        const animationStart = performance.now()
-        const animationDuration = 1800
-
-        const animateProgress = (timestamp: number) => {
-          const progress = clamp((timestamp - animationStart) / animationDuration, 0, 1)
-          progressSource.setData({
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'Point',
-                  coordinates: interpolateCoordinates(animatedRouteCoordinates, progress),
-                },
-              },
-            ],
-          })
-
-          if (progress < 1) {
-            animationFrameId = window.requestAnimationFrame(animateProgress)
-          }
-        }
-
-        animationFrameId = window.requestAnimationFrame(animateProgress)
-      }
+        }]
+        : [],
     })
 
-    map.on('click', 'flight-points-circle', (event) => {
-      const feature = event.features?.[0]
-      if (!feature || feature.geometry.type !== 'Point') return
-
-      const coordinates = [...feature.geometry.coordinates] as [number, number]
-      const label = String(feature.properties?.label ?? 'Airport')
-      const flightLabel = String(feature.properties?.flight ?? 'Flight')
-
-      new mapboxgl.Popup({ closeButton: false, offset: 12 })
-        .setLngLat(coordinates)
-        .setHTML(`<strong>${escapeHtml(label)}</strong><p>${escapeHtml(flightLabel)}</p>`)
-        .addTo(map)
-    })
-
-    map.on('click', 'flight-routes-line', (event) => {
-      const feature = event.features?.[0]
-      if (!feature) return
-
-      const label = String(feature.properties?.label ?? 'Flight')
-      const fromAirport = String(feature.properties?.fromAirport ?? 'Unknown departure')
-      const toAirport = String(feature.properties?.toAirport ?? 'Unknown arrival')
-      const details = [
-        String(feature.properties?.flightDate ?? ''),
-        String(feature.properties?.airline ?? ''),
-        String(feature.properties?.aircraft ?? ''),
-      ]
-        .filter(Boolean)
-        .map((value) => `<p>${escapeHtml(value)}</p>`)
-        .join('')
-
-      new mapboxgl.Popup({ closeButton: false, offset: 12 })
-        .setLngLat(event.lngLat)
-        .setHTML(
-          `<strong>${escapeHtml(label)}</strong><p>${escapeHtml(fromAirport)} to ${escapeHtml(toAirport)}</p>${details}`,
-        )
-        .addTo(map)
-    })
-
-    map.on('mouseenter', 'flight-points-circle', () => {
-      map.getCanvas().style.cursor = 'pointer'
-    })
-
-    map.on('mouseleave', 'flight-points-circle', () => {
-      map.getCanvas().style.cursor = ''
-    })
-
-    map.on('mouseenter', 'flight-routes-line', () => {
-      map.getCanvas().style.cursor = 'pointer'
-    })
-
-    map.on('mouseleave', 'flight-routes-line', () => {
-      map.getCanvas().style.cursor = ''
-    })
-
-    return () => {
-      if (animationFrameId) window.cancelAnimationFrame(animationFrameId)
-      map.remove()
+    if (playbackFrameRef.current) {
+      window.cancelAnimationFrame(playbackFrameRef.current)
+      playbackFrameRef.current = 0
     }
-  }, [animatedFlightId, dimension, flights, theme, token])
+
+    if (animatedRouteCoordinates?.length && progressSource) {
+      const animationStart = performance.now()
+      const animationDuration = 1800
+
+      const animateProgress = (timestamp: number) => {
+        const progress = clamp((timestamp - animationStart) / animationDuration, 0, 1)
+        progressSource.setData({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'Point',
+                coordinates: interpolateCoordinates(animatedRouteCoordinates, progress),
+              },
+            },
+          ],
+        })
+
+        if (progress < 1) {
+          playbackFrameRef.current = window.requestAnimationFrame(animateProgress)
+        }
+      }
+
+      playbackFrameRef.current = window.requestAnimationFrame(animateProgress)
+    }
+  }, [animatedFlightId, mappableFlights])
 
   return <div ref={containerRef} className="flights-map-canvas" />
 }
