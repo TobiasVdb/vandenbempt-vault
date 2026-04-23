@@ -171,6 +171,11 @@ function getYoutubeEmbedUrl(rawUrl: string): string | null {
   return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null
 }
 
+function getYoutubeThumbnailUrl(rawUrl: string): string | null {
+  const videoId = getYoutubeVideoId(rawUrl)
+  return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null
+}
+
 const integrationRuntimeInfo: Record<IntegrationType, IntegrationRuntimeInfo> = {
   kubernetes: {
     connectivity: 'passing',
@@ -862,6 +867,7 @@ export default function App() {
   const [projects, setProjects] = useState<LibraryItemRecord[]>([])
   const [games, setGames] = useState<LibraryItemRecord[]>([])
   const [videos, setVideos] = useState<LibraryItemRecord[]>([])
+  const [activeVideo, setActiveVideo] = useState<LibraryItemRecord | null>(null)
   const [projectGroups, setProjectGroups] = useState<LibraryGroupRecord[]>([])
   const [gameGroups, setGameGroups] = useState<LibraryGroupRecord[]>([])
   const [videoGroups, setVideoGroups] = useState<LibraryGroupRecord[]>([])
@@ -1518,6 +1524,7 @@ export default function App() {
     setDeletingGroup(null)
     setIsFlightSheetOpen(false)
     setDeletingFlight(null)
+    setActiveVideo(null)
     resetLibraryEditor()
     resetGroupEditor()
     resetFlightEditor()
@@ -2065,6 +2072,19 @@ export default function App() {
   useEffect(() => {
     setDetailSheetPage(1)
   }, [detailsIntegration?.id])
+
+  useEffect(() => {
+    if (!activeVideo) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setActiveVideo(null)
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [activeVideo])
 
   useEffect(() => {
     setSettingsSheetPage((current) => Math.min(current, settingsSheetPageCount))
@@ -3025,6 +3045,7 @@ export default function App() {
                                     {(() => {
                                       const isVideoCard = currentLibraryKind === 'videos'
                                       const youtubeEmbedUrl = isVideoCard ? getYoutubeEmbedUrl(item.url) : null
+                                      const youtubeThumbnailUrl = isVideoCard ? getYoutubeThumbnailUrl(item.url) : null
                                       const cardIcon = currentLibraryKind === 'projects'
                                         ? <Archive size={18} weight="duotone" />
                                         : <Play size={18} weight="duotone" />
@@ -3037,16 +3058,24 @@ export default function App() {
                                       subtitle={<RatingStars rating={item.rating} />}
                                     >
                                       {youtubeEmbedUrl ? (
-                                        <div className="catalog-card-video">
-                                          <iframe
-                                            src={youtubeEmbedUrl}
-                                            title={item.name}
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                            referrerPolicy="strict-origin-when-cross-origin"
-                                            allowFullScreen
-                                            loading="lazy"
-                                          />
-                                        </div>
+                                        <button
+                                          type="button"
+                                          className="catalog-card-video catalog-card-video-trigger"
+                                          aria-label={`Open video player for ${item.name}`}
+                                          onClick={() => setActiveVideo(item)}
+                                        >
+                                          {youtubeThumbnailUrl ? (
+                                            <img src={youtubeThumbnailUrl} alt="" loading="lazy" />
+                                          ) : (
+                                            <span className="catalog-card-video-fallback">Video</span>
+                                          )}
+                                          <span className="catalog-card-video-overlay" aria-hidden>
+                                            <span className="catalog-card-video-play">
+                                              <Play size={24} weight="fill" />
+                                            </span>
+                                            <strong>Play in lightbox</strong>
+                                          </span>
+                                        </button>
                                       ) : item.imageUrl ? (
                                         <div className="catalog-card-image">
                                           <img src={item.imageUrl} alt="" />
@@ -5041,6 +5070,60 @@ export default function App() {
             </ul>
           </div>
         </SideSheet>
+
+        <AnimatePresence initial={false}>
+          {activeVideo ? (
+            <>
+              <m.button
+                key={`video-lightbox-backdrop-${activeVideo.id}`}
+                type="button"
+                className="video-lightbox-backdrop"
+                aria-label="Close video player"
+                onClick={() => setActiveVideo(null)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+              />
+              <m.div
+                key={`video-lightbox-panel-${activeVideo.id}`}
+                className="video-lightbox"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${activeVideo.name} video player`}
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: EASE_SOFT }}
+              >
+                <header className="video-lightbox-header">
+                  <div className="video-lightbox-copy">
+                    <p>Video Player</p>
+                    <h3>{activeVideo.name}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Close video player"
+                    onClick={() => setActiveVideo(null)}
+                  >
+                    <X size={18} />
+                  </button>
+                </header>
+                <div className="video-lightbox-frame-shell">
+                  <iframe
+                    src={getYoutubeEmbedUrl(activeVideo.url) ?? undefined}
+                    title={activeVideo.name}
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </m.div>
+            </>
+          ) : null}
+        </AnimatePresence>
 
         <AnimatePresence initial={false}>
           {detailsIntegration ? (
