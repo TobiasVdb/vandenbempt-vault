@@ -10,6 +10,7 @@ import { ClockCountdown } from '@phosphor-icons/react/ClockCountdown'
 import { DownloadSimple } from '@phosphor-icons/react/DownloadSimple'
 import { Eye } from '@phosphor-icons/react/Eye'
 import { GearSix } from '@phosphor-icons/react/GearSix'
+import { Info } from '@phosphor-icons/react/Info'
 import { Layout } from '@phosphor-icons/react/Layout'
 import { MagicWand } from '@phosphor-icons/react/MagicWand'
 import { MagnifyingGlass } from '@phosphor-icons/react/MagnifyingGlass'
@@ -815,6 +816,20 @@ function formatFlightDuration(departureTime?: string | null, arrivalTime?: strin
   return `${minutes}m`
 }
 
+function getFlightMoment(flight: FlightRecord): number | null {
+  const timestamp = flight.departureTime ?? flight.arrivalTime ?? (flight.flightDate ? `${flight.flightDate}T00:00:00Z` : null)
+  if (!timestamp) return null
+
+  const date = new Date(timestamp)
+  const time = date.getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+function isFutureFlight(flight: FlightRecord, now = Date.now()): boolean {
+  const moment = getFlightMoment(flight)
+  return moment !== null && moment > now
+}
+
 function RatingStars({ rating, size = 16 }: { rating: number; size?: number }) {
   const activeStars = Math.max(0, Math.min(5, Math.round(rating)))
 
@@ -921,6 +936,8 @@ export default function App() {
   const [flights, setFlights] = useState<FlightRecord[]>([])
   const [flightViewMode, setFlightViewMode] = useState<'list' | 'map' | 'timeline'>('map')
   const [flightMapDimension, setFlightMapDimension] = useState<'2d' | '3d'>('2d')
+  const [isFlightPlaybackActive, setIsFlightPlaybackActive] = useState(false)
+  const [flightPlaybackVisibleCount, setFlightPlaybackVisibleCount] = useState(0)
   const [isFlightLoading, setIsFlightLoading] = useState(false)
   const [flightSheetMode, setFlightSheetMode] = useState<'create' | 'edit'>('create')
   const [editingFlightId, setEditingFlightId] = useState<string | null>(null)
@@ -2108,6 +2125,13 @@ export default function App() {
   }, [settingsSheetPageCount])
 
   useEffect(() => {
+    if (flightViewMode === 'map') return
+    if (!isFlightPlaybackActive && flightPlaybackVisibleCount === 0) return
+    setIsFlightPlaybackActive(false)
+    setFlightPlaybackVisibleCount(0)
+  }, [flightPlaybackVisibleCount, flightViewMode, isFlightPlaybackActive])
+
+  useEffect(() => {
     closeAllSideSheets()
   }, [activePage, closeAllSideSheets])
 
@@ -2407,6 +2431,44 @@ export default function App() {
       && flight.toAirportLatitude !== null
       && flight.toAirportLongitude !== null,
   )
+  const playbackFlights = useMemo(
+    () => [...mappableFlights].sort((left, right) => (getFlightMoment(left) ?? 0) - (getFlightMoment(right) ?? 0)),
+    [mappableFlights],
+  )
+  const visibleMapFlights = isFlightPlaybackActive
+    ? playbackFlights.slice(0, Math.max(0, Math.min(flightPlaybackVisibleCount, playbackFlights.length)))
+    : mappableFlights
+  const activePlaybackFlight = isFlightPlaybackActive && flightPlaybackVisibleCount > 0
+    ? playbackFlights[Math.min(flightPlaybackVisibleCount - 1, playbackFlights.length - 1)] ?? null
+    : null
+  useEffect(() => {
+    if (flightViewMode !== 'map' || !isFlightPlaybackActive) return
+
+    if (!playbackFlights.length) {
+      setIsFlightPlaybackActive(false)
+      setFlightPlaybackVisibleCount(0)
+      return
+    }
+
+    if (flightPlaybackVisibleCount <= 0) {
+      setFlightPlaybackVisibleCount(1)
+      return
+    }
+
+    if (flightPlaybackVisibleCount >= playbackFlights.length) {
+      const timeout = window.setTimeout(() => {
+        setIsFlightPlaybackActive(false)
+        setFlightPlaybackVisibleCount(0)
+      }, 1600)
+      return () => window.clearTimeout(timeout)
+    }
+
+    const timeout = window.setTimeout(() => {
+      setFlightPlaybackVisibleCount((current) => Math.min(current + 1, playbackFlights.length))
+    }, 2200)
+
+    return () => window.clearTimeout(timeout)
+  }, [flightPlaybackVisibleCount, flightViewMode, isFlightPlaybackActive, playbackFlights])
   const flightTimelineTrips = useMemo(() => buildFlightTimelineTrips(flights), [flights])
   const integrationDetailsInfo = integrationPage ? integrationRuntimeInfo[integrationPage.type] : null
   const enabledIntegrationList = integrationCatalog.filter((integration) => enabledIntegrations[integration.id])
@@ -3328,7 +3390,13 @@ export default function App() {
                 ) : (
                   <>
                     <Suspense fallback={<div className="catalog-empty flights-map-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
-                      <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension={flightMapDimension} />
+                      <FlightsMap
+                        flights={visibleMapFlights}
+                        theme={effectiveTheme}
+                        token={mapboxToken}
+                        dimension={flightMapDimension}
+                        animatedFlightId={activePlaybackFlight?.id ?? null}
+                      />
                     </Suspense>
                   </>
                 )}
@@ -3449,6 +3517,7 @@ export default function App() {
                     }}
                   >
                     {(() => {
+                      const isUpcoming = isFutureFlight(flight)
                       const durationLabel = formatFlightDuration(flight.departureTime, flight.arrivalTime)
                       const fromAirportTitle = formatAirportTitle(flight.fromAirportResolvedName, flight.fromAirport)
                       const toAirportTitle = formatAirportTitle(flight.toAirportResolvedName, flight.toAirport)
@@ -3458,10 +3527,17 @@ export default function App() {
                       const toAirportLabel = formatAirportLabel(flight.toAirportResolvedName) ?? flight.toAirport ?? 'Unknown arrival'
                       return (
                     <PanelCard
-                      className="flight-card-panel"
+                      className={`flight-card-panel ${isUpcoming ? 'flight-card-panel-future' : 'flight-card-panel-past'}`}
                       icon={<AirplaneTilt size={18} weight="duotone" />}
                       title={routeTitle}
-                      subtitle={flightLabel}
+                      subtitle={(
+                        <span className="flight-card-subtitle">
+                          <span>{flightLabel}</span>
+                          <span className={`flight-card-status-badge ${isUpcoming ? 'future' : 'past'}`}>
+                            {isUpcoming ? 'Upcoming' : 'Past'}
+                          </span>
+                        </span>
+                      )}
                     >
                       <div className="flight-card-timeline">
                         <div className="flight-card-time-block">
@@ -3487,16 +3563,17 @@ export default function App() {
                         {flight.flightDate ? <span>{formatFlightDate(flight.flightDate)}</span> : null}
                         {flight.distance !== null ? <span>{flight.distance} km</span> : null}
                         {flight.aircraft ? <span>{flight.aircraft}</span> : null}
+                        {flight.notes ? (
+                          <button
+                            type="button"
+                            className="flight-info-btn"
+                            aria-label="Show flight notes"
+                            data-tooltip={flight.notes}
+                          >
+                            <Info size={14} weight="bold" />
+                          </button>
+                        ) : null}
                       </div>
-
-                      {flight.notes ? (
-                        <dl className="flight-meta-grid">
-                          <div className="flight-meta-grid-wide">
-                            <dt>Notes</dt>
-                            <dd>{flight.notes}</dd>
-                          </div>
-                        </dl>
-                      ) : null}
 
                       <div className="catalog-card-actions">
                         <m.button
@@ -3526,16 +3603,33 @@ export default function App() {
               </m.div>
             )}
 
-            <m.button
-              type="button"
-              className="page-fab"
-              aria-label="Add new flight"
-              title="Add new flight"
-              whileTap={ACTION_BUTTON_PRESS}
-              onClick={openCreateFlightSheet}
-            >
-              <Plus size={22} weight="bold" />
-            </m.button>
+            {flightViewMode === 'map' ? (
+              <m.button
+                type="button"
+                className="page-fab"
+                aria-label={isFlightPlaybackActive ? 'Restart map playback' : 'Play map playback'}
+                title={isFlightPlaybackActive ? 'Restart map playback' : 'Play map playback'}
+                whileTap={ACTION_BUTTON_PRESS}
+                onClick={() => {
+                  if (!playbackFlights.length) return
+                  setIsFlightPlaybackActive(true)
+                  setFlightPlaybackVisibleCount(1)
+                }}
+              >
+                <Play size={22} weight="fill" />
+              </m.button>
+            ) : flightViewMode === 'list' ? (
+              <m.button
+                type="button"
+                className="page-fab"
+                aria-label="Add new flight"
+                title="Add new flight"
+                whileTap={ACTION_BUTTON_PRESS}
+                onClick={openCreateFlightSheet}
+              >
+                <Plus size={22} weight="bold" />
+              </m.button>
+            ) : null}
           </section>
         ) : activePage === 'Integrations' ? (
           <>

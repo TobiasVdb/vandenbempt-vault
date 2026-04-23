@@ -8,6 +8,7 @@ type FlightsMapProps = {
   theme: 'light' | 'dark'
   token: string
   dimension: '2d' | '3d'
+  animatedFlightId?: string | null
 }
 
 type MappableFlight = FlightRecord & {
@@ -114,7 +115,34 @@ function buildGreatCircleCoordinates(
   return coordinates
 }
 
-export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps) {
+function buildRouteKey(flight: FlightRecord) {
+  const endpoints = [
+    `${flight.fromAirportLatitude},${flight.fromAirportLongitude}`,
+    `${flight.toAirportLatitude},${flight.toAirportLongitude}`,
+  ].sort()
+
+  return endpoints.join('|')
+}
+
+function interpolateCoordinates(coordinates: [number, number][], progress: number): [number, number] {
+  if (!coordinates.length) return [0, 0]
+  if (coordinates.length === 1) return coordinates[0]
+
+  const clampedProgress = clamp(progress, 0, 1)
+  const segments = coordinates.length - 1
+  const scaledProgress = clampedProgress * segments
+  const index = Math.min(Math.floor(scaledProgress), segments - 1)
+  const localProgress = scaledProgress - index
+  const start = coordinates[index]
+  const end = coordinates[index + 1]
+
+  return [
+    start[0] + ((end[0] - start[0]) * localProgress),
+    start[1] + ((end[1] - start[1]) * localProgress),
+  ]
+}
+
+export function FlightsMap({ flights, theme, token, dimension, animatedFlightId = null }: FlightsMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -124,28 +152,77 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
 
     const mappableFlights = flights.filter(isMappableFlight)
 
-    const routeFeatures = mappableFlights.map((flight) => ({
-      type: 'Feature' as const,
-      properties: {
-        id: flight.id,
-        label: buildFlightLabel(flight),
-        fromAirport: flight.fromAirportResolvedName ?? flight.fromAirport ?? 'Unknown departure',
-        toAirport: flight.toAirportResolvedName ?? flight.toAirport ?? 'Unknown arrival',
-        airline: flight.airline ?? '',
-        aircraft: flight.aircraft ?? '',
-        flightNumber: flight.flightNumber ?? '',
-        flightDate: flight.flightDate ?? '',
-      },
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: buildGreatCircleCoordinates(
-          flight.fromAirportLongitude,
-          flight.fromAirportLatitude,
-          flight.toAirportLongitude,
-          flight.toAirportLatitude,
-        ),
-      },
-    }))
+    const routesByKey = new Map<string, {
+      count: number
+      feature: {
+        type: 'Feature'
+        properties: {
+          id: string
+          label: string
+          fromAirport: string
+          toAirport: string
+          airline: string
+          aircraft: string
+          flightNumber: string
+          flightDate: string
+          routeCount: number
+        }
+        geometry: {
+          type: 'LineString'
+          coordinates: [number, number][]
+        }
+      }
+    }>()
+
+    mappableFlights.forEach((flight) => {
+      const coordinates = buildGreatCircleCoordinates(
+        flight.fromAirportLongitude,
+        flight.fromAirportLatitude,
+        flight.toAirportLongitude,
+        flight.toAirportLatitude,
+      )
+      const routeKey = buildRouteKey(flight)
+      const existingRoute = routesByKey.get(routeKey)
+
+      if (existingRoute) {
+        existingRoute.count += 1
+        existingRoute.feature.properties.routeCount = existingRoute.count
+        return
+      }
+
+      routesByKey.set(routeKey, {
+        count: 1,
+        feature: {
+          type: 'Feature',
+          properties: {
+            id: flight.id,
+            label: buildFlightLabel(flight),
+            fromAirport: flight.fromAirportResolvedName ?? flight.fromAirport ?? 'Unknown departure',
+            toAirport: flight.toAirportResolvedName ?? flight.toAirport ?? 'Unknown arrival',
+            airline: flight.airline ?? '',
+            aircraft: flight.aircraft ?? '',
+            flightNumber: flight.flightNumber ?? '',
+            flightDate: flight.flightDate ?? '',
+            routeCount: 1,
+          },
+          geometry: {
+            type: 'LineString',
+            coordinates,
+          },
+        },
+      })
+    })
+
+    const routeFeatures = Array.from(routesByKey.values()).map((route) => route.feature)
+    const animatedFlight = animatedFlightId ? mappableFlights.find((flight) => flight.id === animatedFlightId) ?? null : null
+    const animatedRouteCoordinates = animatedFlight
+      ? buildGreatCircleCoordinates(
+        animatedFlight.fromAirportLongitude,
+        animatedFlight.fromAirportLatitude,
+        animatedFlight.toAirportLongitude,
+        animatedFlight.toAirportLatitude,
+      )
+      : null
 
     const pointFeatures = mappableFlights.flatMap((flight) => {
       const flightLabel = buildFlightLabel(flight)
@@ -185,6 +262,7 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
       zoom: 2.1,
       attributionControl: false,
     })
+    let animationFrameId = 0
 
     map.on('load', () => {
       if (dimension === '3d') {
@@ -223,8 +301,20 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
         source: 'flight-routes',
         paint: {
           'line-color': theme === 'dark' ? '#ff9360' : '#f05a28',
-          'line-width': 3,
-          'line-opacity': 0.7,
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['coalesce', ['get', 'routeCount'], 1],
+            1,
+            3,
+            2,
+            4.5,
+            3,
+            6,
+            5,
+            8.5,
+          ],
+          'line-opacity': 0.74,
         },
       })
 
@@ -246,6 +336,65 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
         },
       })
 
+      if (animatedRouteCoordinates?.length) {
+        map.addSource('active-flight-route', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'LineString',
+                  coordinates: animatedRouteCoordinates,
+                },
+              },
+            ],
+          },
+        })
+
+        map.addSource('active-flight-progress', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'Point',
+                  coordinates: animatedRouteCoordinates[0],
+                },
+              },
+            ],
+          },
+        })
+
+        map.addLayer({
+          id: 'active-flight-route-line',
+          type: 'line',
+          source: 'active-flight-route',
+          paint: {
+            'line-color': theme === 'dark' ? '#9be7ff' : '#1565c0',
+            'line-width': 5,
+            'line-opacity': 0.95,
+          },
+        })
+
+        map.addLayer({
+          id: 'active-flight-progress-circle',
+          type: 'circle',
+          source: 'active-flight-progress',
+          paint: {
+            'circle-radius': 7,
+            'circle-color': theme === 'dark' ? '#ffffff' : '#fef3c7',
+            'circle-stroke-width': 3,
+            'circle-stroke-color': theme === 'dark' ? '#1565c0' : '#f05a28',
+          },
+        })
+      }
+
       if (pointFeatures.length) {
         const bounds = new LngLatBounds()
         pointFeatures.forEach((feature) => {
@@ -259,6 +408,35 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
         bearing: dimension === '3d' ? 14 : 0,
         duration: 900,
       })
+
+      if (animatedRouteCoordinates?.length && map.getSource('active-flight-progress')) {
+        const progressSource = map.getSource('active-flight-progress') as mapboxgl.GeoJSONSource
+        const animationStart = performance.now()
+        const animationDuration = 1800
+
+        const animateProgress = (timestamp: number) => {
+          const progress = clamp((timestamp - animationStart) / animationDuration, 0, 1)
+          progressSource.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'Point',
+                  coordinates: interpolateCoordinates(animatedRouteCoordinates, progress),
+                },
+              },
+            ],
+          })
+
+          if (progress < 1) {
+            animationFrameId = window.requestAnimationFrame(animateProgress)
+          }
+        }
+
+        animationFrameId = window.requestAnimationFrame(animateProgress)
+      }
     })
 
     map.on('click', 'flight-points-circle', (event) => {
@@ -315,8 +493,11 @@ export function FlightsMap({ flights, theme, token, dimension }: FlightsMapProps
       map.getCanvas().style.cursor = ''
     })
 
-    return () => map.remove()
-  }, [dimension, flights, theme, token])
+    return () => {
+      if (animationFrameId) window.cancelAnimationFrame(animationFrameId)
+      map.remove()
+    }
+  }, [animatedFlightId, dimension, flights, theme, token])
 
   return <div ref={containerRef} className="flights-map-canvas" />
 }

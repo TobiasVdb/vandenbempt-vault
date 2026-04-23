@@ -2073,16 +2073,58 @@ body {
 .flight-card-panel {
   height: 100%;
   border-radius: 22px;
-  padding: 18px;
+  padding: 16px;
   background:
     linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 98%, transparent), color-mix(in oklab, var(--panel-bg) 94%, transparent)),
     linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent 48%);
 }
 
+.flight-card-panel-future {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 98%, transparent), color-mix(in oklab, var(--panel-bg) 94%, transparent)),
+    linear-gradient(135deg, rgba(44, 138, 255, 0.12), transparent 52%);
+}
+
+.flight-card-panel-past {
+  opacity: 0.96;
+}
+
 .flight-card-panel .panel-card-body {
-  margin-top: 10px;
+  margin-top: 8px;
   flex: 1 1 auto;
   align-content: start;
+  gap: 9px;
+}
+
+.flight-card-subtitle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.flight-card-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.flight-card-status-badge.future {
+  background: rgba(25, 118, 210, 0.12);
+  border: 1px solid rgba(25, 118, 210, 0.2);
+  color: #1565c0;
+}
+
+.flight-card-status-badge.past {
+  background: color-mix(in oklab, var(--text) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  color: var(--text-subtle);
 }
 
 .flight-card-topline {
@@ -2123,8 +2165,8 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 12px 14px;
   border-radius: 16px;
   background: color-mix(in oklab, var(--panel-bg) 84%, transparent);
   border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
@@ -2132,20 +2174,20 @@ body {
 
 .flight-card-time-block {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   align-content: start;
   min-width: 0;
 }
 
 .flight-card-time-block strong {
-  font-size: clamp(1.45rem, 3vw, 1.75rem);
+  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
   line-height: 1;
   min-width: 0;
 }
 
 .flight-card-time-block span {
   color: var(--text);
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.03em;
 }
@@ -2154,19 +2196,19 @@ body {
   display: -webkit-box;
   overflow: hidden;
   color: var(--text-subtle);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-style: normal;
-  line-height: 1.4;
+  line-height: 1.3;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   overflow-wrap: anywhere;
 }
 
 .flight-card-time-block small {
   color: var(--text);
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
@@ -2175,10 +2217,10 @@ body {
 }
 
 .flight-card-connector {
-  min-width: 120px;
+  min-width: 92px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .flight-card-connector span {
@@ -2188,11 +2230,11 @@ body {
 }
 
 .flight-card-connector b {
-  padding: 7px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
   background: color-mix(in oklab, var(--app-bg) 94%, transparent);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   line-height: 1;
   white-space: nowrap;
 }
@@ -2230,19 +2272,63 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .flight-card-summary-row span {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
+  min-height: 24px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: color-mix(in oklab, var(--panel-bg) 82%, transparent);
   border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
   color: var(--text-subtle);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
+}
+
+.flight-info-btn {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--panel-bg) 82%, transparent);
+  color: var(--text-subtle);
+  cursor: help;
+}
+
+.flight-info-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: min(280px, 60vw);
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  box-shadow: var(--tooltip-shadow);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+  z-index: 6;
+}
+
+.flight-info-btn:hover::after,
+.flight-info-btn:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .flight-meta-grid {
