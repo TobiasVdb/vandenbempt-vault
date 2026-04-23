@@ -899,6 +899,7 @@ export default function App() {
   const [projects, setProjects] = useState<LibraryItemRecord[]>([])
   const [games, setGames] = useState<LibraryItemRecord[]>([])
   const [videos, setVideos] = useState<LibraryItemRecord[]>([])
+  const [featuredLibrarySeed] = useState(() => Math.random())
   const [activeVideo, setActiveVideo] = useState<LibraryItemRecord | null>(null)
   const [projectGroups, setProjectGroups] = useState<LibraryGroupRecord[]>([])
   const [gameGroups, setGameGroups] = useState<LibraryGroupRecord[]>([])
@@ -2754,20 +2755,21 @@ export default function App() {
       ...games.map((item) => ({ kind: 'games' as const, item })),
       ...videos.map((item) => ({ kind: 'videos' as const, item })),
     ]
-      .sort((left, right) => new Date(right.item.timestamp).getTime() - new Date(left.item.timestamp).getTime())
+      .filter((entry) => entry.item.rating >= 3)
 
     if (!entries.length) return null
 
-    const daySeed = Math.floor(new Date().getTime() / (1000 * 60 * 60 * 24))
-    const featuredEntry = entries[daySeed % entries.length]
-    const headline = HOME_FEATURED_HEADLINES[daySeed % HOME_FEATURED_HEADLINES.length]
+    const featuredIndex = Math.floor(featuredLibrarySeed * entries.length) % entries.length
+    const headlineIndex = Math.floor(featuredLibrarySeed * HOME_FEATURED_HEADLINES.length) % HOME_FEATURED_HEADLINES.length
+    const featuredEntry = entries[featuredIndex]
+    const headline = HOME_FEATURED_HEADLINES[headlineIndex]
 
     return {
       ...featuredEntry,
       headline,
       visual: getLibraryItemVisual(featuredEntry.kind, featuredEntry.item),
     }
-  }, [games, projects, videos])
+  }, [featuredLibrarySeed, games, projects, videos])
   const homeMetricTiles = [
     { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.', icon: <Play size={18} weight="duotone" /> },
     { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.', icon: <Archive size={18} weight="duotone" /> },
@@ -3035,10 +3037,6 @@ export default function App() {
                 </div>
               ) : (
                 <div className="home-map-shell">
-                  <div className="home-map-status">
-                    <strong>{mappableFlights.length} mapped routes</strong>
-                    <span>Great-circle routes rendered from cached airport coordinates.</span>
-                  </div>
                   <Suspense fallback={<div className="home-chart-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
                     <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
                   </Suspense>

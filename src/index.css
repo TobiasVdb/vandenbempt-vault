@@ -571,7 +571,7 @@ body {
   display: grid;
   gap: 16px;
   min-height: calc(100dvh - 44px);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .home-kpi-grid,
@@ -848,26 +848,24 @@ body {
 
 .home-map-shell {
   display: grid;
-  gap: 12px;
   min-height: 0;
   height: 100%;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .home-map-panel {
   display: grid;
-  gap: 12px;
   min-height: 0;
   height: 100%;
 }
 
 .home-featured-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.95fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.55fr);
+  gap: 12px;
   align-items: stretch;
-  padding: 18px;
-  border-radius: 24px;
+  padding: 12px;
+  border-radius: 18px;
   border: 1px solid color-mix(in oklab, var(--text) 10%, transparent);
   background:
     radial-gradient(circle at top right, color-mix(in oklab, var(--accent) 16%, transparent), transparent 38%),
@@ -877,7 +875,7 @@ body {
 .home-featured-copy {
   display: grid;
   align-content: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -885,12 +883,12 @@ body {
   display: inline-flex;
   width: fit-content;
   align-items: center;
-  min-height: 28px;
-  padding: 4px 12px;
+  min-height: 22px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: color-mix(in oklab, var(--accent) 12%, transparent);
   color: color-mix(in oklab, var(--accent) 84%, var(--text));
-  font-size: 0.76rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -899,16 +897,16 @@ body {
 .home-featured-copy h3 {
   margin: 0;
   color: var(--text);
-  font-size: clamp(1.35rem, 2.6vw, 2rem);
-  line-height: 1.05;
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  line-height: 1.1;
 }
 
 .home-featured-copy p {
   margin: 0;
-  max-width: 56ch;
+  max-width: 52ch;
   color: var(--text-subtle);
-  font-size: 0.92rem;
-  line-height: 1.6;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .home-featured-meta {
@@ -920,13 +918,13 @@ body {
 .home-featured-meta span {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
+  min-height: 22px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: color-mix(in oklab, var(--panel-bg) 86%, transparent);
   border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
   color: var(--text-subtle);
-  font-size: 0.76rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -939,7 +937,7 @@ body {
 
 .home-featured-visual {
   min-height: 0;
-  border-radius: 20px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
   background:
@@ -950,7 +948,7 @@ body {
 .home-featured-placeholder {
   width: 100%;
   height: 100%;
-  min-height: 220px;
+  min-height: 132px;
   display: block;
 }
 
@@ -973,26 +971,6 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.home-map-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--panel-bg) 88%, transparent);
-  border: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
-}
-
-.home-map-status strong {
-  font-size: 0.92rem;
-}
-
-.home-map-status span {
-  color: var(--text-subtle);
-  font-size: 0.8rem;
 }
 
 .home-map-shell .flights-map-canvas {
