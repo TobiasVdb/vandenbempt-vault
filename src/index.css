@@ -571,7 +571,15 @@ body {
   display: grid;
   gap: 16px;
   min-height: calc(100dvh - 44px);
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.home-workspace {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.35fr);
+  align-items: stretch;
 }
 
 .home-kpi-grid,
@@ -4469,6 +4477,10 @@ body {
   .home-page {
     min-height: auto;
     grid-template-rows: auto;
+  }
+
+  .home-workspace {
+    grid-template-columns: 1fr;
   }
 
   .home-featured-panel {

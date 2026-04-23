@@ -2975,74 +2975,76 @@ export default function App() {
               ))}
             </m.div>
 
-            {featuredLibraryEntry ? (
+            <section className="home-workspace">
+              {featuredLibraryEntry ? (
+                <m.section
+                  className="home-featured-panel"
+                  initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: CONTENT_START_DELAY + 0.28, duration: 0.35, ease: EASE_SOFT }}
+                >
+                  <div className="home-featured-copy">
+                    <span className="home-featured-eyebrow">{featuredLibraryEntry.headline}</span>
+                    <h3>{featuredLibraryEntry.item.name}</h3>
+                    <p>
+                      {featuredLibraryEntry.item.description
+                        ?? `A ${LIBRARY_KIND_META[featuredLibraryEntry.kind].singular} from ${formatUiDateTime(featuredLibraryEntry.item.timestamp)}.`}
+                    </p>
+                    <div className="home-featured-meta">
+                      <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].page}</span>
+                      <span>{formatUiDateTime(featuredLibraryEntry.item.timestamp)}</span>
+                    </div>
+                    <div className="home-featured-actions">
+                      <m.button
+                        type="button"
+                        className="sheet-nav-btn"
+                        whileTap={ACTION_BUTTON_PRESS}
+                        onClick={() => goToPage(LIBRARY_KIND_META[featuredLibraryEntry.kind].page)}
+                      >
+                        Open {LIBRARY_KIND_META[featuredLibraryEntry.kind].page}
+                      </m.button>
+                      <a href={featuredLibraryEntry.item.url} target="_blank" rel="noreferrer" className="link-button">
+                        Open Link
+                      </a>
+                    </div>
+                  </div>
+                  <div className="home-featured-visual">
+                    {featuredLibraryEntry.visual ? (
+                      <img src={featuredLibraryEntry.visual} alt="" loading="lazy" />
+                    ) : (
+                      <div className="home-featured-placeholder">
+                        <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].singular}</span>
+                      </div>
+                    )}
+                  </div>
+                </m.section>
+              ) : null}
+
               <m.section
-                className="home-featured-panel"
+                className="home-map-panel"
                 initial={{ opacity: 0, y: 12, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ delay: CONTENT_START_DELAY + 0.28, duration: 0.35, ease: EASE_SOFT }}
+                transition={{ delay: CONTENT_START_DELAY + 0.36, duration: 0.35, ease: EASE_SOFT }}
               >
-                <div className="home-featured-copy">
-                  <span className="home-featured-eyebrow">{featuredLibraryEntry.headline}</span>
-                  <h3>{featuredLibraryEntry.item.name}</h3>
-                  <p>
-                    {featuredLibraryEntry.item.description
-                      ?? `A ${LIBRARY_KIND_META[featuredLibraryEntry.kind].singular} from ${formatUiDateTime(featuredLibraryEntry.item.timestamp)}.`}
-                  </p>
-                  <div className="home-featured-meta">
-                    <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].page}</span>
-                    <span>{formatUiDateTime(featuredLibraryEntry.item.timestamp)}</span>
+                {!mapboxToken ? (
+                  <div className="home-chart-empty">
+                    <strong>Mapbox token required</strong>
+                    <p>Add a Mapbox token to render your flight map.</p>
                   </div>
-                  <div className="home-featured-actions">
-                    <m.button
-                      type="button"
-                      className="sheet-nav-btn"
-                      whileTap={ACTION_BUTTON_PRESS}
-                      onClick={() => goToPage(LIBRARY_KIND_META[featuredLibraryEntry.kind].page)}
-                    >
-                      Open {LIBRARY_KIND_META[featuredLibraryEntry.kind].page}
-                    </m.button>
-                    <a href={featuredLibraryEntry.item.url} target="_blank" rel="noreferrer" className="link-button">
-                      Open Link
-                    </a>
+                ) : !mappableFlights.length ? (
+                  <div className="home-chart-empty">
+                    <strong>No mappable flights yet</strong>
+                    <p>Add flights with recognizable airport names or codes to populate the route map.</p>
                   </div>
-                </div>
-                <div className="home-featured-visual">
-                  {featuredLibraryEntry.visual ? (
-                    <img src={featuredLibraryEntry.visual} alt="" loading="lazy" />
-                  ) : (
-                    <div className="home-featured-placeholder">
-                      <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].singular}</span>
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  <div className="home-map-shell">
+                    <Suspense fallback={<div className="home-chart-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
+                      <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
+                    </Suspense>
+                  </div>
+                )}
               </m.section>
-            ) : null}
-
-            <m.section
-              className="home-map-panel"
-              initial={{ opacity: 0, y: 12, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: CONTENT_START_DELAY + 0.36, duration: 0.35, ease: EASE_SOFT }}
-            >
-              {!mapboxToken ? (
-                <div className="home-chart-empty">
-                  <strong>Mapbox token required</strong>
-                  <p>Add a Mapbox token to render your flight map.</p>
-                </div>
-              ) : !mappableFlights.length ? (
-                <div className="home-chart-empty">
-                  <strong>No mappable flights yet</strong>
-                  <p>Add flights with recognizable airport names or codes to populate the route map.</p>
-                </div>
-              ) : (
-                <div className="home-map-shell">
-                  <Suspense fallback={<div className="home-chart-empty"><strong>Loading map</strong><p>Flight map assets are loading.</p></div>}>
-                    <FlightsMap flights={mappableFlights} theme={effectiveTheme} token={mapboxToken} dimension="2d" />
-                  </Suspense>
-                </div>
-              )}
-            </m.section>
+            </section>
           </section>
         ) : activePage === 'Projects' || activePage === 'Games' || activePage === 'Videos' ? (
           <section className="catalog-page" aria-label={`${activePage} collection`}>
