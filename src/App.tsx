@@ -2298,6 +2298,19 @@ export default function App() {
 
     return currentLibrarySearchQuery.trim() ? sections.filter((section) => section.items.length) : sections
   }, [currentLibraryGroups, currentLibraryKind, currentLibrarySearchQuery, filteredCurrentLibraryItems])
+  const libraryItemRevealIndexById = useMemo(() => {
+    const indexById = new Map<string, number>()
+    let revealIndex = 0
+
+    groupedLibrarySections.forEach((section) => {
+      section.items.forEach((item) => {
+        indexById.set(item.id, revealIndex)
+        revealIndex += 1
+      })
+    })
+
+    return indexById
+  }, [groupedLibrarySections])
   const toggleLibrarySection = useCallback((kind: LibraryItemKind, sectionId: string) => {
     const storageId = getLibrarySectionStorageId(kind, sectionId)
     setCollapsedLibrarySections((current) => ({
@@ -2986,32 +2999,21 @@ export default function App() {
                           transition={{ duration: 0.24, ease: EASE_SOFT }}
                         >
                           {section.items.length ? (
-                            <m.div
-                              className="catalog-grid"
-                              initial="hidden"
-                              animate="visible"
-                              variants={{
-                                hidden: {},
-                                visible: {
-                                  transition: {
-                                    staggerChildren: 0.08,
-                                    delayChildren: 0.06,
-                                  },
-                                },
-                              }}
-                            >
+                            <div className="catalog-grid">
                               {section.items.map((item) => (
                                 <m.div
                                   key={item.id}
                                   className={`catalog-card-drag-shell ${draggedLibraryItem?.itemId === item.id ? 'catalog-card-dragging' : ''} ${movingLibraryItemId === item.id ? 'catalog-card-moving' : ''}`}
-                                  variants={{
-                                    hidden: { opacity: 0, y: 14, scale: 0.98 },
-                                    visible: {
-                                      opacity: 1,
-                                      y: 0,
-                                      scale: 1,
-                                      transition: { duration: 0.4, ease: EASE_SOFT },
-                                    },
+                                  initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                                  animate={{
+                                    opacity: 1,
+                                    y: 0,
+                                    scale: 1,
+                                  }}
+                                  transition={{
+                                    duration: 0.42,
+                                    ease: EASE_SOFT,
+                                    delay: CONTENT_START_DELAY + 0.2 + ((libraryItemRevealIndexById.get(item.id) ?? 0) * 0.08),
                                   }}
                                 >
                                   <div
@@ -3097,7 +3099,7 @@ export default function App() {
                                   </div>
                                 </m.div>
                               ))}
-                            </m.div>
+                            </div>
                           ) : (
                             <div className="catalog-group-empty">No {currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].plural : 'items'} in this group yet.</div>
                           )}
