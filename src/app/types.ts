@@ -5,6 +5,7 @@ export type Page =
   | 'Home'
   | 'Projects'
   | 'Games'
+  | 'Videos'
   | 'Flights'
   | 'Integrations'
   | 'Admin'
@@ -108,7 +109,7 @@ export type SideSheetProps = {
   panelRef?: Ref<HTMLElement>
 }
 
-export type LibraryItemKind = 'projects' | 'games'
+export type LibraryItemKind = 'projects' | 'games' | 'videos'
 
 export type LibraryGroupRecord = {
   id: string

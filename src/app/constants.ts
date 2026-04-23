@@ -3,6 +3,7 @@ import { Archive } from '@phosphor-icons/react/Archive'
 import { GameController } from '@phosphor-icons/react/GameController'
 import { GearSix } from '@phosphor-icons/react/GearSix'
 import { House } from '@phosphor-icons/react/House'
+import { Play } from '@phosphor-icons/react/Play'
 import { PlugCharging } from '@phosphor-icons/react/PlugCharging'
 import type {
   GlobalPolicyEngine,
@@ -54,6 +55,11 @@ export const mainNavigationItems = [
     label: 'Games' as const,
     description: 'Game collection',
     icon: GameController,
+  },
+  {
+    label: 'Videos' as const,
+    description: 'YouTube collection',
+    icon: Play,
   },
   {
     label: 'Flights' as const,
@@ -129,6 +135,7 @@ export function getPageFromPath(pathname: string): { page: Page; integrationId?:
   if (normalizedPath === '/' || normalizedPath === '/home') return { page: 'Home' }
   if (normalizedPath === '/projects') return { page: 'Projects' }
   if (normalizedPath === '/games') return { page: 'Games' }
+  if (normalizedPath === '/videos') return { page: 'Videos' }
   if (normalizedPath === '/flights') return { page: 'Flights' }
   if (normalizedPath === '/integrations') return { page: 'Integrations' }
   if (normalizedPath === '/admin') return { page: 'Admin' }
@@ -146,6 +153,7 @@ export function getPathFromPage(page: Page, integrationId?: string): string {
   if (page === 'Home') return '/home'
   if (page === 'Projects') return '/projects'
   if (page === 'Games') return '/games'
+  if (page === 'Videos') return '/videos'
   if (page === 'Flights') return '/flights'
   if (page === 'Integrations') return '/integrations'
   if (page === 'Admin') return '/admin'

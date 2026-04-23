@@ -126,6 +126,51 @@ const AIRPORT_TIME_ZONES: Record<string, string> = {
   ZAD: 'Europe/Zagreb',
 }
 
+const LIBRARY_KIND_META: Record<LibraryItemKind, { page: Extract<Page, 'Projects' | 'Games' | 'Videos'>; singular: string; plural: string }> = {
+  projects: { page: 'Projects', singular: 'project', plural: 'projects' },
+  games: { page: 'Games', singular: 'game', plural: 'games' },
+  videos: { page: 'Videos', singular: 'video', plural: 'videos' },
+}
+
+function getLibraryKindFromPage(page: Page): LibraryItemKind | null {
+  if (page === 'Projects') return 'projects'
+  if (page === 'Games') return 'games'
+  if (page === 'Videos') return 'videos'
+  return null
+}
+
+function getYoutubeVideoId(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl)
+    const hostname = url.hostname.toLowerCase()
+
+    if (hostname === 'youtu.be' || hostname === 'www.youtu.be') {
+      const videoId = url.pathname.split('/').filter(Boolean)[0]
+      return videoId || null
+    }
+
+    if (hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname === 'm.youtube.com') {
+      if (url.pathname === '/watch') {
+        return url.searchParams.get('v')
+      }
+
+      const segments = url.pathname.split('/').filter(Boolean)
+      if (segments[0] === 'embed' || segments[0] === 'shorts' || segments[0] === 'live') {
+        return segments[1] ?? null
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function getYoutubeEmbedUrl(rawUrl: string): string | null {
+  const videoId = getYoutubeVideoId(rawUrl)
+  return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null
+}
+
 const integrationRuntimeInfo: Record<IntegrationType, IntegrationRuntimeInfo> = {
   kubernetes: {
     connectivity: 'passing',
@@ -816,8 +861,10 @@ export default function App() {
   const [createIntegrationType, setCreateIntegrationType] = useState<IntegrationType | null>(null)
   const [projects, setProjects] = useState<LibraryItemRecord[]>([])
   const [games, setGames] = useState<LibraryItemRecord[]>([])
+  const [videos, setVideos] = useState<LibraryItemRecord[]>([])
   const [projectGroups, setProjectGroups] = useState<LibraryGroupRecord[]>([])
   const [gameGroups, setGameGroups] = useState<LibraryGroupRecord[]>([])
+  const [videoGroups, setVideoGroups] = useState<LibraryGroupRecord[]>([])
   const [collapsedLibrarySections, setCollapsedLibrarySections] = useState<Record<string, boolean>>(() => readLibrarySectionCollapseState())
   const [isLibraryLoading, setIsLibraryLoading] = useState(false)
   const [librarySheetType, setLibrarySheetType] = useState<LibraryItemKind | null>(null)
@@ -846,6 +893,7 @@ export default function App() {
   const [librarySearchQueries, setLibrarySearchQueries] = useState<Record<LibraryItemKind, string>>({
     projects: '',
     games: '',
+    videos: '',
   })
   const [flights, setFlights] = useState<FlightRecord[]>([])
   const [flightViewMode, setFlightViewMode] = useState<'list' | 'map' | 'timeline'>('map')
@@ -1303,7 +1351,12 @@ export default function App() {
       return
     }
 
-    setGames(items)
+    if (kind === 'games') {
+      setGames(items)
+      return
+    }
+
+    setVideos(items)
   }, [])
 
   const setLibraryGroupsByType = useCallback((kind: LibraryItemKind, groups: LibraryGroupRecord[]) => {
@@ -1312,7 +1365,12 @@ export default function App() {
       return
     }
 
-    setGameGroups(groups)
+    if (kind === 'games') {
+      setGameGroups(groups)
+      return
+    }
+
+    setVideoGroups(groups)
   }, [])
 
   const resetLibraryEditor = useCallback(() => {
@@ -1607,7 +1665,7 @@ export default function App() {
 
       setLibraryItemsByType(
         librarySheetType,
-        (librarySheetType === 'projects' ? projects : games)
+        (librarySheetType === 'projects' ? projects : librarySheetType === 'games' ? games : videos)
           .filter((item) => item.id !== payload.item!.id)
           .concat(payload.item!)
           .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()),
@@ -1622,7 +1680,7 @@ export default function App() {
     } finally {
       setIsLibrarySaving(false)
     }
-  }, [closeLibrarySheet, editingLibraryItemId, games, libraryDraft, librarySheetType, projects, setLibraryItemsByType])
+  }, [closeLibrarySheet, editingLibraryItemId, games, libraryDraft, librarySheetType, projects, setLibraryItemsByType, videos])
 
   const refreshLibraryItemScreenshot = useCallback(async () => {
     if (!librarySheetType || !editingLibraryItemId) return
@@ -1642,7 +1700,7 @@ export default function App() {
 
       setLibraryItemsByType(
         librarySheetType,
-        (librarySheetType === 'projects' ? projects : games)
+        (librarySheetType === 'projects' ? projects : librarySheetType === 'games' ? games : videos)
           .filter((item) => item.id !== payload.item!.id)
           .concat(payload.item!)
           .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()),
@@ -1654,7 +1712,7 @@ export default function App() {
     } finally {
       setIsLibraryScreenshotRefreshing(false)
     }
-  }, [editingLibraryItemId, games, librarySheetType, projects, setLibraryItemsByType])
+  }, [editingLibraryItemId, games, librarySheetType, projects, setLibraryItemsByType, videos])
 
   const moveLibraryItemToGroup = useCallback(async (kind: LibraryItemKind, item: LibraryItemRecord, groupId: string | null) => {
     if (item.groupId === groupId) return
@@ -1683,7 +1741,7 @@ export default function App() {
 
       setLibraryItemsByType(
         kind,
-        (kind === 'projects' ? projects : games)
+        (kind === 'projects' ? projects : kind === 'games' ? games : videos)
           .filter((entry) => entry.id !== payload.item!.id)
           .concat(payload.item!)
           .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()),
@@ -1697,7 +1755,7 @@ export default function App() {
     } finally {
       setMovingLibraryItemId(null)
     }
-  }, [games, projects, setLibraryItemsByType])
+  }, [games, projects, setLibraryItemsByType, videos])
 
   const saveLibraryGroup = useCallback(async () => {
     if (!groupSheetType) return
@@ -1727,7 +1785,7 @@ export default function App() {
 
       setLibraryGroupsByType(
         groupSheetType,
-        (groupSheetType === 'projects' ? projectGroups : gameGroups)
+        (groupSheetType === 'projects' ? projectGroups : groupSheetType === 'games' ? gameGroups : videoGroups)
           .filter((group) => group.id !== payload.group!.id)
           .concat(payload.group!)
           .sort((left, right) => left.name.localeCompare(right.name)),
@@ -1742,7 +1800,7 @@ export default function App() {
     } finally {
       setIsGroupSaving(false)
     }
-  }, [closeGroupSheet, editingGroupId, gameGroups, groupDraft.name, groupSheetType, projectGroups, setLibraryGroupsByType])
+  }, [closeGroupSheet, editingGroupId, gameGroups, groupDraft.name, groupSheetType, projectGroups, setLibraryGroupsByType, videoGroups])
 
   const deleteLibraryItem = useCallback(async () => {
     if (!deleteSheetType || !deletingLibraryItem) return
@@ -1759,7 +1817,7 @@ export default function App() {
 
       setLibraryItemsByType(
         deleteSheetType,
-        (deleteSheetType === 'projects' ? projects : games).filter((item) => item.id !== deletingLibraryItem.id),
+        (deleteSheetType === 'projects' ? projects : deleteSheetType === 'games' ? games : videos).filter((item) => item.id !== deletingLibraryItem.id),
       )
       setToast({ kind: 'success', message: `${deletingLibraryItem.name} deleted.` })
       closeDeleteLibrarySheet()
@@ -1768,7 +1826,7 @@ export default function App() {
     } finally {
       setIsLibraryDeleting(false)
     }
-  }, [closeDeleteLibrarySheet, deleteSheetType, deletingLibraryItem, games, projects, setLibraryItemsByType])
+  }, [closeDeleteLibrarySheet, deleteSheetType, deletingLibraryItem, games, projects, setLibraryItemsByType, videos])
 
   const deleteLibraryGroup = useCallback(async () => {
     if (!deleteGroupSheetType || !deletingGroup) return
@@ -1785,7 +1843,7 @@ export default function App() {
 
       setLibraryGroupsByType(
         deleteGroupSheetType,
-        (deleteGroupSheetType === 'projects' ? projectGroups : gameGroups).filter((group) => group.id !== deletingGroup.id),
+        (deleteGroupSheetType === 'projects' ? projectGroups : deleteGroupSheetType === 'games' ? gameGroups : videoGroups).filter((group) => group.id !== deletingGroup.id),
       )
       setToast({ kind: 'success', message: `${deletingGroup.name} deleted.` })
       closeDeleteGroupSheet()
@@ -1794,7 +1852,7 @@ export default function App() {
     } finally {
       setIsGroupDeleting(false)
     }
-  }, [closeDeleteGroupSheet, deleteGroupSheetType, deletingGroup, gameGroups, projectGroups, setLibraryGroupsByType])
+  }, [closeDeleteGroupSheet, deleteGroupSheetType, deletingGroup, gameGroups, projectGroups, setLibraryGroupsByType, videoGroups])
 
   const loadGlbModels = useCallback(async () => {
     setIsGlbLoading(true)
@@ -1952,8 +2010,10 @@ export default function App() {
   useEffect(() => {
     void loadLibraryItems('projects')
     void loadLibraryItems('games')
+    void loadLibraryItems('videos')
     void loadLibraryGroups('projects')
     void loadLibraryGroups('games')
+    void loadLibraryGroups('videos')
     void loadFlights()
   }, [loadFlights, loadLibraryGroups, loadLibraryItems])
 
@@ -2188,11 +2248,22 @@ export default function App() {
       : activePage === 'PitchDeck'
         ? 'menu-tab-links'
         : `menu-tab-${activePage.toLowerCase()}`
-  const currentLibraryKind: LibraryItemKind | null =
-    activePage === 'Projects' ? 'projects' : activePage === 'Games' ? 'games' : null
+  const currentLibraryKind: LibraryItemKind | null = getLibraryKindFromPage(activePage)
   const currentLibrarySearchQuery = currentLibraryKind ? librarySearchQueries[currentLibraryKind] : ''
-  const currentLibraryItems = currentLibraryKind === 'projects' ? projects : currentLibraryKind === 'games' ? games : []
-  const currentLibraryGroups = currentLibraryKind === 'projects' ? projectGroups : currentLibraryKind === 'games' ? gameGroups : []
+  const currentLibraryItems = currentLibraryKind
+    ? currentLibraryKind === 'projects'
+      ? projects
+      : currentLibraryKind === 'games'
+        ? games
+        : videos
+    : []
+  const currentLibraryGroups = currentLibraryKind
+    ? currentLibraryKind === 'projects'
+      ? projectGroups
+      : currentLibraryKind === 'games'
+        ? gameGroups
+        : videoGroups
+    : []
   const filteredCurrentLibraryItems = useMemo(() => {
     if (!currentLibrarySearchQuery.trim()) return currentLibraryItems
 
@@ -2272,13 +2343,13 @@ export default function App() {
     event.preventDefault()
     setDragHoverSectionId(null)
 
-    const itemList = kind === 'projects' ? projects : games
+    const itemList = kind === 'projects' ? projects : kind === 'games' ? games : videos
     const item = itemList.find((entry) => entry.id === draggedLibraryItem.itemId)
     setDraggedLibraryItem(null)
     if (!item) return
 
     await moveLibraryItemToGroup(kind, item, section.group?.id ?? null)
-  }, [draggedLibraryItem, games, moveLibraryItemToGroup, projects])
+  }, [draggedLibraryItem, games, moveLibraryItemToGroup, projects, videos])
   const mappableFlights = flights.filter(
     (flight) =>
       flight.fromAirportLatitude !== null
@@ -2568,6 +2639,7 @@ export default function App() {
   const homeMetricTiles = [
     { label: 'Amount of Games', value: String(games.length), detail: 'Total games tracked so far.', icon: <Play size={18} weight="duotone" /> },
     { label: 'Amount of Projects', value: String(projects.length), detail: 'Current active and archived projects.', icon: <Archive size={18} weight="duotone" /> },
+    { label: 'Saved Videos', value: String(videos.length), detail: 'YouTube links available for in-app playback.', icon: <Play size={18} weight="fill" /> },
     {
       label: 'Books (Physical / Digital)',
       value: `${homeLibraryStats.physicalBooks} / ${homeLibraryStats.digitalBooks}`,
@@ -2798,11 +2870,17 @@ export default function App() {
               )}
             </m.section>
           </section>
-        ) : activePage === 'Projects' || activePage === 'Games' ? (
+        ) : activePage === 'Projects' || activePage === 'Games' || activePage === 'Videos' ? (
           <section className="catalog-page" aria-label={`${activePage} collection`}>
             <PageHeader
               title={activePage}
-              subtitle={activePage === 'Projects' ? 'Track projects with links, images, ratings, and timestamps.' : 'Track games with links, images, ratings, and timestamps.'}
+              subtitle={
+                activePage === 'Projects'
+                  ? 'Track projects with links, images, ratings, and timestamps.'
+                  : activePage === 'Games'
+                    ? 'Track games with links, images, ratings, and timestamps.'
+                    : 'Save YouTube links, group them, and play videos directly inside the app.'
+              }
               centerContent={currentLibraryKind ? (
                 <label className="library-topbar-search">
                   <MagnifyingGlass size={16} weight="bold" aria-hidden />
@@ -2822,12 +2900,12 @@ export default function App() {
             {!isLibraryLoading && !currentLibraryItems.length && !currentLibraryGroups.length ? (
               <div className="catalog-empty">
                 <strong>No {currentLibraryKind} yet</strong>
-                <p>Create your first {currentLibraryKind === 'projects' ? 'project' : 'game'} from the floating add button.</p>
+                <p>Create your first {currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].singular : 'item'} from the floating add button.</p>
               </div>
             ) : !isLibraryLoading && currentLibrarySearchQuery.trim() && !groupedLibrarySections.length ? (
               <div className="catalog-empty">
                 <strong>No matching {currentLibraryKind}</strong>
-                <p>Try a different search term for {currentLibraryKind === 'projects' ? 'projects' : 'games'}.</p>
+                <p>Try a different search term for {currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].plural : 'items'}.</p>
               </div>
             ) : (
               <m.div
@@ -2942,19 +3020,38 @@ export default function App() {
                                     onDragStart={(event) => handleLibraryCardDragStart(currentLibraryKind!, item.id, event)}
                                     onDragEnd={handleLibraryCardDragEnd}
                                   >
+                                    {(() => {
+                                      const isVideoCard = currentLibraryKind === 'videos'
+                                      const youtubeEmbedUrl = isVideoCard ? getYoutubeEmbedUrl(item.url) : null
+                                      const cardIcon = currentLibraryKind === 'projects'
+                                        ? <Archive size={18} weight="duotone" />
+                                        : <Play size={18} weight="duotone" />
+
+                                      return (
                                     <PanelCard
                                       className="catalog-card"
-                                      icon={activePage === 'Projects' ? <Archive size={18} weight="duotone" /> : <Play size={18} weight="duotone" />}
+                                      icon={cardIcon}
                                       title={item.name}
                                       subtitle={<RatingStars rating={item.rating} />}
                                     >
-                                      {item.imageUrl ? (
+                                      {youtubeEmbedUrl ? (
+                                        <div className="catalog-card-video">
+                                          <iframe
+                                            src={youtubeEmbedUrl}
+                                            title={item.name}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                            referrerPolicy="strict-origin-when-cross-origin"
+                                            allowFullScreen
+                                            loading="lazy"
+                                          />
+                                        </div>
+                                      ) : item.imageUrl ? (
                                         <div className="catalog-card-image">
                                           <img src={item.imageUrl} alt="" />
                                         </div>
                                       ) : (
                                         <div className="catalog-card-image catalog-card-image-empty" aria-hidden>
-                                          <span>{activePage === 'Projects' ? 'Project' : 'Game'}</span>
+                                          <span>{currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].singular.replace(/^./, (value) => value.toUpperCase()) : 'Item'}</span>
                                         </div>
                                       )}
                                       <div className="catalog-card-copy">
@@ -2995,12 +3092,14 @@ export default function App() {
                                         </m.button>
                                       </div>
                                     </PanelCard>
+                                      )
+                                    })()}
                                   </div>
                                 </m.div>
                               ))}
                             </m.div>
                           ) : (
-                            <div className="catalog-group-empty">No {currentLibraryKind === 'projects' ? 'projects' : 'games'} in this group yet.</div>
+                            <div className="catalog-group-empty">No {currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].plural : 'items'} in this group yet.</div>
                           )}
                         </m.div>
                       ) : null}
@@ -3015,8 +3114,8 @@ export default function App() {
                 <m.button
                   type="button"
                   className="page-fab page-fab-secondary"
-                  aria-label={`Create new ${currentLibraryKind === 'projects' ? 'project' : 'game'} group`}
-                  title={`Create new ${currentLibraryKind === 'projects' ? 'project' : 'game'} group`}
+                  aria-label={`Create new ${currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].singular : 'item'} group`}
+                  title={`Create new ${currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].singular : 'item'} group`}
                   whileTap={ACTION_BUTTON_PRESS}
                   onClick={() => openCreateGroupSheet(currentLibraryKind)}
                 >
@@ -3025,8 +3124,8 @@ export default function App() {
                 <m.button
                   type="button"
                   className="page-fab"
-                  aria-label={`Add new ${currentLibraryKind === 'projects' ? 'project' : 'game'}`}
-                  title={`Add new ${currentLibraryKind === 'projects' ? 'project' : 'game'}`}
+                  aria-label={`Add new ${currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].singular : 'item'}`}
+                  title={`Add new ${currentLibraryKind ? LIBRARY_KIND_META[currentLibraryKind].singular : 'item'}`}
                   whileTap={ACTION_BUTTON_PRESS}
                   onClick={() => openCreateLibrarySheet(currentLibraryKind)}
                 >
@@ -4662,7 +4761,7 @@ export default function App() {
           sheetKey={`${librarySheetType ?? 'library'}-${librarySheetMode}-${editingLibraryItemId ?? 'new'}`}
           ariaLabel="library item editor panel"
           eyebrow={librarySheetMode === 'edit' ? 'Edit Item' : 'Add Item'}
-          title={`${librarySheetMode === 'edit' ? 'Update' : 'Create'} ${librarySheetType === 'projects' ? 'Project' : 'Game'}`}
+          title={`${librarySheetMode === 'edit' ? 'Update' : 'Create'} ${librarySheetType ? LIBRARY_KIND_META[librarySheetType].singular.replace(/^./, (value) => value.toUpperCase()) : 'Item'}`}
           onClose={closeLibrarySheet}
         >
           <form
@@ -4688,7 +4787,7 @@ export default function App() {
               <label>
                 <div className="sheet-field-header">
                   <span>Image URL</span>
-                  {librarySheetMode === 'edit' && editingLibraryItemId ? (
+                  {librarySheetType !== 'videos' && librarySheetMode === 'edit' && editingLibraryItemId ? (
                     <button
                       type="button"
                       className="sheet-inline-action"
@@ -4722,7 +4821,7 @@ export default function App() {
                   onChange={(event) => setLibraryDraft((current) => ({ ...current, groupId: event.target.value }))}
                 >
                   <option value="">Ungrouped</option>
-                  {(librarySheetType === 'projects' ? projectGroups : gameGroups).map((group) => (
+                  {(librarySheetType === 'projects' ? projectGroups : librarySheetType === 'games' ? gameGroups : videoGroups).map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.name}
                     </option>
@@ -4766,8 +4865,8 @@ export default function App() {
             <div className="sheet-form-footer">
               <span className="sheet-page-label">
                 {librarySheetMode === 'edit'
-                  ? `Editing ${librarySheetType === 'projects' ? 'project' : 'game'}`
-                  : `Create a new ${librarySheetType === 'projects' ? 'project' : 'game'}`}
+                  ? `Editing ${librarySheetType ? LIBRARY_KIND_META[librarySheetType].singular : 'item'}`
+                  : `Create a new ${librarySheetType ? LIBRARY_KIND_META[librarySheetType].singular : 'item'}`}
               </span>
               <div className="sheet-footer-actions">
                 <m.button
@@ -4797,7 +4896,7 @@ export default function App() {
           sheetKey={`${groupSheetType ?? 'library'}-group-${groupSheetMode}-${editingGroupId ?? 'new'}`}
           ariaLabel="library group editor panel"
           eyebrow={groupSheetMode === 'edit' ? 'Edit Group' : 'Add Group'}
-          title={`${groupSheetMode === 'edit' ? 'Update' : 'Create'} ${groupSheetType === 'projects' ? 'Project Group' : 'Game Group'}`}
+          title={`${groupSheetMode === 'edit' ? 'Update' : 'Create'} ${groupSheetType ? `${LIBRARY_KIND_META[groupSheetType].singular.replace(/^./, (value) => value.toUpperCase())} Group` : 'Group'}`}
           onClose={closeGroupSheet}
         >
           <form
@@ -4817,8 +4916,8 @@ export default function App() {
             <div className="sheet-form-footer">
               <span className="sheet-page-label">
                 {groupSheetMode === 'edit'
-                  ? `Editing ${groupSheetType === 'projects' ? 'project' : 'game'} group`
-                  : `Create a new ${groupSheetType === 'projects' ? 'project' : 'game'} group`}
+                  ? `Editing ${groupSheetType ? LIBRARY_KIND_META[groupSheetType].singular : 'item'} group`
+                  : `Create a new ${groupSheetType ? LIBRARY_KIND_META[groupSheetType].singular : 'item'} group`}
               </span>
               <div className="sheet-footer-actions">
                 <m.button
@@ -4848,7 +4947,7 @@ export default function App() {
           sheetKey={`${deleteSheetType ?? 'library'}-delete-${deletingLibraryItem?.id ?? 'none'}`}
           ariaLabel="library item delete panel"
           eyebrow="Delete Item"
-          title={`Delete ${deleteSheetType === 'projects' ? 'Project' : 'Game'}`}
+          title={`Delete ${deleteSheetType ? LIBRARY_KIND_META[deleteSheetType].singular.replace(/^./, (value) => value.toUpperCase()) : 'Item'}`}
           onClose={closeDeleteLibrarySheet}
         >
           <div className="detail-stack delete-confirmation">
@@ -4887,7 +4986,7 @@ export default function App() {
           sheetKey={`${deleteGroupSheetType ?? 'library'}-group-delete-${deletingGroup?.id ?? 'none'}`}
           ariaLabel="library group delete panel"
           eyebrow="Delete Group"
-          title={`Delete ${deleteGroupSheetType === 'projects' ? 'Project' : 'Game'} Group`}
+          title={`Delete ${deleteGroupSheetType ? LIBRARY_KIND_META[deleteGroupSheetType].singular.replace(/^./, (value) => value.toUpperCase()) : 'Item'} Group`}
           onClose={closeDeleteGroupSheet}
         >
           <div className="detail-stack delete-confirmation">

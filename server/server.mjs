@@ -28,10 +28,12 @@ const INTEGRATION_TABLES = {
 const CONTENT_TABLES = {
   projects: 'projects',
   games: 'games',
+  videos: 'videos',
 }
 const CONTENT_GROUP_TABLES = {
   projects: 'project_groups',
   games: 'game_groups',
+  videos: 'video_groups',
 }
   
 
@@ -275,6 +277,11 @@ async function initializeDatabase() {
     ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES game_groups(id) ON DELETE SET NULL;
   `)
 
+  await pool.query(`
+    ALTER TABLE videos
+    ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES video_groups(id) ON DELETE SET NULL;
+  `)
+
   for (const tableName of Object.values(CONTENT_TABLES)) {
     await pool.query(`
       ALTER TABLE ${tableName}
@@ -491,6 +498,20 @@ function getThumbnailStateForImageUrl(imageUrl) {
   }
 
   return { status: 'external', attemptedAt: null, error: null }
+}
+
+function isYoutubeUrl(rawUrl) {
+  try {
+    const url = new URL(String(rawUrl).trim())
+    const hostname = url.hostname.toLowerCase()
+    return hostname === 'youtube.com'
+      || hostname === 'www.youtube.com'
+      || hostname === 'm.youtube.com'
+      || hostname === 'youtu.be'
+      || hostname === 'www.youtu.be'
+  } catch {
+    return false
+  }
 }
 
 function isThumbnailHostAllowed(rawUrl) {
@@ -1152,6 +1173,10 @@ async function validateContentItemPayload(kind, payload) {
     new URL(String(url).trim())
   } catch {
     return { error: 'URL must be a valid absolute URL.' }
+  }
+
+  if (kind === 'videos' && !isYoutubeUrl(url)) {
+    return { error: 'Video URL must be a valid YouTube link.' }
   }
 
   if (imageUrl !== undefined && imageUrl !== null && String(imageUrl).trim()) {
@@ -2128,7 +2153,7 @@ app.delete('/api/users/:id', async (request, response) => {
   }
 })
 
-app.get('/api/:kind(projects|games)', async (request, response) => {
+app.get('/api/:kind(projects|games|videos)', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
@@ -2162,7 +2187,7 @@ app.get('/api/:kind(projects|games)', async (request, response) => {
   }
 })
 
-app.post('/api/:kind(projects|games)', async (request, response) => {
+app.post('/api/:kind(projects|games|videos)', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
@@ -2233,7 +2258,7 @@ app.post('/api/:kind(projects|games)', async (request, response) => {
   }
 })
 
-app.put('/api/:kind(projects|games)/:id', async (request, response) => {
+app.put('/api/:kind(projects|games|videos)/:id', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
@@ -2317,7 +2342,7 @@ app.put('/api/:kind(projects|games)/:id', async (request, response) => {
   }
 })
 
-app.post('/api/:kind(projects|games)/:id/refresh-thumbnail', async (request, response) => {
+app.post('/api/:kind(projects|games|videos)/:id/refresh-thumbnail', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   try {
@@ -2334,7 +2359,7 @@ app.post('/api/:kind(projects|games)/:id/refresh-thumbnail', async (request, res
   }
 })
 
-app.get('/api/:kind(projects|games)/groups', async (request, response) => {
+app.get('/api/:kind(projects|games|videos)/groups', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentGroupTable(request.params.kind)
@@ -2357,7 +2382,7 @@ app.get('/api/:kind(projects|games)/groups', async (request, response) => {
   }
 })
 
-app.post('/api/:kind(projects|games)/groups', async (request, response) => {
+app.post('/api/:kind(projects|games|videos)/groups', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentGroupTable(request.params.kind)
@@ -2389,7 +2414,7 @@ app.post('/api/:kind(projects|games)/groups', async (request, response) => {
   }
 })
 
-app.put('/api/:kind(projects|games)/groups/:id', async (request, response) => {
+app.put('/api/:kind(projects|games|videos)/groups/:id', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentGroupTable(request.params.kind)
@@ -2427,7 +2452,7 @@ app.put('/api/:kind(projects|games)/groups/:id', async (request, response) => {
   }
 })
 
-app.delete('/api/:kind(projects|games)/groups/:id', async (request, response) => {
+app.delete('/api/:kind(projects|games|videos)/groups/:id', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentGroupTable(request.params.kind)
@@ -2465,7 +2490,7 @@ app.delete('/api/:kind(projects|games)/groups/:id', async (request, response) =>
   }
 })
 
-app.delete('/api/:kind(projects|games)/:id', async (request, response) => {
+app.delete('/api/:kind(projects|games|videos)/:id', async (request, response) => {
   if (!ensureDbReady(response)) return
 
   const tableName = resolveContentTable(request.params.kind)
