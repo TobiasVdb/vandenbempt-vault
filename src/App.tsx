@@ -2983,31 +2983,6 @@ export default function App() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: CONTENT_START_DELAY + 0.28, duration: 0.35, ease: EASE_SOFT }}
                 >
-                  <div className="home-featured-copy">
-                    <span className="home-featured-eyebrow">{featuredLibraryEntry.headline}</span>
-                    <h3>{featuredLibraryEntry.item.name}</h3>
-                    <p>
-                      {featuredLibraryEntry.item.description
-                        ?? `A ${LIBRARY_KIND_META[featuredLibraryEntry.kind].singular} from ${formatUiDateTime(featuredLibraryEntry.item.timestamp)}.`}
-                    </p>
-                    <div className="home-featured-meta">
-                      <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].page}</span>
-                      <span>{formatUiDateTime(featuredLibraryEntry.item.timestamp)}</span>
-                    </div>
-                    <div className="home-featured-actions">
-                      <m.button
-                        type="button"
-                        className="sheet-nav-btn"
-                        whileTap={ACTION_BUTTON_PRESS}
-                        onClick={() => goToPage(LIBRARY_KIND_META[featuredLibraryEntry.kind].page)}
-                      >
-                        Open {LIBRARY_KIND_META[featuredLibraryEntry.kind].page}
-                      </m.button>
-                      <a href={featuredLibraryEntry.item.url} target="_blank" rel="noreferrer" className="link-button">
-                        Open Link
-                      </a>
-                    </div>
-                  </div>
                   <div className="home-featured-visual">
                     {featuredLibraryEntry.visual ? (
                       <img src={featuredLibraryEntry.visual} alt="" loading="lazy" />
@@ -3016,6 +2991,31 @@ export default function App() {
                         <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].singular}</span>
                       </div>
                     )}
+                    <div className="home-featured-copy">
+                      <span className="home-featured-eyebrow">{featuredLibraryEntry.headline}</span>
+                      <h3>{featuredLibraryEntry.item.name}</h3>
+                      <p>
+                        {featuredLibraryEntry.item.description
+                          ?? `A ${LIBRARY_KIND_META[featuredLibraryEntry.kind].singular} from ${formatUiDateTime(featuredLibraryEntry.item.timestamp)}.`}
+                      </p>
+                      <div className="home-featured-meta">
+                        <span>{LIBRARY_KIND_META[featuredLibraryEntry.kind].page}</span>
+                        <span>{formatUiDateTime(featuredLibraryEntry.item.timestamp)}</span>
+                      </div>
+                      <div className="home-featured-actions">
+                        <m.button
+                          type="button"
+                          className="sheet-nav-btn"
+                          whileTap={ACTION_BUTTON_PRESS}
+                          onClick={() => goToPage(LIBRARY_KIND_META[featuredLibraryEntry.kind].page)}
+                        >
+                          Open {LIBRARY_KIND_META[featuredLibraryEntry.kind].page}
+                        </m.button>
+                        <a href={featuredLibraryEntry.item.url} target="_blank" rel="noreferrer" className="link-button">
+                          Open Link
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </m.section>
               ) : null}
