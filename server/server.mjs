@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
 import express from 'express'
 import multer from 'multer'
 import pg from 'pg'
 import { seedFlights } from '../scripts/import-flights-once.mjs'
+import { createRingEaterService, initializeRingEaterDatabase } from './ring-eater.mjs'
 
 const { Pool } = pg
 const app = express()
@@ -196,9 +198,17 @@ let dbReady = false
 let dbInitError = 'Database is not configured.'
 const poolConfig = getPoolConfig()
 const pool = poolConfig ? new Pool(poolConfig) : null
+const ringEater = createRingEaterService({
+  app,
+  pool,
+  isDbReady: () => dbReady,
+  isAllowedOrigin,
+})
 
 async function initializeDatabase() {
   if (!pool) return
+
+  await initializeRingEaterDatabase(pool)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS glb_models (
@@ -3143,13 +3153,16 @@ if (fs.existsSync(distDir)) {
   })
 }
 
+const server = http.createServer(app)
+ringEater.attachWebSocketServer(server)
+
 initializeDatabase()
   .catch((error) => {
     dbInitError = error instanceof Error ? error.message : 'Database initialization failed.'
     console.error('Database initialization failed:', error)
   })
   .finally(() => {
-    app.listen(port, '0.0.0.0', () => {
+    server.listen(port, '0.0.0.0', () => {
       console.log(`Server listening on port ${port}.`)
       if (!dbReady) {
         console.warn(`Database not ready: ${dbInitError}`)

@@ -1,5 +1,17 @@
 # House of Tobias
 
+## Ring Eater service
+
+The Express server exposes the shared-world API at `/api/ring-eater` and its WebSocket endpoint at `/api/ring-eater/live`. It creates its additive PostgreSQL tables during the existing database startup and uses the configured `DATABASE_URL` or `PG*` variables.
+
+If the Ring Eater client is deployed on a custom domain, add its exact origin to the comma-separated `ALLOWED_ORIGINS` runtime variable. Localhost and `*.ondigitalocean.app` origins are already accepted. Keep the service at one instance until realtime broadcasts are backed by a cross-instance channel.
+
+Backend rule checks run with:
+
+```bash
+npm run test:server
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

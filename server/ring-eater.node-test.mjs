@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import {
+  FOREIGN_CLAIM_RADIUS,
+  isValidMiningSite,
+  materialForMining,
+  ringEdgeAt,
+  structureCost,
+  territoryConflict,
+} from './ring-eater.mjs'
+
+describe('Ring Eater server rules', () => {
+  it('matches the deterministic ring edge and accepts only nearby surface sites', () => {
+    assert.equal(ringEdgeAt(0), 1.2)
+    assert.equal(isValidMiningSite(0, 0.75), true)
+    assert.equal(isValidMiningSite(0, 8), false)
+    assert.equal(isValidMiningSite(Number.NaN, 1.2), false)
+  })
+
+  it('matches deterministic material yields', () => {
+    const site = { x: 4.25, z: ringEdgeAt(4.25) - 0.45 }
+    assert.deepEqual(Array.from({ length: 8 }, (_, index) => materialForMining(site, index + 1)), [
+      'iron', 'iron', 'iron', 'iron', 'iron', 'iron', 'iron', 'iron',
+    ])
+  })
+
+  it('keeps construction costs aligned with the game', () => {
+    assert.equal(structureCost('install-tunnel-panels'), 90)
+    assert.equal(structureCost('line-chamber-walls'), 305)
+    assert.equal(structureCost('install-tunnel-door'), 0)
+    assert.equal(structureCost('build-chamber-habitat'), 0)
+    assert.equal(structureCost('unknown'), null)
+  })
+
+  it('blocks foreign claims at and inside the configured boundary', () => {
+    const claims = [{ id: 'foreign', owner_id: 'other', x: 0, z: 0 }]
+    assert.equal(territoryConflict(claims, 'me', FOREIGN_CLAIM_RADIUS, 0)?.id, 'foreign')
+    assert.equal(territoryConflict(claims, 'me', FOREIGN_CLAIM_RADIUS + 0.001, 0), null)
+    assert.equal(territoryConflict(claims, 'other', 0, 0), null)
+  })
+})
