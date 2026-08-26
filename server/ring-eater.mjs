@@ -531,7 +531,7 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
         return { player: updatedPlayer, excavation: updatedExcavation, material, revision: await nextRevision(client) }
       })
       socket.player = update.player
-      send(socket, { type: 'cargo.updated', revision: update.revision, cargo: ownPlayer(update.player).cargo, minedTotal: Number(update.player.mined_total), material })
+      send(socket, { type: 'cargo.updated', revision: update.revision, cargo: ownPlayer(update.player).cargo, minedTotal: Number(update.player.mined_total), material: update.material })
       broadcast({ type: 'excavation.updated', revision: update.revision, excavation: mapExcavation(update.excavation) })
     } catch (error) {
       stopMining(socket)
