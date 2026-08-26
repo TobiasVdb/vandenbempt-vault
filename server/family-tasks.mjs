@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto'
 
 export const FAMILY_TASK_STATUSES = ['planned', 'doing', 'done']
+export const FAMILY_TASK_ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi']
 const STATUS_SET = new Set(FAMILY_TASK_STATUSES)
+const ASSIGNEE_SET = new Set(FAMILY_TASK_ASSIGNEES)
 const MAX_TASKS = 1_000
 
 function cleanOptionalText(value, maxLength) {
@@ -29,12 +31,18 @@ export function normalizeFamilyTaskInput(input, { partial = false } = {}) {
     value.title = input.title.trim()
   }
 
-  for (const [key, maxLength] of [['details', 4_000], ['assignee', 120]]) {
-    if (!partial || Object.hasOwn(input, key)) {
-      const cleaned = cleanOptionalText(input[key], maxLength)
-      if (cleaned === undefined) return { error: `${key} must be text.` }
-      value[key] = cleaned
+  if (!partial || Object.hasOwn(input, 'details')) {
+    const details = cleanOptionalText(input.details, 4_000)
+    if (details === undefined) return { error: 'details must be text.' }
+    value.details = details
+  }
+
+  if (!partial || Object.hasOwn(input, 'assignee')) {
+    const assignee = cleanOptionalText(input.assignee, 120)
+    if (assignee === undefined || (assignee !== null && !ASSIGNEE_SET.has(assignee))) {
+      return { error: `Assignee must be one of: ${FAMILY_TASK_ASSIGNEES.join(', ')}.` }
     }
+    value.assignee = assignee
   }
 
   if (!partial || Object.hasOwn(input, 'dueDate')) {

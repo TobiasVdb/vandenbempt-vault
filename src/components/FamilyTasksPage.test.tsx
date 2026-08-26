@@ -56,4 +56,17 @@ describe('FamilyTasksPage', () => {
       columns: { planned: [], doing: ['task-1'], done: [] },
     })
   })
+
+  it('offers only the configured household assignees', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ tasks: [] }), { status: 200 }))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Add task' }))
+
+    const assigneeSelect = screen.getByLabelText('Who is following up?')
+    expect(Array.from((assigneeSelect as HTMLSelectElement).options, (option) => option.text)).toEqual([
+      'Unassigned', 'Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi',
+    ])
+  })
 })

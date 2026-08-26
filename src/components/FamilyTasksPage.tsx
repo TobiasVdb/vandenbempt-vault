@@ -17,6 +17,7 @@ import { Select } from './ui/Select'
 import { Textarea } from './ui/Textarea'
 
 const STATUSES: FamilyTaskStatus[] = ['planned', 'doing', 'done']
+const ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi'] as const
 const STATUS_META: Record<FamilyTaskStatus, { label: string; description: string }> = {
   planned: { label: 'Planned', description: 'Ready when the time is right' },
   doing: { label: 'Doing', description: 'Currently being followed up' },
@@ -333,7 +334,10 @@ export function FamilyTasksPage() {
             </label>
             <label>
               Who is following up?
-              <Input maxLength={120} placeholder="Name or role" value={draft.assignee} onChange={(event) => setDraft((current) => ({ ...current, assignee: event.target.value }))} />
+              <Select value={draft.assignee} onChange={(event) => setDraft((current) => ({ ...current, assignee: event.target.value }))}>
+                <option value="">Unassigned</option>
+                {ASSIGNEES.map((assignee) => <option key={assignee} value={assignee}>{assignee}</option>)}
+              </Select>
             </label>
             <label>
               Due date

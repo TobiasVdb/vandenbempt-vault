@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { FAMILY_TASK_STATUSES, mapFamilyTask, normalizeFamilyTaskInput } from './family-tasks.mjs'
+import { FAMILY_TASK_ASSIGNEES, FAMILY_TASK_STATUSES, mapFamilyTask, normalizeFamilyTaskInput } from './family-tasks.mjs'
 
 describe('Family task server rules', () => {
   it('keeps the three board columns in product order', () => {
     assert.deepEqual(FAMILY_TASK_STATUSES, ['planned', 'doing', 'done'])
+  })
+
+  it('keeps assignment limited to household members', () => {
+    assert.deepEqual(FAMILY_TASK_ASSIGNEES, ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi'])
   })
 
   it('normalizes a complete task', () => {
@@ -28,6 +32,7 @@ describe('Family task server rules', () => {
     assert.ok(normalizeFamilyTaskInput({ title: '', status: 'planned' }).error)
     assert.ok(normalizeFamilyTaskInput({ title: 'Task', dueDate: '2026-02-30', status: 'planned' }).error)
     assert.ok(normalizeFamilyTaskInput({ title: 'Task', status: 'later' }).error)
+    assert.match(normalizeFamilyTaskInput({ title: 'Task', status: 'planned', assignee: 'Someone else' }).error, /Assignee/)
   })
 
   it('maps database dates and numeric positions', () => {
