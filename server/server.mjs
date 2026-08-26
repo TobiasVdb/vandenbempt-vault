@@ -196,19 +196,19 @@ function getPoolConfig() {
 
 let dbReady = false
 let dbInitError = 'Database is not configured.'
+let ringDbReady = false
+let ringDbInitError = ''
 const poolConfig = getPoolConfig()
 const pool = poolConfig ? new Pool(poolConfig) : null
 const ringEater = createRingEaterService({
   app,
   pool,
-  isDbReady: () => dbReady,
+  isDbReady: () => dbReady && ringDbReady,
   isAllowedOrigin,
 })
 
 async function initializeDatabase() {
   if (!pool) return
-
-  await initializeRingEaterDatabase(pool)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS glb_models (
@@ -1938,6 +1938,10 @@ app.get('/api/health', (_request, response) => {
       configured: Boolean(poolConfig),
       issue: databaseIssue(),
     },
+    ringEater: {
+      ready: ringDbReady,
+      issue: ringDbReady ? null : ringDbInitError ? 'initialization_failed' : 'not_initialized',
+    },
   })
 })
 
@@ -3184,6 +3188,17 @@ initializeDatabase()
         console.warn(`Database not ready: ${dbInitError}`)
         return
       }
+
+      void initializeRingEaterDatabase(pool)
+        .then(() => {
+          ringDbReady = true
+          ringDbInitError = ''
+          console.log('Ring Eater database is ready.')
+        })
+        .catch((error) => {
+          ringDbInitError = error instanceof Error ? error.message : 'Ring Eater database initialization failed.'
+          console.error('Ring Eater database initialization failed:', error)
+        })
 
       if (THUMBNAIL_BOOT_ENABLED) {
         void generateMissingContentThumbnails()
