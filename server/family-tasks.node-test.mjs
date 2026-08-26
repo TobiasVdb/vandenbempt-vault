@@ -3,8 +3,8 @@ import { describe, it } from 'node:test'
 import { FAMILY_TASK_ASSIGNEES, FAMILY_TASK_STATUSES, mapFamilyTask, normalizeFamilyTaskInput } from './family-tasks.mjs'
 
 describe('Family task server rules', () => {
-  it('keeps the three board columns in product order', () => {
-    assert.deepEqual(FAMILY_TASK_STATUSES, ['planned', 'doing', 'done'])
+  it('keeps the four board columns in product order', () => {
+    assert.deepEqual(FAMILY_TASK_STATUSES, ['far_future', 'planned', 'doing', 'done'])
   })
 
   it('keeps assignment limited to household members', () => {

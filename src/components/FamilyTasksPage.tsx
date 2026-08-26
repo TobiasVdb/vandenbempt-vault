@@ -15,9 +15,10 @@ import { Input } from './ui/Input'
 import { Select } from './ui/Select'
 import { Textarea } from './ui/Textarea'
 
-const STATUSES: FamilyTaskStatus[] = ['planned', 'doing', 'done']
+const STATUSES: FamilyTaskStatus[] = ['far_future', 'planned', 'doing', 'done']
 const ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi'] as const
 const STATUS_META: Record<FamilyTaskStatus, { label: string; description: string }> = {
+  far_future: { label: 'Far future', description: 'Worth remembering for later' },
   planned: { label: 'Planned', description: 'Ready when the time is right' },
   doing: { label: 'Doing', description: 'Currently being followed up' },
   done: { label: 'Done', description: 'Finished and out of the way' },
@@ -277,13 +278,15 @@ export function FamilyTasksPage() {
                   </div>
                   <h4>{task.title}</h4>
                   {task.details ? <p>{task.details}</p> : null}
-                  <div className="family-task-meta">
-                    {task.assignee ? <span><User size={14} /> {task.assignee}</span> : null}
+                  {task.dueDate || status === 'done' ? <div className="family-task-meta">
                     {task.dueDate ? <span><CalendarBlank size={14} /> {formatDueDate(task.dueDate)}</span> : null}
                     {status === 'done' ? <span className="family-task-complete"><CheckCircle size={14} weight="fill" /> Complete</span> : null}
-                  </div>
+                  </div> : null}
                   <div className="family-task-footer">
-                    <span className="family-task-created">Created on {formatCreatedDate(task.createdAt)} by {task.createdBy}</span>
+                    <div className="family-task-footer-copy">
+                      {task.assignee ? <span className="family-task-assignee"><User size={13} /> {task.assignee}</span> : null}
+                      <span className="family-task-created">Created on {formatCreatedDate(task.createdAt)} by {task.createdBy}</span>
+                    </div>
                     <div className="family-task-move-actions" aria-label={`Move ${task.title}`}>
                       <button
                         type="button"

@@ -112,7 +112,7 @@ export type SideSheetProps = {
 
 export type LibraryItemKind = 'projects' | 'games' | 'videos'
 
-export type FamilyTaskStatus = 'planned' | 'doing' | 'done'
+export type FamilyTaskStatus = 'far_future' | 'planned' | 'doing' | 'done'
 
 export type FamilyTask = {
   id: string

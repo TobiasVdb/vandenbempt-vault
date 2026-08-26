@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-export const FAMILY_TASK_STATUSES = ['planned', 'doing', 'done']
+export const FAMILY_TASK_STATUSES = ['far_future', 'planned', 'doing', 'done']
 export const FAMILY_TASK_ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi']
 const STATUS_SET = new Set(FAMILY_TASK_STATUSES)
 const ASSIGNEE_SET = new Set(FAMILY_TASK_ASSIGNEES)
@@ -61,7 +61,7 @@ export function normalizeFamilyTaskInput(input, { partial = false } = {}) {
 
   if (!partial || Object.hasOwn(input, 'status')) {
     const status = input.status ?? 'planned'
-    if (!STATUS_SET.has(status)) return { error: 'Status must be planned, doing, or done.' }
+    if (!STATUS_SET.has(status)) return { error: 'Status must be far_future, planned, doing, or done.' }
     value.status = status
   }
 
@@ -99,13 +99,15 @@ export async function initializeFamilyTasksDatabase(pool) {
       assignee TEXT,
       created_by TEXT NOT NULL DEFAULT 'Tobias',
       due_date DATE,
-      status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'doing', 'done')),
+      status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('far_future', 'planned', 'doing', 'done')),
       position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
       completed_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     ALTER TABLE family_tasks ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'Tobias';
+    ALTER TABLE family_tasks DROP CONSTRAINT IF EXISTS family_tasks_status_check;
+    ALTER TABLE family_tasks ADD CONSTRAINT family_tasks_status_check CHECK (status IN ('far_future', 'planned', 'doing', 'done'));
     CREATE INDEX IF NOT EXISTS family_tasks_board_idx ON family_tasks (status, position, created_at);
   `)
 }
@@ -128,7 +130,7 @@ async function withTransaction(pool, work) {
 const selectTasksSql = `
   SELECT id, title, details, assignee, created_by, due_date, status, position, created_at, updated_at
   FROM family_tasks
-  ORDER BY CASE status WHEN 'planned' THEN 0 WHEN 'doing' THEN 1 ELSE 2 END, position, created_at
+  ORDER BY CASE status WHEN 'far_future' THEN 0 WHEN 'planned' THEN 1 WHEN 'doing' THEN 2 ELSE 3 END, position, created_at
 `
 
 export function createFamilyTasksService({ app, pool, isDbReady }) {

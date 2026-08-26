@@ -31,11 +31,12 @@ describe('FamilyTasksPage', () => {
     vi.restoreAllMocks()
   })
 
-  it('loads tasks into the three household board columns', async () => {
+  it('loads tasks into the four household board columns', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ tasks: [plannedTask] }), { status: 200 }))
     renderPage()
 
     expect(await screen.findByText('Arrange boiler service')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Far future' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Doing' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument()
@@ -65,7 +66,7 @@ describe('FamilyTasksPage', () => {
     const [, request] = fetchMock.mock.calls[1]
     expect(request).toMatchObject({ method: 'PUT' })
     expect(JSON.parse(String(request?.body))).toEqual({
-      columns: { planned: [], doing: ['task-1'], done: [] },
+      columns: { far_future: [], planned: [], doing: ['task-1'], done: [] },
     })
   })
 
