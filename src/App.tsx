@@ -71,6 +71,7 @@ import {
 import { Input } from './components/ui/Input'
 import { Select } from './components/ui/Select'
 import { Textarea } from './components/ui/Textarea'
+import { FamilyTasksPage } from './components/FamilyTasksPage'
 import type {
   AuditEntry,
   ConnectivityHealth,
@@ -3308,6 +3309,8 @@ export default function App() {
               </div>
             ) : null}
           </section>
+        ) : activePage === 'Family' ? (
+          <FamilyTasksPage />
         ) : activePage === 'Flights' ? (
           <section className={`flights-page ${flightViewMode === 'map' ? 'map-active' : ''}`} aria-label="Flights collection">
             <PageHeader

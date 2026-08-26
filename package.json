@@ -13,7 +13,7 @@
     "import:flights": "node scripts/import-flights-once.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
-    "test:server": "node --test server/ring-eater.node-test.mjs",
+    "test:server": "node --test server/family-tasks.node-test.mjs server/ring-eater.node-test.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",

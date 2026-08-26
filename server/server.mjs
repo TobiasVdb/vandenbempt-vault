@@ -6,6 +6,7 @@ import express from 'express'
 import multer from 'multer'
 import pg from 'pg'
 import { seedFlights } from '../scripts/import-flights-once.mjs'
+import { createFamilyTasksService, initializeFamilyTasksDatabase } from './family-tasks.mjs'
 import { createRingEaterService, initializeRingEaterDatabase } from './ring-eater.mjs'
 
 const { Pool } = pg
@@ -198,6 +199,8 @@ let dbReady = false
 let dbInitError = 'Database is not configured.'
 let ringDbReady = false
 let ringDbInitError = ''
+let familyTasksDbReady = false
+let familyTasksDbInitError = ''
 const poolConfig = getPoolConfig()
 const pool = poolConfig ? new Pool(poolConfig) : null
 const ringEater = createRingEaterService({
@@ -205,6 +208,11 @@ const ringEater = createRingEaterService({
   pool,
   isDbReady: () => dbReady && ringDbReady,
   isAllowedOrigin,
+})
+createFamilyTasksService({
+  app,
+  pool,
+  isDbReady: () => dbReady && familyTasksDbReady,
 })
 
 async function initializeDatabase() {
@@ -1942,6 +1950,10 @@ app.get('/api/health', (_request, response) => {
       ready: ringDbReady,
       issue: ringDbReady ? null : ringDbInitError ? 'initialization_failed' : 'not_initialized',
     },
+    familyTasks: {
+      ready: familyTasksDbReady,
+      issue: familyTasksDbReady ? null : familyTasksDbInitError ? 'initialization_failed' : 'not_initialized',
+    },
   })
 })
 
@@ -3198,6 +3210,17 @@ initializeDatabase()
         .catch((error) => {
           ringDbInitError = error instanceof Error ? error.message : 'Ring Eater database initialization failed.'
           console.error('Ring Eater database initialization failed:', error)
+        })
+
+      void initializeFamilyTasksDatabase(pool)
+        .then(() => {
+          familyTasksDbReady = true
+          familyTasksDbInitError = ''
+          console.log('Family tasks database is ready.')
+        })
+        .catch((error) => {
+          familyTasksDbInitError = error instanceof Error ? error.message : 'Family tasks database initialization failed.'
+          console.error('Family tasks database initialization failed:', error)
         })
 
       if (THUMBNAIL_BOOT_ENABLED) {

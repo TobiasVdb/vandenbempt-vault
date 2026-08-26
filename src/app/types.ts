@@ -6,6 +6,7 @@ export type Page =
   | 'Projects'
   | 'Games'
   | 'Videos'
+  | 'Family'
   | 'Flights'
   | 'Integrations'
   | 'Admin'
@@ -110,6 +111,28 @@ export type SideSheetProps = {
 }
 
 export type LibraryItemKind = 'projects' | 'games' | 'videos'
+
+export type FamilyTaskStatus = 'planned' | 'doing' | 'done'
+
+export type FamilyTask = {
+  id: string
+  title: string
+  details: string | null
+  assignee: string | null
+  dueDate: string | null
+  status: FamilyTaskStatus
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type FamilyTaskDraft = {
+  title: string
+  details: string
+  assignee: string
+  dueDate: string
+  status: FamilyTaskStatus
+}
 
 export type LibraryGroupRecord = {
   id: string
