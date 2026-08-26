@@ -2796,7 +2796,7 @@ export default function App() {
         <header className="sidebar-header">
           <m.h1
             className="brand brand-compact"
-            initial={{ opacity: 0, y: -8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: MENU_ANIMATION_DURATION, ease: EASE_SOFT }}
           >
@@ -2823,7 +2823,7 @@ export default function App() {
                 className={`nav-item menu-tooltip ${item.label === 'Home' ? 'nav-item-home' : ''} ${isActive ? 'active' : ''}`}
                 data-tooltip={item.description ?? item.label}
                 onClick={() => goToPage(item.label)}
-                initial={{ opacity: 0, y: 10 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   delay: 0.16 + index * 0.09,
@@ -2868,7 +2868,7 @@ export default function App() {
                   className={`nav-item menu-tooltip ${isActive ? 'active' : ''}`}
                   data-tooltip={item.description ?? item.label}
                   onClick={() => goToPage(item.label)}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
                     delay: 0.24 + index * 0.08,
