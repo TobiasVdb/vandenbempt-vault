@@ -108,6 +108,10 @@ import type {
 
 const FlightsMap = lazy(() => import('./components/FlightsMap'))
 
+const FAMILY_PAGE_TITLE = 'Sofias To Do'
+const DEFAULT_FAVICON_PATH = `${import.meta.env.BASE_URL}ico.png?v=2`
+const FAMILY_FAVICON_PATH = `${import.meta.env.BASE_URL}family-checklist.svg`
+
 const AIRPORT_TIME_ZONES: Record<string, string> = {
   AMS: 'Europe/Amsterdam',
   ATH: 'Europe/Athens',
@@ -2049,6 +2053,21 @@ export default function App() {
       }
     }
   }, [activePage, integrationCatalog, integrationPage?.id, location.pathname])
+
+  useEffect(() => {
+    const isFamilyPage = activePage === 'Family'
+    document.title = isFamilyPage ? FAMILY_PAGE_TITLE : APP_NAME
+
+    let favicon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
+    if (!favicon) {
+      favicon = document.createElement('link')
+      favicon.rel = 'icon'
+      document.head.append(favicon)
+    }
+
+    favicon.type = isFamilyPage ? 'image/svg+xml' : 'image/png'
+    favicon.href = isFamilyPage ? FAMILY_FAVICON_PATH : DEFAULT_FAVICON_PATH
+  }, [activePage])
 
   useEffect(() => {
     void loadLibraryItems('projects')

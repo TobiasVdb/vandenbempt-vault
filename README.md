@@ -12,6 +12,12 @@ Backend rule checks run with:
 npm run test:server
 ```
 
+## Playwright and generated thumbnails
+
+Regular installs and production builds do not install a Playwright browser or run end-to-end tests. The E2E suite remains available explicitly with `npm run test:e2e` after Chromium has been provisioned manually.
+
+The server's generated website-thumbnail feature also depends on Playwright and Chromium. It is unavailable in the default production container; provision the browser and its Linux system dependencies separately before enabling or invoking thumbnail generation.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

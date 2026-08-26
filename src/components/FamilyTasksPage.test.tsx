@@ -52,8 +52,11 @@ describe('FamilyTasksPage', () => {
     expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Doing' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.queryByText('Worth remembering for later')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ready when the time is right')).not.toBeInTheDocument()
     expect(screen.getByText(/Created .* by Sofie/)).toBeInTheDocument()
-    expect(screen.getByText('Contact')).toBeInTheDocument()
+    const titleRow = screen.getByRole('heading', { name: 'Arrange boiler service' }).closest('.family-task-card-title-row')
+    expect(titleRow).toContainElement(screen.getByText('Contact'))
     expect(screen.getByText(/49[.,]95/)).toBeInTheDocument()
   })
 
@@ -89,7 +92,9 @@ describe('FamilyTasksPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: 'Add task' }))
+    const addButton = await screen.findByRole('button', { name: 'Add task' })
+    expect(screen.getByRole('tooltip', { name: 'Add task' })).toBeInTheDocument()
+    await user.click(addButton)
 
     const assigneeSelect = screen.getByLabelText('Who is following up?')
     expect(Array.from((assigneeSelect as HTMLSelectElement).options, (option) => option.text)).toEqual([

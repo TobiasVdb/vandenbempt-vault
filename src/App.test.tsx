@@ -1,13 +1,13 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LazyMotion, domAnimation } from 'framer-motion'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import App from './App'
 
-function renderApp() {
+function renderApp(initialEntry = '/home') {
   return render(
-    <MemoryRouter initialEntries={['/home']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <LazyMotion features={domAnimation}>
         <App />
       </LazyMotion>
@@ -35,6 +35,19 @@ describe('App', () => {
 
     expect(screen.queryByText(/link with cloud systems/i)).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /integrations/i })).toBeInTheDocument()
+  })
+
+  it('uses family-specific browser metadata and restores the app metadata elsewhere', async () => {
+    const familyView = renderApp('/family')
+
+    await waitFor(() => expect(document.title).toBe('Sofias To Do'))
+    expect(document.querySelector<HTMLLinkElement>('link[rel~="icon"]')?.href).toMatch(/family-checklist\.svg$/)
+
+    familyView.unmount()
+    renderApp('/home')
+
+    await waitFor(() => expect(document.title).toBe('House of Tobias'))
+    expect(document.querySelector<HTMLLinkElement>('link[rel~="icon"]')?.href).toContain('ico.png?v=2')
   })
 
   it('cycles light, dark, and auto theme modes', async () => {

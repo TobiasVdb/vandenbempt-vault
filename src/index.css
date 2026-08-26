@@ -33,31 +33,62 @@
   padding: 18px 0 26px;
 }
 
-.family-board-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 26px 16px;
+.family-add-fab-wrap {
+  position: fixed;
+  right: max(22px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 20;
 }
 
-.family-add-btn {
+.family-add-fab {
+  width: 52px;
+  height: 52px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
   border: 0;
-  border-radius: 10px;
-  padding: 9px 13px;
+  border-radius: 50%;
   background: var(--text);
   color: var(--panel-bg);
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 18%);
+  transition: transform 0.18s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-.family-add-btn:hover {
+.family-add-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
+  filter: brightness(1.08);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 24%);
+}
+
+.family-add-fab:focus-visible {
+  outline: 2px solid var(--panel-bg);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent) 48%, transparent), 0 14px 30px rgb(0 0 0 / 24%);
+}
+
+.family-add-fab-tooltip {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  translate: 4px -50%;
+  width: max-content;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--text);
+  color: var(--panel-bg);
+  font-size: 0.72rem;
+  font-weight: 700;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease, translate 0.16s ease;
+}
+
+.family-add-fab-wrap:hover .family-add-fab-tooltip,
+.family-add-fab-wrap:focus-within .family-add-fab-tooltip {
+  translate: 0 -50%;
+  opacity: 1;
 }
 
 .family-notice {
@@ -132,10 +163,10 @@
 }
 
 .family-column-header {
-  min-height: 84px;
-  padding: 16px 16px 12px;
+  min-height: 58px;
+  padding: 13px 14px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid color-mix(in oklab, var(--text) 8%, transparent);
@@ -151,12 +182,6 @@
   margin: 0;
   font-size: 0.92rem;
   letter-spacing: -0.01em;
-}
-
-.family-column-header p {
-  margin: 5px 0 0 18px;
-  color: var(--text-subtle);
-  font-size: 0.72rem;
 }
 
 .family-status-dot {
@@ -271,24 +296,30 @@
   background: var(--accent);
 }
 
-.family-task-card-topline {
-  min-height: 15px;
+.family-task-card-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 8px;
 }
 
-.family-drag-handle {
-  display: inline-flex;
-  color: color-mix(in oklab, var(--text-subtle) 66%, transparent);
-  margin-left: -5px;
-}
-
-.family-task-card h4 {
-  margin: 2px 0 0;
+.family-task-card-title-row h4 {
+  flex: 1 1 110px;
+  min-width: 0;
+  margin: 0;
   color: var(--heading-text);
   font-size: 0.88rem;
   line-height: 1.3;
+}
+
+.family-task-title-tags {
+  max-width: 100%;
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
 }
 
 .family-task-card > p {
@@ -309,7 +340,8 @@
   gap: 6px;
 }
 
-.family-task-meta span {
+.family-task-meta span,
+.family-task-title-tags .family-task-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -326,7 +358,7 @@
   background: color-mix(in oklab, var(--status-active) 9%, transparent);
 }
 
-.family-task-meta .family-task-tag {
+.family-task-title-tags .family-task-tag {
   color: color-mix(in oklab, var(--accent) 70%, var(--text));
   background: color-mix(in oklab, var(--accent) 9%, transparent);
 }
@@ -495,10 +527,6 @@
     padding-bottom: 18px;
   }
 
-  .family-board-toolbar {
-    padding-inline: 14px;
-  }
-
   .family-board {
     scroll-snap-type: x mandatory;
     padding-inline: 14px;
@@ -514,6 +542,11 @@
 
   .family-loading {
     margin-inline: 14px;
+  }
+
+  .family-add-fab-wrap {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
   }
 }
 
@@ -4867,6 +4900,10 @@ body {
   gap: 10px;
   background: color-mix(in oklab, var(--app-bg) 92%, transparent);
   z-index: 1;
+}
+
+.family-task-sidesheet .sheet-form-footer {
+  background: transparent;
 }
 
 .sheet-footer-actions {

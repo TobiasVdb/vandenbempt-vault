@@ -2,7 +2,6 @@ import { ArrowLeft } from '@phosphor-icons/react/ArrowLeft'
 import { ArrowRight } from '@phosphor-icons/react/ArrowRight'
 import { CalendarBlank } from '@phosphor-icons/react/CalendarBlank'
 import { CheckCircle } from '@phosphor-icons/react/CheckCircle'
-import { DotsSixVertical } from '@phosphor-icons/react/DotsSixVertical'
 import { Plus } from '@phosphor-icons/react/Plus'
 import { Trash } from '@phosphor-icons/react/Trash'
 import { User } from '@phosphor-icons/react/User'
@@ -18,11 +17,11 @@ import { Textarea } from './ui/Textarea'
 const STATUSES: FamilyTaskStatus[] = ['far_future', 'planned', 'doing', 'done']
 const ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi'] as const
 const TAGS = ['Bol', 'Online aankoop', 'Contact', 'Keuze'] as const
-const STATUS_META: Record<FamilyTaskStatus, { label: string; description: string }> = {
-  far_future: { label: 'Far future', description: 'Worth remembering for later' },
-  planned: { label: 'Planned', description: 'Ready when the time is right' },
-  doing: { label: 'Doing', description: 'Currently being followed up' },
-  done: { label: 'Done', description: 'Finished and out of the way' },
+const STATUS_META: Record<FamilyTaskStatus, { label: string }> = {
+  far_future: { label: 'Far future' },
+  planned: { label: 'Planned' },
+  doing: { label: 'Doing' },
+  done: { label: 'Done' },
 }
 const EMPTY_DRAFT: FamilyTaskDraft = { title: '', details: '', assignee: '', createdBy: 'Tobias', tags: [], cost: '', dueDate: '', status: 'planned' }
 
@@ -206,12 +205,6 @@ export function FamilyTasksPage() {
 
   return (
     <section className="family-page" aria-label="House and family tasks">
-      <div className="family-board-toolbar">
-        <m.button type="button" className="family-add-btn" whileTap={ACTION_BUTTON_PRESS} onClick={() => openCreate()}>
-          <Plus size={17} weight="bold" /> Add task
-        </m.button>
-      </div>
-
       {error ? (
         <div className="family-notice" role="alert">
           <span>{error}</span>
@@ -242,13 +235,10 @@ export function FamilyTasksPage() {
             onDrop={(event) => handleDrop(event, status, columns[status].length)}
           >
             <header className="family-column-header">
-              <div>
-                <div className="family-column-heading">
-                  <span className="family-status-dot" aria-hidden />
-                  <h3 id={`family-column-${status}`}>{STATUS_META[status].label}</h3>
-                  <span className="family-column-count">{columns[status].length}</span>
-                </div>
-                <p>{STATUS_META[status].description}</p>
+              <div className="family-column-heading">
+                <span className="family-status-dot" aria-hidden />
+                <h3 id={`family-column-${status}`}>{STATUS_META[status].label}</h3>
+                <span className="family-column-count">{columns[status].length}</span>
               </div>
               <button type="button" className="family-column-add" aria-label={`Add task to ${STATUS_META[status].label}`} onClick={() => openCreate(status)}>
                 <Plus size={16} weight="bold" />
@@ -293,13 +283,16 @@ export function FamilyTasksPage() {
                   }}
                   onDrop={(event) => handleDrop(event, status, dropTarget?.status === status ? dropTarget.index : index)}
                 >
-                  <div className="family-task-card-topline">
-                    <span className="family-drag-handle" aria-hidden><DotsSixVertical size={18} weight="bold" /></span>
+                  <div className="family-task-card-title-row">
+                    <h4>{task.title}</h4>
+                    {(task.tags?.length ?? 0) > 0 ? (
+                      <div className="family-task-title-tags">
+                        {(task.tags ?? []).map((tag) => <span key={tag} className="family-task-tag">{tag}</span>)}
+                      </div>
+                    ) : null}
                   </div>
-                  <h4>{task.title}</h4>
                   {task.details ? <p>{task.details}</p> : null}
-                  {(task.tags?.length ?? 0) || typeof task.cost === 'number' || task.dueDate || status === 'done' ? <div className="family-task-meta">
-                    {(task.tags ?? []).map((tag) => <span key={tag} className="family-task-tag">{tag}</span>)}
+                  {typeof task.cost === 'number' || task.dueDate || status === 'done' ? <div className="family-task-meta">
                     {typeof task.cost === 'number' ? <span className="family-task-cost">{formatCost(task.cost)}</span> : null}
                     {task.dueDate ? <span><CalendarBlank size={14} /> {formatDueDate(task.dueDate)}</span> : null}
                     {status === 'done' ? <span className="family-task-complete"><CheckCircle size={14} weight="fill" /> Complete</span> : null}
@@ -346,6 +339,20 @@ export function FamilyTasksPage() {
         ))}
       </div>
 
+      <div className="family-add-fab-wrap">
+        <m.button
+          type="button"
+          className="family-add-fab"
+          aria-label="Add task"
+          aria-describedby="family-add-fab-tooltip"
+          whileTap={ACTION_BUTTON_PRESS}
+          onClick={() => openCreate()}
+        >
+          <Plus size={22} weight="bold" />
+        </m.button>
+        <span id="family-add-fab-tooltip" className="family-add-fab-tooltip" role="tooltip">Add task</span>
+      </div>
+
       <SideSheet
         isOpen={sheetOpen}
         sheetKey={`family-task-${editingTask?.id ?? 'new'}`}
@@ -353,6 +360,7 @@ export function FamilyTasksPage() {
         eyebrow={editingTask ? 'Edit task' : 'New task'}
         title={editingTask ? editingTask.title : 'Add a household task'}
         onClose={() => { if (!saving) setSheetOpen(false) }}
+        className="family-task-sidesheet"
         footer={(
           <>
             {editingTask ? (
