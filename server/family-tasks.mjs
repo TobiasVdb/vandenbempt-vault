@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 
 export const FAMILY_TASK_STATUSES = ['far_future', 'planned', 'doing', 'done']
 export const FAMILY_TASK_ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi']
+export const FAMILY_TASK_TAGS = ['Bol', 'Online aankoop', 'Contact', 'Keuze']
 const STATUS_SET = new Set(FAMILY_TASK_STATUSES)
 const ASSIGNEE_SET = new Set(FAMILY_TASK_ASSIGNEES)
+const TAG_SET = new Set(FAMILY_TASK_TAGS)
 const MAX_TASKS = 1_000
 
 function cleanOptionalText(value, maxLength) {
@@ -53,6 +55,27 @@ export function normalizeFamilyTaskInput(input, { partial = false } = {}) {
     value.createdBy = createdBy
   }
 
+  if (!partial || Object.hasOwn(input, 'tags')) {
+    const tags = input.tags ?? []
+    if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string' || !TAG_SET.has(tag)) || new Set(tags).size !== tags.length) {
+      return { error: `Tags must contain unique values from: ${FAMILY_TASK_TAGS.join(', ')}.` }
+    }
+    value.tags = tags
+  }
+
+  if (!partial || Object.hasOwn(input, 'cost')) {
+    const rawCost = input.cost
+    if (rawCost === null || rawCost === undefined || rawCost === '') {
+      value.cost = null
+    } else {
+      const cost = typeof rawCost === 'number' || typeof rawCost === 'string' ? Number(rawCost) : Number.NaN
+      if (!Number.isFinite(cost) || cost < 0 || cost > 9_999_999_999.99) {
+        return { error: 'Cost must be a positive amount or zero.' }
+      }
+      value.cost = Math.round(cost * 100) / 100
+    }
+  }
+
   if (!partial || Object.hasOwn(input, 'dueDate')) {
     const dueDate = validDate(input.dueDate)
     if (dueDate === undefined) return { error: 'Due date must use YYYY-MM-DD.' }
@@ -82,6 +105,8 @@ export function mapFamilyTask(row) {
     details: row.details,
     assignee: row.assignee,
     createdBy: row.created_by ?? 'Tobias',
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    cost: row.cost === null || row.cost === undefined ? null : Number(row.cost),
     dueDate: isoDate(row.due_date),
     status: row.status,
     position: Number(row.position),
@@ -98,6 +123,8 @@ export async function initializeFamilyTasksDatabase(pool) {
       details TEXT,
       assignee TEXT,
       created_by TEXT NOT NULL DEFAULT 'Tobias',
+      tags TEXT[] NOT NULL DEFAULT '{}',
+      cost NUMERIC(12, 2) CHECK (cost >= 0),
       due_date DATE,
       status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('far_future', 'planned', 'doing', 'done')),
       position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
@@ -106,6 +133,8 @@ export async function initializeFamilyTasksDatabase(pool) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     ALTER TABLE family_tasks ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'Tobias';
+    ALTER TABLE family_tasks ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+    ALTER TABLE family_tasks ADD COLUMN IF NOT EXISTS cost NUMERIC(12, 2) CHECK (cost >= 0);
     ALTER TABLE family_tasks DROP CONSTRAINT IF EXISTS family_tasks_status_check;
     ALTER TABLE family_tasks ADD CONSTRAINT family_tasks_status_check CHECK (status IN ('far_future', 'planned', 'doing', 'done'));
     CREATE INDEX IF NOT EXISTS family_tasks_board_idx ON family_tasks (status, position, created_at);
@@ -128,7 +157,7 @@ async function withTransaction(pool, work) {
 }
 
 const selectTasksSql = `
-  SELECT id, title, details, assignee, created_by, due_date, status, position, created_at, updated_at
+  SELECT id, title, details, assignee, created_by, tags, cost, due_date, status, position, created_at, updated_at
   FROM family_tasks
   ORDER BY CASE status WHEN 'far_future' THEN 0 WHEN 'planned' THEN 1 WHEN 'doing' THEN 2 ELSE 3 END, position, created_at
 `
@@ -161,11 +190,11 @@ export function createFamilyTasksService({ app, pool, isDbReady }) {
     const task = normalized.value
     try {
       const result = await pool.query(
-        `INSERT INTO family_tasks (id, title, details, assignee, created_by, due_date, status, position)
-         VALUES ($1, $2, $3, $4, $5, $6, $7,
-           COALESCE((SELECT MAX(position) + 1 FROM family_tasks WHERE status = $7), 0))
+        `INSERT INTO family_tasks (id, title, details, assignee, created_by, tags, cost, due_date, status, position)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+           COALESCE((SELECT MAX(position) + 1 FROM family_tasks WHERE status = $9), 0))
          RETURNING *`,
-        [randomUUID(), task.title, task.details, task.assignee, task.createdBy, task.dueDate, task.status],
+        [randomUUID(), task.title, task.details, task.assignee, task.createdBy, task.tags, task.cost, task.dueDate, task.status],
       )
       response.status(201).json({ task: mapFamilyTask(result.rows[0]) })
     } catch (error) {
@@ -182,7 +211,7 @@ export function createFamilyTasksService({ app, pool, isDbReady }) {
       return
     }
     const task = normalized.value
-    const columns = { title: 'title', details: 'details', assignee: 'assignee', createdBy: 'created_by', dueDate: 'due_date', status: 'status' }
+    const columns = { title: 'title', details: 'details', assignee: 'assignee', createdBy: 'created_by', tags: 'tags', cost: 'cost', dueDate: 'due_date', status: 'status' }
     const entries = Object.entries(task)
     const values = [request.params.id]
     const assignments = entries.map(([key, value], index) => {

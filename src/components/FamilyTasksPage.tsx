@@ -17,13 +17,14 @@ import { Textarea } from './ui/Textarea'
 
 const STATUSES: FamilyTaskStatus[] = ['far_future', 'planned', 'doing', 'done']
 const ASSIGNEES = ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi'] as const
+const TAGS = ['Bol', 'Online aankoop', 'Contact', 'Keuze'] as const
 const STATUS_META: Record<FamilyTaskStatus, { label: string; description: string }> = {
   far_future: { label: 'Far future', description: 'Worth remembering for later' },
   planned: { label: 'Planned', description: 'Ready when the time is right' },
   doing: { label: 'Doing', description: 'Currently being followed up' },
   done: { label: 'Done', description: 'Finished and out of the way' },
 }
-const EMPTY_DRAFT: FamilyTaskDraft = { title: '', details: '', assignee: '', createdBy: 'Tobias', dueDate: '', status: 'planned' }
+const EMPTY_DRAFT: FamilyTaskDraft = { title: '', details: '', assignee: '', createdBy: 'Tobias', tags: [], cost: '', dueDate: '', status: 'planned' }
 
 async function readPayload<T>(response: Response): Promise<T & { error?: string }> {
   const text = await response.text()
@@ -45,6 +46,10 @@ function formatDueDate(value: string) {
 
 function formatCreatedDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
+}
+
+function formatCost(value: number) {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(value)
 }
 
 export function FamilyTasksPage() {
@@ -95,6 +100,8 @@ export function FamilyTasksPage() {
       details: task.details ?? '',
       assignee: task.assignee ?? '',
       createdBy: task.createdBy,
+      tags: task.tags ?? [],
+      cost: task.cost === null || task.cost === undefined ? '' : String(task.cost),
       dueDate: task.dueDate ?? '',
       status: task.status,
     })
@@ -212,12 +219,22 @@ export function FamilyTasksPage() {
         </div>
       ) : null}
 
+      {loading ? (
+        <div className="family-loading" role="status" aria-live="polite">
+          <span className="family-loading-spinner" aria-hidden />
+          <span>Loading tasks…</span>
+        </div>
+      ) : null}
+
       <div className="family-board" aria-busy={loading}>
-        {STATUSES.map((status) => (
-          <section
+        {STATUSES.map((status, statusIndex) => (
+          <m.section
             key={status}
             className={`family-column family-column-${status}${dropTarget?.status === status ? ' is-drop-target' : ''}`}
             aria-labelledby={`family-column-${status}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: statusIndex * 0.05, duration: 0.28, ease: 'easeOut' }}
             onDragOver={(event) => {
               event.preventDefault()
               setDropTarget({ status, index: columns[status].length })
@@ -242,23 +259,26 @@ export function FamilyTasksPage() {
               {loading ? (
                 Array.from({ length: 2 }, (_, index) => <div key={index} className="family-task-skeleton" />)
               ) : columns[status].length ? columns[status].map((task, index) => (
-                <article
+                <m.article
                   key={task.id}
                   className={`family-task-card${draggedId === task.id ? ' is-dragging' : ''}${dropTarget?.status === status && dropTarget.index === index ? ' drop-before' : ''}`}
                   draggable
                   tabIndex={0}
                   aria-label={`Open ${task.title}`}
+                  initial={{ opacity: 0, y: 8, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: statusIndex * 0.05 + index * 0.035, duration: 0.24, ease: 'easeOut' }}
                   onClick={() => {
                     if (!dragJustEnded.current) openEdit(task)
                   }}
                   onKeyDown={(event) => openCardFromKeyboard(event, task)}
-                  onDragStart={(event) => {
+                  onDragStartCapture={(event) => {
                     event.dataTransfer.effectAllowed = 'move'
                     event.dataTransfer.setData('text/plain', task.id)
                     dragJustEnded.current = false
                     setDraggedId(task.id)
                   }}
-                  onDragEnd={() => {
+                  onDragEndCapture={() => {
                     dragJustEnded.current = true
                     setDraggedId(null)
                     setDropTarget(null)
@@ -278,7 +298,9 @@ export function FamilyTasksPage() {
                   </div>
                   <h4>{task.title}</h4>
                   {task.details ? <p>{task.details}</p> : null}
-                  {task.dueDate || status === 'done' ? <div className="family-task-meta">
+                  {(task.tags?.length ?? 0) || typeof task.cost === 'number' || task.dueDate || status === 'done' ? <div className="family-task-meta">
+                    {(task.tags ?? []).map((tag) => <span key={tag} className="family-task-tag">{tag}</span>)}
+                    {typeof task.cost === 'number' ? <span className="family-task-cost">{formatCost(task.cost)}</span> : null}
                     {task.dueDate ? <span><CalendarBlank size={14} /> {formatDueDate(task.dueDate)}</span> : null}
                     {status === 'done' ? <span className="family-task-complete"><CheckCircle size={14} weight="fill" /> Complete</span> : null}
                   </div> : null}
@@ -290,7 +312,7 @@ export function FamilyTasksPage() {
                     <div className="family-task-move-actions" aria-label={`Move ${task.title}`}>
                       <button
                         type="button"
-                        disabled={status === 'planned'}
+                        disabled={status === 'far_future'}
                         aria-label={`Move ${task.title} left`}
                         onClick={(event) => {
                           event.stopPropagation()
@@ -312,7 +334,7 @@ export function FamilyTasksPage() {
                       </button>
                     </div>
                   </div>
-                </article>
+                </m.article>
               )) : (
                 <button type="button" className="family-column-empty" onClick={() => openCreate(status)}>
                   <Plus size={18} />
@@ -320,7 +342,7 @@ export function FamilyTasksPage() {
                 </button>
               )}
             </div>
-          </section>
+          </m.section>
         ))}
       </div>
 
@@ -374,6 +396,32 @@ export function FamilyTasksPage() {
               Due date
               <Input type="date" value={draft.dueDate} onChange={(event) => setDraft((current) => ({ ...current, dueDate: event.target.value }))} />
             </label>
+            <label>
+              Cost (€)
+              <Input type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00" value={draft.cost} onChange={(event) => setDraft((current) => ({ ...current, cost: event.target.value }))} />
+            </label>
+            <fieldset className="family-tag-fieldset">
+              <legend>Tags</legend>
+              <div className="family-tag-options">
+                {TAGS.map((tag) => {
+                  const selected = draft.tags.includes(tag)
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      aria-pressed={selected}
+                      className={selected ? 'is-selected' : ''}
+                      onClick={() => setDraft((current) => ({
+                        ...current,
+                        tags: selected ? current.tags.filter((item) => item !== tag) : [...current.tags, tag],
+                      }))}
+                    >
+                      {tag}
+                    </button>
+                  )
+                })}
+              </div>
+            </fieldset>
             <label>
               Column
               <Select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as FamilyTaskStatus }))}>

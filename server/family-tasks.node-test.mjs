@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { FAMILY_TASK_ASSIGNEES, FAMILY_TASK_STATUSES, mapFamilyTask, normalizeFamilyTaskInput } from './family-tasks.mjs'
+import { FAMILY_TASK_ASSIGNEES, FAMILY_TASK_STATUSES, FAMILY_TASK_TAGS, mapFamilyTask, normalizeFamilyTaskInput } from './family-tasks.mjs'
 
 describe('Family task server rules', () => {
   it('keeps the four board columns in product order', () => {
@@ -11,12 +11,18 @@ describe('Family task server rules', () => {
     assert.deepEqual(FAMILY_TASK_ASSIGNEES, ['Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi'])
   })
 
+  it('keeps tags limited to the household vocabulary', () => {
+    assert.deepEqual(FAMILY_TASK_TAGS, ['Bol', 'Online aankoop', 'Contact', 'Keuze'])
+  })
+
   it('normalizes a complete task', () => {
     const result = normalizeFamilyTaskInput({
       title: '  Call the plumber  ',
       details: 'Kitchen tap',
       assignee: 'Tobias',
       createdBy: 'Tobias',
+      tags: ['Contact'],
+      cost: '12.345',
       dueDate: '2026-09-03',
       status: 'doing',
     })
@@ -25,6 +31,8 @@ describe('Family task server rules', () => {
       details: 'Kitchen tap',
       assignee: 'Tobias',
       createdBy: 'Tobias',
+      tags: ['Contact'],
+      cost: 12.35,
       dueDate: '2026-09-03',
       status: 'doing',
     })
@@ -35,15 +43,20 @@ describe('Family task server rules', () => {
     assert.ok(normalizeFamilyTaskInput({ title: 'Task', dueDate: '2026-02-30', status: 'planned' }).error)
     assert.ok(normalizeFamilyTaskInput({ title: 'Task', status: 'later' }).error)
     assert.match(normalizeFamilyTaskInput({ title: 'Task', status: 'planned', assignee: 'Someone else' }).error, /Assignee/)
+    assert.match(normalizeFamilyTaskInput({ title: 'Task', status: 'planned', tags: ['Unknown'] }).error, /Tags/)
+    assert.match(normalizeFamilyTaskInput({ title: 'Task', status: 'planned', cost: -1 }).error, /Cost/)
   })
 
   it('maps database dates and numeric positions', () => {
     const mapped = mapFamilyTask({
       id: 'task-1', title: 'Task', details: null, assignee: null, due_date: '2026-09-03',
       created_by: 'Sofie', status: 'planned', position: '2', created_at: '2026-08-26T10:00:00.000Z', updated_at: '2026-08-26T10:00:00.000Z',
+      tags: ['Bol', 'Keuze'], cost: '49.95',
     })
     assert.equal(mapped.dueDate, '2026-09-03')
     assert.equal(mapped.position, 2)
     assert.equal(mapped.createdBy, 'Sofie')
+    assert.deepEqual(mapped.tags, ['Bol', 'Keuze'])
+    assert.equal(mapped.cost, 49.95)
   })
 })

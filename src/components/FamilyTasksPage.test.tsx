@@ -11,6 +11,8 @@ const plannedTask: FamilyTask = {
   details: 'Call the technician',
   assignee: 'Tobias',
   createdBy: 'Sofie',
+  tags: ['Contact'],
+  cost: 49.95,
   dueDate: '2026-09-03',
   status: 'planned',
   position: 0,
@@ -31,6 +33,16 @@ describe('FamilyTasksPage', () => {
     vi.restoreAllMocks()
   })
 
+  it('shows a loading indicator while tasks are being fetched', async () => {
+    let resolveRequest!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>((resolve) => { resolveRequest = resolve }))
+    renderPage()
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading tasks')
+    resolveRequest(new Response(JSON.stringify({ tasks: [] }), { status: 200 }))
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  })
+
   it('loads tasks into the four household board columns', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ tasks: [plannedTask] }), { status: 200 }))
     renderPage()
@@ -41,6 +53,8 @@ describe('FamilyTasksPage', () => {
     expect(screen.getByRole('heading', { name: 'Doing' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument()
     expect(screen.getByText(/Created .* by Sofie/)).toBeInTheDocument()
+    expect(screen.getByText('Contact')).toBeInTheDocument()
+    expect(screen.getByText(/49[.,]95/)).toBeInTheDocument()
   })
 
   it('opens the task panel when the card is clicked', async () => {
@@ -81,5 +95,10 @@ describe('FamilyTasksPage', () => {
     expect(Array.from((assigneeSelect as HTMLSelectElement).options, (option) => option.text)).toEqual([
       'Unassigned', 'Sofie', 'Tobias', 'Ella', 'Sepp', 'Oma&Opa', 'Omi',
     ])
+    expect(screen.getByLabelText('Cost (€)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Bol' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Online aankoop' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Contact' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Keuze' })).toHaveAttribute('aria-pressed', 'false')
   })
 })

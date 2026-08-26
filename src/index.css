@@ -83,6 +83,29 @@
   cursor: pointer;
 }
 
+.family-loading {
+  min-height: 28px;
+  margin: -6px 26px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-subtle);
+  font-size: 0.74rem;
+}
+
+.family-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in oklab, var(--text) 14%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: family-loading-spin 0.7s linear infinite;
+}
+
+@keyframes family-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 .family-board {
   flex: 1;
   min-height: 0;
@@ -303,6 +326,16 @@
   background: color-mix(in oklab, var(--status-active) 9%, transparent);
 }
 
+.family-task-meta .family-task-tag {
+  color: color-mix(in oklab, var(--accent) 70%, var(--text));
+  background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.family-task-meta .family-task-cost {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .family-task-footer {
   margin-top: 7px;
   padding-top: 7px;
@@ -406,6 +439,49 @@
   cursor: not-allowed;
 }
 
+.family-tag-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.family-tag-fieldset legend {
+  margin-bottom: 7px;
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.family-tag-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.family-tag-options button {
+  border: 1px solid color-mix(in oklab, var(--text) 13%, transparent);
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: transparent;
+  color: var(--text-subtle);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.family-tag-options button:hover {
+  border-color: color-mix(in oklab, var(--accent) 38%, transparent);
+  color: var(--text);
+}
+
+.family-tag-options button.is-selected {
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  color: color-mix(in oklab, var(--accent) 72%, var(--text));
+  font-weight: 700;
+}
+
 @media (max-width: 880px) {
   .family-board {
     grid-template-columns: repeat(4, minmax(250px, 1fr));
@@ -434,6 +510,16 @@
 
   .family-notice {
     margin-inline: 14px;
+  }
+
+  .family-loading {
+    margin-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .family-loading-spinner {
+    animation-duration: 1.4s;
   }
 }
 
