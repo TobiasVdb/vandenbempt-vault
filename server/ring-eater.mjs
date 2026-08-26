@@ -132,6 +132,7 @@ function mapStructure(row) {
     position: row.door_position ?? undefined,
     x: Number(row.x),
     z: Number(row.z),
+    habitatWorkers: row.habitat_workers === null ? undefined : Number(row.habitat_workers),
   }
 }
 
@@ -227,6 +228,7 @@ export async function initializeRingEaterDatabase(pool) {
       structure_type TEXT NOT NULL CHECK (structure_type IN ('install-tunnel-panels', 'line-chamber-walls', 'install-tunnel-door', 'build-chamber-habitat')),
       level INTEGER NOT NULL,
       door_position TEXT CHECK (door_position IS NULL OR door_position IN ('inner', 'outer')),
+      habitat_workers INTEGER CHECK (habitat_workers IS NULL OR habitat_workers >= 0),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE UNIQUE INDEX IF NOT EXISTS ring_structures_unique_idx
@@ -422,10 +424,11 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
           if (!excavation) continue
           const position = item.type === 'install-tunnel-door' && item.position === 'outer' ? 'outer'
             : item.type === 'install-tunnel-door' ? 'inner' : null
+          const habitatWorkers = Number.isInteger(item.habitatWorkers) && item.habitatWorkers >= 0 ? item.habitatWorkers : null
           await client.query(
-            `INSERT INTO ring_structures (id, excavation_id, owner_id, structure_type, level, door_position)
-             VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
-            [randomUUID(), excavation.id, player.id, item.type, Number(item.level) || 0, position],
+            `INSERT INTO ring_structures (id, excavation_id, owner_id, structure_type, level, door_position, habitat_workers)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`,
+            [randomUUID(), excavation.id, player.id, item.type, Number(item.level) || 0, position, habitatWorkers],
           )
         }
 
@@ -572,6 +575,9 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
     const type = typeof message.structureType === 'string' ? message.structureType : ''
     const doorPosition = type === 'install-tunnel-door' && message.position === 'outer' ? 'outer'
       : type === 'install-tunnel-door' && message.position === 'inner' ? 'inner' : null
+    const habitatWorkers = Number.isInteger(Number(message.habitatWorkers)) && Number(message.habitatWorkers) >= 0
+      ? Number(message.habitatWorkers)
+      : null
     if (!STRUCTURE_TYPES.has(type) || (type === 'install-tunnel-door' && !doorPosition)) throw Object.assign(new Error('Invalid structure request.'), { code: 'invalid_structure' })
 
     const result = await withTransaction(pool, async (client) => {
@@ -605,9 +611,9 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
         [player.id, spent.iron, spent.nickel, spent.cobalt, spent.silicate],
       )).rows[0]
       const structure = (await client.query(
-        `INSERT INTO ring_structures (id, excavation_id, owner_id, structure_type, level, door_position)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [randomUUID(), excavation.id, player.id, type, level, doorPosition],
+        `INSERT INTO ring_structures (id, excavation_id, owner_id, structure_type, level, door_position, habitat_workers)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [randomUUID(), excavation.id, player.id, type, level, doorPosition, habitatWorkers],
       )).rows[0]
       return { structure, excavation, player: updatedPlayer, revision: await nextRevision(client) }
     })
