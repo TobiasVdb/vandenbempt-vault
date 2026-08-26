@@ -434,6 +434,14 @@ function ensureDbReady(response) {
   return false
 }
 
+function databaseIssue() {
+  if (dbReady) return null
+  if (poolConfig) return 'initialization_failed'
+  if (dbInitError.startsWith('DATABASE_URL is a literal placeholder')) return 'invalid_reference'
+  if (dbInitError === 'DATABASE_URL is present but not a valid URL.') return 'invalid_url'
+  return 'not_configured'
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -1922,7 +1930,15 @@ app.get('/swagger', (request, response) => {
 })
 
 app.get('/api/health', (_request, response) => {
-  response.json({ ok: true, dbReady })
+  response.json({
+    ok: true,
+    dbReady,
+    database: {
+      ready: dbReady,
+      configured: Boolean(poolConfig),
+      issue: databaseIssue(),
+    },
+  })
 })
 
 app.get('/api/home/library-stats', async (_request, response) => {
