@@ -16,6 +16,7 @@ describe('Family task server rules', () => {
       title: '  Call the plumber  ',
       details: 'Kitchen tap',
       assignee: 'Tobias',
+      createdBy: 'Tobias',
       dueDate: '2026-09-03',
       status: 'doing',
     })
@@ -23,6 +24,7 @@ describe('Family task server rules', () => {
       title: 'Call the plumber',
       details: 'Kitchen tap',
       assignee: 'Tobias',
+      createdBy: 'Tobias',
       dueDate: '2026-09-03',
       status: 'doing',
     })
@@ -38,9 +40,10 @@ describe('Family task server rules', () => {
   it('maps database dates and numeric positions', () => {
     const mapped = mapFamilyTask({
       id: 'task-1', title: 'Task', details: null, assignee: null, due_date: '2026-09-03',
-      status: 'planned', position: '2', created_at: '2026-08-26T10:00:00.000Z', updated_at: '2026-08-26T10:00:00.000Z',
+      created_by: 'Sofie', status: 'planned', position: '2', created_at: '2026-08-26T10:00:00.000Z', updated_at: '2026-08-26T10:00:00.000Z',
     })
     assert.equal(mapped.dueDate, '2026-09-03')
     assert.equal(mapped.position, 2)
+    assert.equal(mapped.createdBy, 'Sofie')
   })
 })

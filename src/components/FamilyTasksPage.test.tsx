@@ -10,6 +10,7 @@ const plannedTask: FamilyTask = {
   title: 'Arrange boiler service',
   details: 'Call the technician',
   assignee: 'Tobias',
+  createdBy: 'Sofie',
   dueDate: '2026-09-03',
   status: 'planned',
   position: 0,
@@ -38,6 +39,17 @@ describe('FamilyTasksPage', () => {
     expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Doing' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByText(/Created .* by Sofie/)).toBeInTheDocument()
+  })
+
+  it('opens the task panel when the card is clicked', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ tasks: [plannedTask] }), { status: 200 }))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByLabelText('Open Arrange boiler service'))
+
+    expect(await screen.findByRole('complementary', { name: 'family task panel' })).toBeInTheDocument()
   })
 
   it('persists an accessible move between columns', async () => {

@@ -3,14 +3,13 @@ import { ArrowRight } from '@phosphor-icons/react/ArrowRight'
 import { CalendarBlank } from '@phosphor-icons/react/CalendarBlank'
 import { CheckCircle } from '@phosphor-icons/react/CheckCircle'
 import { DotsSixVertical } from '@phosphor-icons/react/DotsSixVertical'
-import { PencilSimple } from '@phosphor-icons/react/PencilSimple'
 import { Plus } from '@phosphor-icons/react/Plus'
 import { Trash } from '@phosphor-icons/react/Trash'
 import { User } from '@phosphor-icons/react/User'
 import { m } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { ACTION_BUTTON_PRESS, apiUrl } from '../app/constants'
-import { PageHeader, SideSheet } from '../app/chrome'
+import { SideSheet } from '../app/chrome'
 import type { FamilyTask, FamilyTaskDraft, FamilyTaskStatus } from '../app/types'
 import { Input } from './ui/Input'
 import { Select } from './ui/Select'
@@ -23,7 +22,7 @@ const STATUS_META: Record<FamilyTaskStatus, { label: string; description: string
   doing: { label: 'Doing', description: 'Currently being followed up' },
   done: { label: 'Done', description: 'Finished and out of the way' },
 }
-const EMPTY_DRAFT: FamilyTaskDraft = { title: '', details: '', assignee: '', dueDate: '', status: 'planned' }
+const EMPTY_DRAFT: FamilyTaskDraft = { title: '', details: '', assignee: '', createdBy: 'Tobias', dueDate: '', status: 'planned' }
 
 async function readPayload<T>(response: Response): Promise<T & { error?: string }> {
   const text = await response.text()
@@ -43,6 +42,10 @@ function formatDueDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`))
 }
 
+function formatCreatedDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
+}
+
 export function FamilyTasksPage() {
   const [tasks, setTasks] = useState<FamilyTask[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,6 +56,7 @@ export function FamilyTasksPage() {
   const [draft, setDraft] = useState<FamilyTaskDraft>(EMPTY_DRAFT)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ status: FamilyTaskStatus; index: number } | null>(null)
+  const dragJustEnded = useRef(false)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -89,6 +93,7 @@ export function FamilyTasksPage() {
       title: task.title,
       details: task.details ?? '',
       assignee: task.assignee ?? '',
+      createdBy: task.createdBy,
       dueDate: task.dueDate ?? '',
       status: task.status,
     })
@@ -185,17 +190,19 @@ export function FamilyTasksPage() {
     setDropTarget(null)
   }
 
+  const openCardFromKeyboard = (event: KeyboardEvent, task: FamilyTask) => {
+    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+    event.preventDefault()
+    openEdit(task)
+  }
+
   return (
     <section className="family-page" aria-label="House and family tasks">
-      <PageHeader
-        title="House & Family"
-        subtitle="Plan household work, keep follow-ups moving, and close the loop together."
-        actions={(
-          <m.button type="button" className="family-add-btn" whileTap={ACTION_BUTTON_PRESS} onClick={() => openCreate()}>
-            <Plus size={17} weight="bold" /> Add task
-          </m.button>
-        )}
-      />
+      <div className="family-board-toolbar">
+        <m.button type="button" className="family-add-btn" whileTap={ACTION_BUTTON_PRESS} onClick={() => openCreate()}>
+          <Plus size={17} weight="bold" /> Add task
+        </m.button>
+      </div>
 
       {error ? (
         <div className="family-notice" role="alert">
@@ -238,14 +245,23 @@ export function FamilyTasksPage() {
                   key={task.id}
                   className={`family-task-card${draggedId === task.id ? ' is-dragging' : ''}${dropTarget?.status === status && dropTarget.index === index ? ' drop-before' : ''}`}
                   draggable
+                  tabIndex={0}
+                  aria-label={`Open ${task.title}`}
+                  onClick={() => {
+                    if (!dragJustEnded.current) openEdit(task)
+                  }}
+                  onKeyDown={(event) => openCardFromKeyboard(event, task)}
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = 'move'
                     event.dataTransfer.setData('text/plain', task.id)
+                    dragJustEnded.current = false
                     setDraggedId(task.id)
                   }}
                   onDragEnd={() => {
+                    dragJustEnded.current = true
                     setDraggedId(null)
                     setDropTarget(null)
+                    window.setTimeout(() => { dragJustEnded.current = false }, 0)
                   }}
                   onDragOver={(event) => {
                     event.preventDefault()
@@ -258,9 +274,6 @@ export function FamilyTasksPage() {
                 >
                   <div className="family-task-card-topline">
                     <span className="family-drag-handle" aria-hidden><DotsSixVertical size={18} weight="bold" /></span>
-                    <button type="button" className="family-task-edit" aria-label={`Edit ${task.title}`} onClick={() => openEdit(task)}>
-                      <PencilSimple size={15} weight="bold" />
-                    </button>
                   </div>
                   <h4>{task.title}</h4>
                   {task.details ? <p>{task.details}</p> : null}
@@ -269,23 +282,32 @@ export function FamilyTasksPage() {
                     {task.dueDate ? <span><CalendarBlank size={14} /> {formatDueDate(task.dueDate)}</span> : null}
                     {status === 'done' ? <span className="family-task-complete"><CheckCircle size={14} weight="fill" /> Complete</span> : null}
                   </div>
-                  <div className="family-task-move-actions" aria-label={`Move ${task.title}`}>
-                    <button
-                      type="button"
-                      disabled={status === 'planned'}
-                      aria-label={`Move ${task.title} left`}
-                      onClick={() => moveTask(task.id, STATUSES[Math.max(0, STATUSES.indexOf(status) - 1)], columns[STATUSES[Math.max(0, STATUSES.indexOf(status) - 1)]].length)}
-                    >
-                      <ArrowLeft size={14} weight="bold" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={status === 'done'}
-                      aria-label={`Move ${task.title} right`}
-                      onClick={() => moveTask(task.id, STATUSES[Math.min(STATUSES.length - 1, STATUSES.indexOf(status) + 1)], columns[STATUSES[Math.min(STATUSES.length - 1, STATUSES.indexOf(status) + 1)]].length)}
-                    >
-                      <ArrowRight size={14} weight="bold" />
-                    </button>
+                  <div className="family-task-footer">
+                    <span className="family-task-created">Created on {formatCreatedDate(task.createdAt)} by {task.createdBy}</span>
+                    <div className="family-task-move-actions" aria-label={`Move ${task.title}`}>
+                      <button
+                        type="button"
+                        disabled={status === 'planned'}
+                        aria-label={`Move ${task.title} left`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          moveTask(task.id, STATUSES[Math.max(0, STATUSES.indexOf(status) - 1)], columns[STATUSES[Math.max(0, STATUSES.indexOf(status) - 1)]].length)
+                        }}
+                      >
+                        <ArrowLeft size={14} weight="bold" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={status === 'done'}
+                        aria-label={`Move ${task.title} right`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          moveTask(task.id, STATUSES[Math.min(STATUSES.length - 1, STATUSES.indexOf(status) + 1)], columns[STATUSES[Math.min(STATUSES.length - 1, STATUSES.indexOf(status) + 1)]].length)
+                        }}
+                      >
+                        <ArrowRight size={14} weight="bold" />
+                      </button>
+                    </div>
                   </div>
                 </article>
               )) : (
@@ -337,6 +359,12 @@ export function FamilyTasksPage() {
               <Select value={draft.assignee} onChange={(event) => setDraft((current) => ({ ...current, assignee: event.target.value }))}>
                 <option value="">Unassigned</option>
                 {ASSIGNEES.map((assignee) => <option key={assignee} value={assignee}>{assignee}</option>)}
+              </Select>
+            </label>
+            <label>
+              Created by
+              <Select disabled={Boolean(editingTask)} value={draft.createdBy} onChange={(event) => setDraft((current) => ({ ...current, createdBy: event.target.value }))}>
+                {ASSIGNEES.map((creator) => <option key={creator} value={creator}>{creator}</option>)}
               </Select>
             </label>
             <label>

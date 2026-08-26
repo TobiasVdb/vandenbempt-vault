@@ -119,6 +119,7 @@ export type FamilyTask = {
   title: string
   details: string | null
   assignee: string | null
+  createdBy: string
   dueDate: string | null
   status: FamilyTaskStatus
   position: number
@@ -130,6 +131,7 @@ export type FamilyTaskDraft = {
   title: string
   details: string
   assignee: string
+  createdBy: string
   dueDate: string
   status: FamilyTaskStatus
 }

@@ -29,6 +29,16 @@
   background: var(--panel-bg);
 }
 
+.content-panel.family-content-panel {
+  padding: 18px 0 26px;
+}
+
+.family-board-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 26px 16px;
+}
+
 .family-add-btn {
   display: inline-flex;
   align-items: center;
@@ -158,7 +168,6 @@
 }
 
 .family-column-add,
-.family-task-edit,
 .family-task-move-actions button {
   display: inline-flex;
   align-items: center;
@@ -177,7 +186,6 @@
 }
 
 .family-column-add:hover,
-.family-task-edit:hover,
 .family-task-move-actions button:hover:not(:disabled) {
   color: var(--text);
   border-color: color-mix(in oklab, var(--text) 25%, transparent);
@@ -214,6 +222,11 @@
   cursor: grabbing;
 }
 
+.family-task-card:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 62%, transparent);
+  outline-offset: 2px;
+}
+
 .family-task-card.is-dragging {
   opacity: 0.42;
   transform: scale(0.98);
@@ -241,18 +254,6 @@
   display: inline-flex;
   color: color-mix(in oklab, var(--text-subtle) 66%, transparent);
   margin-left: -5px;
-}
-
-.family-task-edit {
-  width: 25px;
-  height: 25px;
-  border-radius: 7px;
-  opacity: 0;
-}
-
-.family-task-card:hover .family-task-edit,
-.family-task-edit:focus-visible {
-  opacity: 1;
 }
 
 .family-task-card h4 {
@@ -297,13 +298,27 @@
   background: color-mix(in oklab, var(--status-active) 9%, transparent);
 }
 
-.family-task-move-actions {
+.family-task-footer {
   margin-top: 9px;
   padding-top: 8px;
   border-top: 1px solid color-mix(in oklab, var(--text) 7%, transparent);
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.family-task-created {
+  color: var(--text-subtle);
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
+.family-task-move-actions {
+  display: flex;
   justify-content: flex-end;
   gap: 5px;
+  flex: 0 0 auto;
 }
 
 .family-task-move-actions button {
@@ -377,6 +392,15 @@
 }
 
 @media (max-width: 560px) {
+  .content-panel.family-content-panel {
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+
+  .family-board-toolbar {
+    padding-inline: 14px;
+  }
+
   .family-board {
     scroll-snap-type: x mandatory;
     padding-inline: 14px;

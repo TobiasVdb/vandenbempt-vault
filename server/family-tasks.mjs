@@ -45,6 +45,14 @@ export function normalizeFamilyTaskInput(input, { partial = false } = {}) {
     value.assignee = assignee
   }
 
+  if (!partial || Object.hasOwn(input, 'createdBy')) {
+    const createdBy = input.createdBy ?? 'Tobias'
+    if (typeof createdBy !== 'string' || !ASSIGNEE_SET.has(createdBy)) {
+      return { error: `Creator must be one of: ${FAMILY_TASK_ASSIGNEES.join(', ')}.` }
+    }
+    value.createdBy = createdBy
+  }
+
   if (!partial || Object.hasOwn(input, 'dueDate')) {
     const dueDate = validDate(input.dueDate)
     if (dueDate === undefined) return { error: 'Due date must use YYYY-MM-DD.' }
@@ -73,6 +81,7 @@ export function mapFamilyTask(row) {
     title: row.title,
     details: row.details,
     assignee: row.assignee,
+    createdBy: row.created_by ?? 'Tobias',
     dueDate: isoDate(row.due_date),
     status: row.status,
     position: Number(row.position),
@@ -88,6 +97,7 @@ export async function initializeFamilyTasksDatabase(pool) {
       title TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 160),
       details TEXT,
       assignee TEXT,
+      created_by TEXT NOT NULL DEFAULT 'Tobias',
       due_date DATE,
       status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'doing', 'done')),
       position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
@@ -95,6 +105,7 @@ export async function initializeFamilyTasksDatabase(pool) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE family_tasks ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'Tobias';
     CREATE INDEX IF NOT EXISTS family_tasks_board_idx ON family_tasks (status, position, created_at);
   `)
 }
@@ -115,7 +126,7 @@ async function withTransaction(pool, work) {
 }
 
 const selectTasksSql = `
-  SELECT id, title, details, assignee, due_date, status, position, created_at, updated_at
+  SELECT id, title, details, assignee, created_by, due_date, status, position, created_at, updated_at
   FROM family_tasks
   ORDER BY CASE status WHEN 'planned' THEN 0 WHEN 'doing' THEN 1 ELSE 2 END, position, created_at
 `
@@ -148,11 +159,11 @@ export function createFamilyTasksService({ app, pool, isDbReady }) {
     const task = normalized.value
     try {
       const result = await pool.query(
-        `INSERT INTO family_tasks (id, title, details, assignee, due_date, status, position)
-         VALUES ($1, $2, $3, $4, $5, $6,
-           COALESCE((SELECT MAX(position) + 1 FROM family_tasks WHERE status = $6), 0))
+        `INSERT INTO family_tasks (id, title, details, assignee, created_by, due_date, status, position)
+         VALUES ($1, $2, $3, $4, $5, $6, $7,
+           COALESCE((SELECT MAX(position) + 1 FROM family_tasks WHERE status = $7), 0))
          RETURNING *`,
-        [randomUUID(), task.title, task.details, task.assignee, task.dueDate, task.status],
+        [randomUUID(), task.title, task.details, task.assignee, task.createdBy, task.dueDate, task.status],
       )
       response.status(201).json({ task: mapFamilyTask(result.rows[0]) })
     } catch (error) {
@@ -169,7 +180,7 @@ export function createFamilyTasksService({ app, pool, isDbReady }) {
       return
     }
     const task = normalized.value
-    const columns = { title: 'title', details: 'details', assignee: 'assignee', dueDate: 'due_date', status: 'status' }
+    const columns = { title: 'title', details: 'details', assignee: 'assignee', createdBy: 'created_by', dueDate: 'due_date', status: 'status' }
     const entries = Object.entries(task)
     const values = [request.params.id]
     const assignments = entries.map(([key, value], index) => {

@@ -2787,6 +2787,7 @@ export default function App() {
 
   return (
     <main className={`app-shell ${effectiveTheme}`}>
+      {activePage !== 'Family' ? (
       <m.aside
         className="sidebar collapsed"
         initial={false}
@@ -2930,13 +2931,14 @@ export default function App() {
           </div>
         </div>
       </m.aside>
+      ) : null}
 
       <section
-        className={`content-panel ${activePage === 'Playground' && previewModel ? 'playground-preview-active' : ''}`}
+        className={`content-panel ${activePage === 'Family' ? 'family-content-panel' : ''} ${activePage === 'Playground' && previewModel ? 'playground-preview-active' : ''}`}
         aria-label="Main content"
         role="tabpanel"
-        aria-labelledby={activeTabId}
-        style={{ marginLeft: collapsedWidth }}
+        aria-labelledby={activePage === 'Family' ? undefined : activeTabId}
+        style={{ marginLeft: activePage === 'Family' ? 0 : collapsedWidth }}
       >
         {activePage === 'Home' ? (
           <section className="home-page" aria-label="Operations dashboard">
