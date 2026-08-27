@@ -15,6 +15,10 @@ const port = Number(process.env.PORT || 8080)
 const distDir = path.resolve(process.cwd(), 'dist')
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i
 const DIGITALOCEAN_APP_ORIGIN_PATTERN = /^https:\/\/[\w-]+\.ondigitalocean\.app$/i
+const FROST_DESIGN_ORIGINS = new Set([
+  'https://frost-design.be',
+  'https://www.frost-design.be',
+])
 const allowedOrigins = new Set(
   (process.env.ALLOWED_ORIGINS || '')
     .split(',')
@@ -117,6 +121,7 @@ function isAllowedOrigin(origin) {
   return (
     LOCALHOST_ORIGIN_PATTERN.test(origin)
     || DIGITALOCEAN_APP_ORIGIN_PATTERN.test(origin)
+    || FROST_DESIGN_ORIGINS.has(origin)
     || allowedOrigins.has(origin)
   )
 }
