@@ -279,18 +279,27 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
   }
 
   async function snapshot(playerId) {
+    const snapshotStartedAt = performance.now()
     const [world, me, excavations, structures, lights] = await Promise.all([
       pool.query(`SELECT revision FROM ring_worlds WHERE id = $1`, [RING_WORLD_ID]),
-      pool.query(`SELECT * FROM ring_players WHERE id = $1`, [playerId]),
-      pool.query(`SELECT * FROM ring_excavations WHERE world_id = $1 ORDER BY created_at`, [RING_WORLD_ID]),
+      pool.query(`SELECT id, callsign, cargo_iron, cargo_nickel, cargo_cobalt, cargo_silicate, mined_total, last_x, last_z, last_heading, last_phase, imported_at, ship_color FROM ring_players WHERE id = $1`, [playerId]),
+      pool.query(`SELECT id, owner_id, x, z, mined_units FROM ring_excavations WHERE world_id = $1 ORDER BY created_at`, [RING_WORLD_ID]),
       pool.query(`
-        SELECT structure.*, excavation.x, excavation.z
+        SELECT structure.id, structure.excavation_id, structure.owner_id, structure.structure_type, structure.level, structure.door_position, structure.habitat_workers, excavation.x, excavation.z
         FROM ring_structures AS structure
         JOIN ring_excavations AS excavation ON excavation.id = structure.excavation_id
         ORDER BY structure.created_at
       `),
       pool.query(`SELECT excavation_id, light_key, color, updated_by, updated_at FROM ring_light_settings ORDER BY light_key`),
     ])
+    const snapshotDbMs = performance.now() - snapshotStartedAt
+    const transformStarted = performance.now()
+    const transformedLights = lights.rows.map((row) => ({
+      excavationId: row.excavation_id,
+      key: row.light_key,
+      color: row.color,
+      updatedBy: row.updated_by,
+    }))
     return {
       type: 'world.snapshot',
       protocol: RING_PROTOCOL_VERSION,
@@ -298,13 +307,16 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
       me: ownPlayer(me.rows[0]),
       excavations: excavations.rows.map(mapExcavation),
       structures: structures.rows.map(mapStructure),
-      lights: lights.rows.map((row) => ({ excavationId: row.excavation_id, key: row.light_key, color: row.color, updatedBy: row.updated_by })),
+      lights: transformedLights,
       players: [...socketsByPlayer.entries()]
         .filter(([id, playerSockets]) => id !== playerId && playerSockets.size > 0)
         .map(([, playerSockets]) => publicPlayer([...playerSockets][0].player)),
+      meta: {
+        snapshotDbMs,
+        snapshotTransformMs: performance.now() - transformStarted,
+      },
     }
   }
-
   function send(socket, body) {
     if (socket.readyState === 1) socket.send(JSON.stringify(body))
   }
@@ -585,7 +597,7 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
       const excavation = (await client.query(`SELECT * FROM ring_excavations WHERE id = $1 FOR UPDATE`, [excavationId])).rows[0]
       if (!excavation || excavation.owner_id !== player.id) throw Object.assign(new Error('Only the claim owner can build here.'), { code: 'not_owner' })
       const level = Math.floor(Number(excavation.mined_units) / MINING_UNITS_PER_LEVEL)
-      const existing = (await client.query(`SELECT * FROM ring_structures WHERE excavation_id = $1`, [excavation.id])).rows
+      const existing = (await client.query(`SELECT structure_type, door_position FROM ring_structures WHERE excavation_id = $1`, [excavation.id])).rows
       if (type === 'install-tunnel-panels' && level < TUNNEL_DETECTION_LEVEL) throw Object.assign(new Error('The tunnel is not deep enough.'), { code: 'prerequisite_failed' })
       if (type !== 'install-tunnel-panels' && level < CHAMBER_COMPLETION_LEVEL) throw Object.assign(new Error('The chamber is not complete.'), { code: 'prerequisite_failed' })
       if (type === 'install-tunnel-door' && !existing.some((item) => item.structure_type === 'line-chamber-walls')) throw Object.assign(new Error('Line the chamber before installing doors.'), { code: 'prerequisite_failed' })
@@ -793,3 +805,5 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
 
   return { attachWebSocketServer }
 }
+
+
