@@ -20,6 +20,7 @@ const LIGHT_COLORS = new Set([
 ])
 const STRUCTURE_TYPES = new Set([
   'install-tunnel-panels', 'line-chamber-walls', 'install-tunnel-door', 'build-chamber-habitat',
+  'install-cavern-growth-lights', 'cultivate-chamber-cavern',
 ])
 const SHIP_COLORS = ['#4de1ff', '#ff9f43', '#a8e063', '#e879f9', '#ffd166', '#8c78ff']
 const CALLSIGN_ADJECTIVES = ['Rusty', 'Wobbly', 'Cosmic', 'Sneaky', 'Turbo', 'Sleepy', 'Grumpy', 'Lucky', 'Bouncy', 'Dusty']
@@ -62,7 +63,7 @@ export function materialForMining(site, sequence) {
 export function structureCost(type) {
   if (type === 'install-tunnel-panels') return 90
   if (type === 'line-chamber-walls') return 305
-  if (type === 'install-tunnel-door' || type === 'build-chamber-habitat') return 0
+  if (type === 'install-tunnel-door' || type === 'build-chamber-habitat' || type === 'install-cavern-growth-lights' || type === 'cultivate-chamber-cavern') return 0
   return null
 }
 
@@ -228,6 +229,9 @@ export async function initializeRingEaterDatabase(pool) {
     );
     ALTER TABLE ring_structures
       ADD COLUMN IF NOT EXISTS habitat_workers INTEGER CHECK (habitat_workers IS NULL OR habitat_workers >= 0);
+    ALTER TABLE ring_structures DROP CONSTRAINT IF EXISTS ring_structures_structure_type_check;
+    ALTER TABLE ring_structures ADD CONSTRAINT ring_structures_structure_type_check
+      CHECK (structure_type IN ('install-tunnel-panels', 'line-chamber-walls', 'install-tunnel-door', 'build-chamber-habitat', 'install-cavern-growth-lights', 'cultivate-chamber-cavern'));
     CREATE UNIQUE INDEX IF NOT EXISTS ring_structures_unique_idx
       ON ring_structures (excavation_id, structure_type, COALESCE(door_position, ''));
 
@@ -589,6 +593,8 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
         const doors = new Set(existing.filter((item) => item.structure_type === 'install-tunnel-door').map((item) => item.door_position))
         if (!doors.has('inner') || !doors.has('outer')) throw Object.assign(new Error('Both airlock doors are required.'), { code: 'prerequisite_failed' })
       }
+      if (type === 'install-cavern-growth-lights' && !existing.some((item) => item.structure_type === 'build-chamber-habitat')) throw Object.assign(new Error('Build the habitat before installing growth lights.'), { code: 'prerequisite_failed' })
+      if (type === 'cultivate-chamber-cavern' && !existing.some((item) => item.structure_type === 'install-cavern-growth-lights')) throw Object.assign(new Error('Install growth lights before cultivation.'), { code: 'prerequisite_failed' })
       const duplicate = existing.find((item) => item.structure_type === type && (item.door_position ?? null) === doorPosition)
       if (duplicate) return { duplicate, excavation, player, revision: null }
       const cost = structureCost(type)

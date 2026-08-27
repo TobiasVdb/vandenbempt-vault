@@ -27,6 +27,8 @@ describe('Ring Eater server rules', () => {
     assert.equal(structureCost('line-chamber-walls'), 305)
     assert.equal(structureCost('install-tunnel-door'), 0)
     assert.equal(structureCost('build-chamber-habitat'), 0)
+    assert.equal(structureCost('install-cavern-growth-lights'), 0)
+    assert.equal(structureCost('cultivate-chamber-cavern'), 0)
     assert.equal(structureCost('unknown'), null)
   })
 })
