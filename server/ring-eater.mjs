@@ -231,6 +231,8 @@ export async function initializeRingEaterDatabase(pool) {
       habitat_workers INTEGER CHECK (habitat_workers IS NULL OR habitat_workers >= 0),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE ring_structures
+      ADD COLUMN IF NOT EXISTS habitat_workers INTEGER CHECK (habitat_workers IS NULL OR habitat_workers >= 0);
     CREATE UNIQUE INDEX IF NOT EXISTS ring_structures_unique_idx
       ON ring_structures (excavation_id, structure_type, COALESCE(door_position, ''));
 
