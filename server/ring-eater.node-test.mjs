@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  FOREIGN_CLAIM_RADIUS,
   isValidMiningSite,
   materialForMining,
   ringEdgeAt,
   structureCost,
-  territoryConflict,
 } from './ring-eater.mjs'
 
 describe('Ring Eater server rules', () => {
@@ -30,12 +28,5 @@ describe('Ring Eater server rules', () => {
     assert.equal(structureCost('install-tunnel-door'), 0)
     assert.equal(structureCost('build-chamber-habitat'), 0)
     assert.equal(structureCost('unknown'), null)
-  })
-
-  it('blocks foreign claims at and inside the configured boundary', () => {
-    const claims = [{ id: 'foreign', owner_id: 'other', x: 0, z: 0 }]
-    assert.equal(territoryConflict(claims, 'me', FOREIGN_CLAIM_RADIUS, 0)?.id, 'foreign')
-    assert.equal(territoryConflict(claims, 'me', FOREIGN_CLAIM_RADIUS + 0.001, 0), null)
-    assert.equal(territoryConflict(claims, 'other', 0, 0), null)
   })
 })

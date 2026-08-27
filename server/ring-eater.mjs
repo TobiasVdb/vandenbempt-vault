@@ -7,7 +7,6 @@ export const MINING_UNITS_PER_LEVEL = 5
 export const TUNNEL_DETECTION_LEVEL = 21
 export const CHAMBER_COMPLETION_LEVEL = 120
 export const CLAIM_RESUME_RADIUS = 1.5
-export const FOREIGN_CLAIM_RADIUS = 13.5
 
 const START_POSE = { x: 0, z: -3, heading: Math.PI, phase: 'hovering' }
 const POSE_PHASES = new Set([
@@ -65,10 +64,6 @@ export function structureCost(type) {
   if (type === 'line-chamber-walls') return 305
   if (type === 'install-tunnel-door' || type === 'build-chamber-habitat') return 0
   return null
-}
-
-export function territoryConflict(excavations, playerId, x, z) {
-  return excavations.find((site) => site.owner_id !== playerId && Math.hypot(Number(site.x) - x, Number(site.z) - z) <= FOREIGN_CLAIM_RADIUS) ?? null
 }
 
 function hashToken(token) {
@@ -407,18 +402,12 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
         await client.query(`SELECT pg_advisory_xact_lock(hashtext('ring-eater:claims'))`)
         const lockedPlayer = (await client.query(`SELECT * FROM ring_players WHERE id = $1 FOR UPDATE`, [player.id])).rows[0]
         if (lockedPlayer.imported_at) return { alreadyImported: true }
-        const foreign = (await client.query(`SELECT * FROM ring_excavations WHERE world_id = $1 AND owner_id <> $2`, [RING_WORLD_ID, player.id])).rows
         const accepted = []
         const skipped = []
 
         for (const area of areas) {
           const x = Number(area.x)
           const z = Number(area.z)
-          const conflict = territoryConflict(foreign, player.id, x, z)
-          if (conflict) {
-            skipped.push({ x, z, conflictingExcavationId: conflict.id })
-            continue
-          }
           const existing = (await client.query(
             `SELECT * FROM ring_excavations WHERE owner_id = $1 AND ((x - $2)^2 + (z - $3)^2) <= $4 ORDER BY created_at LIMIT 1`,
             [player.id, x, z, CLAIM_RESUME_RADIUS ** 2],
@@ -515,9 +504,6 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
         [player.id, x, z, CLAIM_RESUME_RADIUS ** 2],
       )).rows[0]
       if (own) return { excavation: own, revision: null }
-      const foreign = (await client.query(`SELECT * FROM ring_excavations WHERE world_id = $1 AND owner_id <> $2`, [RING_WORLD_ID, player.id])).rows
-      const conflict = territoryConflict(foreign, player.id, x, z)
-      if (conflict) return { conflict: mapExcavation(conflict) }
       const excavation = (await client.query(
         `INSERT INTO ring_excavations (id, owner_id, x, z) VALUES ($1, $2, $3, $4) RETURNING *`,
         [randomUUID(), player.id, x, z],
@@ -572,10 +558,6 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
       return
     }
     const resolved = await resolveExcavation(socket.player, x, z)
-    if (resolved.conflict) {
-      send(socket, { type: 'error', requestId: message.requestId, code: 'territory_conflict', error: 'This site is too close to another player’s claim.', conflict: resolved.conflict })
-      return
-    }
     stopMining(socket)
     const excavation = resolved.excavation
     socket.mining = { excavationId: excavation.id, speed, busy: false, timer: null }
