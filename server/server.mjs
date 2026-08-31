@@ -8,6 +8,7 @@ import pg from 'pg'
 import { seedFlights } from '../scripts/import-flights-once.mjs'
 import { createFamilyTasksService, initializeFamilyTasksDatabase } from './family-tasks.mjs'
 import { createRingEaterService, initializeRingEaterDatabase } from './ring-eater.mjs'
+import { createGenkStandbyService } from './genk-standby.mjs'
 
 const { Pool } = pg
 const app = express()
@@ -219,6 +220,7 @@ createFamilyTasksService({
   pool,
   isDbReady: () => dbReady && familyTasksDbReady,
 })
+createGenkStandbyService({ app })
 
 async function initializeDatabase() {
   if (!pool) return
