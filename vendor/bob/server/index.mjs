@@ -49,6 +49,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				player = { id: randomUUID(), name: unique, avatar: m.avatar, ws, room: m.room, pose: null, catchSequence: 0, lastCatch: 0 };
 				room.players.set(player.id, player); clearTimeout(joinTimeout);
 				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room });
+				if (room.gate) send(ws, { type: 'gate', value: room.gate });
 				broadcast(room, snapshot(room)); return;
 			}
 			if (m.type === 'pose' && validPose(m.pose)) {
@@ -56,6 +57,12 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				player.pose = { position: p.position, yaw: p.yaw, mode: p.mode, fishing: p.fishing,
 					...(p.t !== undefined ? { t: p.t } : {}), ...(p.local ? { local: p.local } : {}),
 					boat: p.boat ? { position: p.boat.position, rotation: p.boat.rotation, ...(p.boat.quat ? { quat: p.boat.quat } : {}), ...(p.boat.kind ? { kind: p.boat.kind } : {}) } : null };
+			}
+			// shared world state: the cavern's rock gate (0..1), relayed to the rest of the room and kept
+			// for players who join later
+			if (m.type === 'gate' && Number.isFinite(m.value) && m.value >= 0 && m.value <= 1) {
+				room.gate = m.value;
+				for (const p of room.players.values()) if (p !== player) send(p.ws, { type: 'gate', value: m.value });
 			}
 			if (m.type === 'catch' && Number.isSafeInteger(m.sequence) && m.sequence > player.catchSequence && Object.hasOwn(FISH, m.species) && Number.isFinite(m.kg) && m.kg >= FISH[m.species].kg[0] && m.kg <= FISH[m.species].kg[1] && now - player.lastCatch > 1000) {
 				player.catchSequence = m.sequence; player.lastCatch = now;

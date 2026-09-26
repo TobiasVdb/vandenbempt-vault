@@ -62,3 +62,24 @@ Note: `splash.ogg` slice 1 is qubodup's cleaned edit of blaukreuz's "130723_Brel
 Note: `big_splash.ogg` slice 1 is qubodup's mix of CC0 sounds (wormer2's 415669 / 415670, roboroo's 436792 and others, all CC0).
 
 The fishing sounds are rebuilt with `tools/audio/` (see its README).
+
+## The lake house, the summit and the waterfall
+
+Loops cut and crossfaded at the wrap, loudness-normalised, Opus in Ogg (64 kb/s mono), placed in the
+world (`SoundScape.addEmitter`).
+
+| File | Use | Source | Author | Licence |
+|---|---|---|---|---|
+| `fire_hearth.ogg` | wood fire crackling and popping in the hearth / the summit fire bowl — loop | [fire-crackling.wav](https://freesound.org/people/jmehlferber/sounds/370938/) | jmehlferber | CC0 1.0 |
+| `waterfall.ogg` | the north waterfall — loop | [Waterfall sound.](https://freesound.org/people/Tom_Kaszuba/sounds/660259/) | Tom_Kaszuba | CC0 1.0 |
+
+### Music
+
+Played on the lake house record player (`SoundScape.setMusic`), loudness-normalised to −18 LUFS,
+Opus in Ogg (96 kb/s stereo). These need attribution:
+
+| File | Track |
+|---|---|
+| `jazz_bossa_antigua.ogg` | "Bossa Antigua" Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| `jazz_lobby_time.ogg` | "Lobby Time" Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| `jazz_smooth_lovin.ogg` | "Smooth Lovin" Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/) |
