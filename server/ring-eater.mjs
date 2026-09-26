@@ -731,7 +731,8 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
     }
   }
 
-  function attachWebSocketServer(server) {
+  // sharedPaths: upgrade paths another listener on the same server handles, left open here.
+  function attachWebSocketServer(server, { sharedPaths = [] } = {}) {
     const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES })
     server.on('upgrade', (request, socket, head) => {
       let pathname
@@ -742,7 +743,7 @@ export function createRingEaterService({ app, pool, isDbReady, isAllowedOrigin }
         return
       }
       if (pathname !== '/api/ring-eater/live') {
-        socket.destroy()
+        if (!sharedPaths.includes(pathname)) socket.destroy()
         return
       }
       const origin = request.headers.origin

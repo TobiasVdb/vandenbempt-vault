@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import express from 'express'
 import multer from 'multer'
 import pg from 'pg'
@@ -14,6 +15,9 @@ const { Pool } = pg
 const app = express()
 const port = Number(process.env.PORT || 8080)
 const distDir = path.resolve(process.cwd(), 'dist')
+// BOB is exported here by the BOB repo (npm run export:hot); the site runs without it.
+const bobDir = path.resolve(process.cwd(), 'vendor', 'bob')
+const BOB_COOP_PATH = '/bob/coop'
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i
 const DIGITALOCEAN_APP_ORIGIN_PATTERN = /^https:\/\/[\w-]+\.ondigitalocean\.app$/i
 const FROST_DESIGN_ORIGINS = new Set([
@@ -3176,6 +3180,14 @@ app.delete('/api/glb/:id', async (request, response) => {
   }
 })
 
+const bobCoop = fs.existsSync(path.join(bobDir, 'dist', 'index.html'))
+  ? (await import(pathToFileURL(path.join(bobDir, 'server', 'index.mjs')).href)).createCoopRooms()
+  : null
+if (bobCoop) {
+  // Missing BOB files 404 instead of falling through to the site's index.html.
+  app.use('/bob', express.static(path.join(bobDir, 'dist')), (_request, response) => response.sendStatus(404))
+}
+
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir))
   app.get('*', (request, response, next) => {
@@ -3193,7 +3205,30 @@ if (fs.existsSync(distDir)) {
 }
 
 const server = http.createServer(app)
-ringEater.attachWebSocketServer(server)
+ringEater.attachWebSocketServer(server, { sharedPaths: bobCoop ? [BOB_COOP_PATH] : [] })
+if (bobCoop) {
+  server.on('upgrade', (request, socket, head) => {
+    let url
+    try {
+      url = new URL(request.url, 'http://localhost')
+    } catch {
+      return // Ring Eater's listener closes unparseable requests.
+    }
+    if (url.pathname !== BOB_COOP_PATH) return
+    const origin = request.headers.origin
+    let sameHost = false
+    try {
+      sameHost = Boolean(origin) && new URL(origin).host === request.headers.host
+    } catch {
+      sameHost = false
+    }
+    if (origin && !sameHost && !isAllowedOrigin(origin)) {
+      socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
+      return
+    }
+    bobCoop.handleUpgrade(request, socket, head)
+  })
+}
 
 initializeDatabase()
   .catch((error) => {
