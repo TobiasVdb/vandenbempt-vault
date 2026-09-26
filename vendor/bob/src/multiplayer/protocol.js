@@ -3,6 +3,7 @@ export const MAX_PLAYERS = 8;
 export const ROOM_PATTERN = /^[A-Z0-9-]{3,32}$/;
 // which boat a player is aboard ('lobster' or a fleet id such as 'cabin-28'); older clients omit it
 export const BOAT_KIND = /^[a-z0-9-]{1,32}$/;
+export { sanitizeWorldState, sanitizeVehicleState } from './WorldState.js';
 export function callname(value) {
 	return typeof value === 'string' ? value.normalize('NFKC').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 20) : '';
 }

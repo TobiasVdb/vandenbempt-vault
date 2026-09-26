@@ -4,7 +4,7 @@ import { resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
-import { VERSION, MAX_PLAYERS, ROOM_PATTERN, callname, validPose } from '../src/multiplayer/protocol.js';
+import { VERSION, MAX_PLAYERS, ROOM_PATTERN, callname, validPose, sanitizeWorldState, sanitizeVehicleState } from '../src/multiplayer/protocol.js';
 import { FISH } from '../src/game/FishTable.js';
 
 const forbid = socket => socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
@@ -24,7 +24,13 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 			ws.send(JSON.stringify(data));
 		}
 	};
-	const snapshot = room => ({ type: 'snapshot', players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, avatar: p.avatar, pose: p.pose })), tally: room.tally });
+	const snapshot = room => ( {
+		type: 'snapshot',
+		players: [ ...room.players.values() ].map( p => ( { id: p.id, name: p.name, avatar: p.avatar, pose: p.pose } ) ),
+		tally: room.tally,
+		...( room.world ? { world: room.world } : {} ),
+		vehicles: Object.fromEntries( room.vehicles || [] ),
+	} );
 	const broadcast = (room, message) => { for (const p of room.players.values()) send(p.ws, message); };
 	wss.on('connection', ws => {
 		let player, room, tokens = 60, updated = Date.now();
@@ -42,7 +48,10 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				if (m.type !== 'join' || m.version !== VERSION || typeof m.room !== 'string' || !ROOM_PATTERN.test(m.room) || !name || !Number.isInteger(m.avatar) || m.avatar < 0 || m.avatar > 3) { send(ws, { type: 'error', message: 'Enter a valid room and callname.' }); ws.close(1008); return; }
 				room = rooms.get(m.room);
 				if (room?.players.size >= maxPlayers) { send(ws, { type: 'error', message: `This crew is full (${maxPlayers} players).` }); ws.close(1008); return; }
-				if (!room) { room = { players: new Map(), tally: { count: 0, kg: 0 } }; rooms.set(m.room, room); }
+				if (!room) {
+					room = { players: new Map(), tally: { count: 0, kg: 0 }, vehicles: new Map(), world: sanitizeWorldState(m.world) };
+					rooms.set(m.room, room);
+				}
 				// Keep overhead names unambiguous within a room.
 				let unique = name, suffix = 2;
 				while ([...room.players.values()].some(p => p.name.toLowerCase() === unique.toLowerCase())) unique = name.slice(0, 16) + '-' + suffix++;
@@ -63,6 +72,20 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 			if (m.type === 'gate' && Number.isFinite(m.value) && m.value >= 0 && m.value <= 1) {
 				room.gate = m.value;
 				for (const p of room.players.values()) if (p !== player) send(p.ws, { type: 'gate', value: m.value });
+			}
+			if (m.type === 'world') {
+				const world = sanitizeWorldState(m.world);
+				if (world) {
+					room.world = { ...(room.world || {}), ...world };
+					broadcast(room, { type: 'world', world: room.world });
+				}
+			}
+			if (m.type === 'vehicle') {
+				const vehicle = sanitizeVehicleState(m.vehicle);
+				if (vehicle) {
+					room.vehicles.set(vehicle.id, vehicle);
+					for (const p of room.players.values()) if (p !== player) send(p.ws, { type: 'vehicle', vehicle });
+				}
 			}
 			if (m.type === 'catch' && Number.isSafeInteger(m.sequence) && m.sequence > player.catchSequence && Object.hasOwn(FISH, m.species) && Number.isFinite(m.kg) && m.kg >= FISH[m.species].kg[0] && m.kg <= FISH[m.species].kg[1] && now - player.lastCatch > 1000) {
 				player.catchSequence = m.sequence; player.lastCatch = now;
