@@ -3181,7 +3181,7 @@ app.delete('/api/glb/:id', async (request, response) => {
 })
 
 const bobCoop = fs.existsSync(path.join(bobDir, 'dist', 'index.html'))
-  ? (await import(pathToFileURL(path.join(bobDir, 'server', 'index.mjs')).href)).createCoopRooms()
+  ? (await import(pathToFileURL(path.join(bobDir, 'server', 'index.mjs')).href)).createCoopRooms({ maxPlayers: 32 })
   : null
 if (bobCoop) {
   // Missing BOB files 404 instead of falling through to the site's index.html.

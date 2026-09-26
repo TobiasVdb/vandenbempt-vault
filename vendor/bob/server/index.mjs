@@ -11,7 +11,7 @@ const forbid = socket => socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close
 
 // One process owns each room. No database, accounts, or client-supplied player IDs.
 // No HTTP server of its own: a host app routes its chosen upgrade path to handleUpgrade.
-export function createCoopRooms({ origins = [], maxConnections = 256 } = {}) {
+export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers = MAX_PLAYERS } = {}) {
 	const rooms = new Map();
 	const wss = new WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
 	const handleUpgrade = (req, socket, head) => {
@@ -41,7 +41,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256 } = {}) {
 				const name = callname(m.name);
 				if (m.type !== 'join' || m.version !== VERSION || typeof m.room !== 'string' || !ROOM_PATTERN.test(m.room) || !name || !Number.isInteger(m.avatar) || m.avatar < 0 || m.avatar > 3) { send(ws, { type: 'error', message: 'Enter a valid room and callname.' }); ws.close(1008); return; }
 				room = rooms.get(m.room);
-				if (room?.players.size >= MAX_PLAYERS) { send(ws, { type: 'error', message: 'This crew is full (8 players).' }); ws.close(1008); return; }
+				if (room?.players.size >= maxPlayers) { send(ws, { type: 'error', message: `This crew is full (${maxPlayers} players).` }); ws.close(1008); return; }
 				if (!room) { room = { players: new Map(), tally: { count: 0, kg: 0 } }; rooms.set(m.room, room); }
 				// Keep overhead names unambiguous within a room.
 				let unique = name, suffix = 2;
