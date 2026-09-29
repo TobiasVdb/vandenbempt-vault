@@ -259,5 +259,83 @@
   ],
   "license": "CC0",
   "source": "https://polyhaven.com/a/modern_ceiling_lamp_01"
+ },
+ "bar_chair_round_01": {
+  "name": "Bar Chair Round 01",
+  "size": [
+   0.483,
+   0.486,
+   0.751
+  ],
+  "authors": [
+   "Dairon Sanchez"
+  ],
+  "license": "CC0",
+  "source": "https://polyhaven.com/a/bar_chair_round_01"
+ },
+ "round_wooden_table_01": {
+  "name": "Round Wooden Table 01",
+  "size": [
+   1.399,
+   1.399,
+   1.005
+  ],
+  "authors": [
+   "Ulan Cabanilla"
+  ],
+  "license": "CC0",
+  "source": "https://polyhaven.com/a/round_wooden_table_01"
+ },
+ "gallinera_chair": {
+  "name": "Gallinera Chair",
+  "size": [
+   0.581,
+   0.604,
+   1.034
+  ],
+  "authors": [
+   "Ulan Cabanilla"
+  ],
+  "license": "CC0",
+  "source": "https://polyhaven.com/a/gallinera_chair"
+ },
+ "potted_plant_01": {
+  "name": "Potted Plant 01",
+  "size": [
+   0.589,
+   0.637,
+   1.351
+  ],
+  "authors": [
+   "Rico Cilliers"
+  ],
+  "license": "CC0",
+  "source": "https://polyhaven.com/a/potted_plant_01"
+ },
+ "potted_plant_02": {
+  "name": "Potted Plant 02",
+  "size": [
+   0.701,
+   0.657,
+   0.841
+  ],
+  "authors": [
+   "Rico Cilliers"
+  ],
+  "license": "CC0",
+  "source": "https://polyhaven.com/a/potted_plant_02"
+ },
+ "planter_pot_clay": {
+  "name": "Planter Pot Clay",
+  "size": [
+   0.266,
+   0.263,
+   0.222
+  ],
+  "authors": [
+   "Amal Kumar"
+  ],
+  "license": "CC0",
+  "source": "https://polyhaven.com/a/planter_pot_clay"
  }
 }
