@@ -30,8 +30,16 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 		tally: room.tally,
 		...( room.world ? { world: room.world } : {} ),
 		vehicles: Object.fromEntries( room.vehicles || [] ),
+		crews: Object.fromEntries( room.crews ),
 	} );
 	const broadcast = (room, message) => { for (const p of room.players.values()) send(p.ws, message); };
+	const leaveVehicle = (room, player) => {
+		for (const [id, crew] of room.crews) {
+			if (crew.driver === player.id) crew.driver = null;
+			if (crew.passenger === player.id) crew.passenger = null;
+			if (!crew.driver && !crew.passenger) room.crews.delete(id);
+		}
+	};
 	wss.on('connection', ws => {
 		let player, room, tokens = 60, updated = Date.now();
 		ws.alive = true;
@@ -49,7 +57,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				room = rooms.get(m.room);
 				if (room?.players.size >= maxPlayers) { send(ws, { type: 'error', message: `This crew is full (${maxPlayers} players).` }); ws.close(1008); return; }
 				if (!room) {
-					room = { players: new Map(), tally: { count: 0, kg: 0 }, vehicles: new Map(), world: sanitizeWorldState(m.world) };
+					room = { players: new Map(), tally: { count: 0, kg: 0 }, vehicles: new Map(), crews: new Map(), world: sanitizeWorldState(m.world) };
 					rooms.set(m.room, room);
 				}
 				// Keep overhead names unambiguous within a room.
@@ -57,7 +65,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				while ([...room.players.values()].some(p => p.name.toLowerCase() === unique.toLowerCase())) unique = name.slice(0, 16) + '-' + suffix++;
 				player = { id: randomUUID(), name: unique, avatar: m.avatar, ws, room: m.room, pose: null, catchSequence: 0, lastCatch: 0 };
 				room.players.set(player.id, player); clearTimeout(joinTimeout);
-				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room });
+				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room, vehicleCrew: true });
 				if (room.gate) send(ws, { type: 'gate', value: room.gate });
 				broadcast(room, snapshot(room)); return;
 			}
@@ -67,6 +75,19 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 					...(p.t !== undefined ? { t: p.t } : {}), ...(p.local ? { local: p.local } : {}),
 					boat: p.boat ? { position: p.boat.position, rotation: p.boat.rotation, ...(p.boat.quat ? { quat: p.boat.quat } : {}), ...(p.boat.kind ? { kind: p.boat.kind } : {}) } : null };
 			}
+			if (m.type === 'board' && typeof m.id === 'string' && /^[a-z0-9@-]{1,48}$/.test(m.id) && Number.isSafeInteger(m.request)) {
+				const crew = room.crews.get(m.id) || { driver: null, passenger: null };
+				const role = crew.driver === player.id ? 'driver' : !crew.driver ? 'driver' :
+					m.driverOnly ? null : (!crew.passenger || crew.passenger === player.id) ? 'passenger' : null;
+				if (role) {
+					leaveVehicle(room, player);
+					crew[role] = player.id;
+					room.crews.set(m.id, crew);
+				}
+				send(ws, { type: 'boarded', id: m.id, request: m.request, role });
+				broadcast(room, snapshot(room));
+			}
+			if (m.type === 'leaveVehicle') { leaveVehicle(room, player); broadcast(room, snapshot(room)); }
 			// shared world state: the cavern's rock gate (0..1), relayed to the rest of the room and kept
 			// for players who join later
 			if (m.type === 'gate' && Number.isFinite(m.value) && m.value >= 0 && m.value <= 1) {
@@ -82,7 +103,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 			}
 			if (m.type === 'vehicle') {
 				const vehicle = sanitizeVehicleState(m.vehicle);
-				if (vehicle) {
+				if (vehicle && (!room.crews.has(vehicle.id) || room.crews.get(vehicle.id).driver === player.id)) {
 					room.vehicles.set(vehicle.id, vehicle);
 					for (const p of room.players.values()) if (p !== player) send(p.ws, { type: 'vehicle', vehicle });
 				}
@@ -96,6 +117,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 		ws.on('close', () => {
 			clearTimeout(joinTimeout);
 			if (!player) return;
+			leaveVehicle(room, player);
 			room.players.delete(player.id);
 			if (!room.players.size) rooms.delete(player.room); else broadcast(room, snapshot(room));
 		});

@@ -61,10 +61,19 @@ export function sanitizeVehicleState( v ) {
 	const q = Array.isArray( v.quat ) ? v.quat.map( Number ) : null;
 	if ( ! p || p.length !== 3 || ! p.every( ( n ) => finite( n ) && Math.abs( n ) <= 30000 ) ) return null;
 	if ( ! q || q.length !== 4 || ! q.every( ( n ) => finite( n ) && Math.abs( n ) <= 1.01 ) ) return null;
+	const motion = {};
+	for ( const key of [ 'velocity', 'angular' ] ) {
+
+		if ( v[ key ] === undefined ) continue;
+		if ( ! Array.isArray( v[ key ] ) || v[ key ].length !== 3 || ! v[ key ].every( n => finite( n ) && Math.abs( n ) <= 1000 ) ) return null;
+		motion[ key ] = v[ key ].map( n => round( n ) );
+
+	}
 	return {
 		id: v.id,
 		position: p.map( ( n ) => round( n ) ),
 		quat: q.map( ( n ) => round( n, 5 ) ),
+		...motion,
 		kind: typeof v.kind === 'string' && /^[a-z0-9-]{1,16}$/.test( v.kind ) ? v.kind : 'left',
 	};
 
