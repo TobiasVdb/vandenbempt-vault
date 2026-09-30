@@ -21,6 +21,12 @@ slice table is in `src/audio/soundBank.js`.
 | `pier_lap.ogg` | water lapping a dock — loop | [WavesOnTheShore.wav](https://freesound.org/people/richardemoore/sounds/260263/) | richardemoore | CC0 1.0 |
 | `under_reef.ogg` | hydrophone in a cove: snapping-shrimp crackle, low rumble — loop | [Underwater crackling sounds_Hydrophone.wav](https://freesound.org/people/KaleidacousticsAudio/sounds/630436/) | KaleidacousticsAudio | CC0 1.0 |
 | `boat_engine.ogg` | Volvo Penta MD22 marine diesel — loop, pitched with rpm | [Marine diesel engine](https://freesound.org/people/AugustSandberg/sounds/264864/) | AugustSandberg | CC0 1.0 |
+| `yacht_engine.ogg` | big outboards at speed (the Alfastreet yachts) — loop, pitched with rpm | [outboard motor boat onboard high speed.flac](https://freesound.org/people/kyles/sounds/637744/) | kyles | CC0 1.0 |
+| `jet_engine.ogg` | turbofan idle whine (the Vision Jet; the Tern's fans) — loop, pitched with the spool | [Idle F-22 Jet Plane.flac](https://freesound.org/people/qubodup/sounds/187734/) | qubodup | CC0 1.0 |
+| `prop_engine.ogg` | light aircraft piston engine and propeller (the VL3, the floatplane) — loop | [plane idling on small airport.wav](https://freesound.org/people/wniebelski/sounds/695971/) | wniebelski | CC0 1.0 |
+| `heli_rotor.ogg` | helicopter rotor blade slap over the turbine (the H125) — loop | [Helicopter Landing and Idle](https://freesound.org/people/Fission9/sounds/693866/) | Fission9 | CC0 1.0 |
+| `tyre_chirp.ogg` | an aircraft's tyres touching down (the chirp as they spin up) | [R02-24-Airplane Tire Skid.wav](https://freesound.org/people/craigsmith/sounds/479498/) | craigsmith | CC0 1.0 |
+| `gear_motion.ogg` | an aircraft's landing gear lowering / retracting | [Landing Gear](https://freesound.org/people/77Pacer/sounds/425273/) | 77Pacer | CC0 1.0 |
 | `boat_lap.ogg` | water lapping a fibreglass hull — loop | [boat knocks fiberglass water laps on hull.flac](https://freesound.org/people/kyles/sounds/637206/) | kyles | CC0 1.0 |
 | `hull_slap.ogg` | 5 water knocks on the hull | [boat knocks fiberglass water laps on hull.flac](https://freesound.org/people/kyles/sounds/637206/) | kyles | CC0 1.0 |
 | `boat_rush.ogg` | bow wave / water past the hull — loop | [Sailing boat, bow wave (close perspective)](https://freesound.org/people/Pfannkuchn/sounds/360631/) | Pfannkuchn | CC0 1.0 |
