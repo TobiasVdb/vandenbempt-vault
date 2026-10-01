@@ -1,0 +1,5182 @@
+[
+  {
+    "id": "cargo_drone",
+    "model": "KB3D_ATP_PropDrone_A",
+    "triangles": 8000,
+    "size": [
+      1.2518360614776611,
+      0.7286752586951479,
+      1.2128568887710571
+    ],
+    "assemblyRevision": 2,
+    "bytes": 618836,
+    "materials": [
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.25,
+      0.7293268882917677,
+      1.210978078137744
+    ]
+  },
+  {
+    "id": "cargo_cherry",
+    "model": "KB3D_SHG_VegCherryBlossomTree_A",
+    "triangles": 18000,
+    "size": [
+      8.386969089508057,
+      7.652924790978432,
+      9.497034072875977
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1700332,
+    "materials": [
+      {
+        "name": "KB3D_SHG_BarkCherrySakura",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SHG_CherryBlossomBranches",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SHG",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      8.456216812133789,
+      7.649857044219971,
+      9.505507469177246
+    ]
+  },
+  {
+    "id": "cargo_books_a",
+    "model": "KB3D_API_PropBookset_A",
+    "triangles": 450,
+    "size": [
+      0.21223518252372742,
+      0.25911396741867065,
+      0.201001837849617
+    ],
+    "assemblyRevision": 2,
+    "bytes": 75268,
+    "materials": [
+      {
+        "name": "KB3D_API_BooksAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.21223518997430801,
+      0.25911396741867065,
+      0.201001837849617
+    ]
+  },
+  {
+    "id": "cargo_books_b",
+    "model": "KB3D_API_PropBookset_B",
+    "triangles": 900,
+    "size": [
+      0.3928152322769165,
+      0.2660713791847229,
+      0.20426306128501892
+    ],
+    "assemblyRevision": 2,
+    "bytes": 96152,
+    "materials": [
+      {
+        "name": "KB3D_API_BooksAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.3928152471780777,
+      0.2660713791847229,
+      0.20426305383443832
+    ]
+  },
+  {
+    "id": "cargo_books_c",
+    "model": "KB3D_API_PropBookset_C",
+    "triangles": 450,
+    "size": [
+      0.18579871952533722,
+      0.25957006216049194,
+      0.20318669080734253
+    ],
+    "assemblyRevision": 2,
+    "bytes": 75400,
+    "materials": [
+      {
+        "name": "KB3D_API_BooksAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.18579871952533722,
+      0.25957006216049194,
+      0.20318668335676193
+    ]
+  },
+  {
+    "id": "cargo_books_d",
+    "model": "KB3D_API_PropBookset_D",
+    "triangles": 450,
+    "size": [
+      0.2056276798248291,
+      0.2660713791847229,
+      0.20336058735847473
+    ],
+    "assemblyRevision": 2,
+    "bytes": 75268,
+    "materials": [
+      {
+        "name": "KB3D_API_BooksAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.2056276798248291,
+      0.2660713791847229,
+      0.20336059480905533
+    ]
+  },
+  {
+    "id": "cargo_books_e",
+    "model": "KB3D_API_PropBookset_E",
+    "triangles": 360,
+    "size": [
+      0.14671796560287476,
+      0.23738762736320496,
+      0.21174146234989166
+    ],
+    "assemblyRevision": 2,
+    "bytes": 71276,
+    "materials": [
+      {
+        "name": "KB3D_API_BooksAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.14671796560287476,
+      0.23738763481378555,
+      0.21174146234989166
+    ]
+  },
+  {
+    "id": "cargo_cabinet",
+    "model": "KB3D_SIN_PropToolCabinet_A",
+    "triangles": 6994,
+    "size": [
+      1.0764195322990417,
+      1.055694818496704,
+      0.9600464701652527
+    ],
+    "assemblyRevision": 2,
+    "bytes": 483008,
+    "materials": [
+      {
+        "name": "KB3D_SIN_MetalsRoughDirtTrimm",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SIN_MetalPaintedRustTrimm",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SIN_PlasticTrimmDirtA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SIN",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.0764359831809998,
+      1.055693805217743,
+      0.9600464701652527
+    ]
+  },
+  {
+    "id": "cargo_crate",
+    "model": "KB3D_MTM_PropCrate_A",
+    "triangles": 3000,
+    "size": [
+      1.05618417263031,
+      0.7887979148817976,
+      1.6365888118743896
+    ],
+    "assemblyRevision": 2,
+    "bytes": 655480,
+    "materials": [
+      {
+        "name": "KB3D_MTM_MetalPanelDGrayTrimD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalPanelDGrayFill",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalPanelGrayTrimD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalPanelYellowFill",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalWornFillA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalPanelGrayFill",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalPanelWhiteFill",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_Screens",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_MetalPanelWhiteTrimD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "MTM",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.0567737221717834,
+      0.7887750267982483,
+      1.6365890502929688
+    ]
+  },
+  {
+    "id": "cargo_sunbed",
+    "model": "KB3D_NNY_Sunbed_A",
+    "triangles": 444,
+    "size": [
+      0.7014256715774536,
+      0.6344192624092102,
+      2.049999952316284
+    ],
+    "assemblyRevision": 2,
+    "bytes": 157364,
+    "materials": [
+      {
+        "name": "KB3D_NNY_FabricTentBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_NNY_WoodVarnishedB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "NNY",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.7014256619144602,
+      0.6344192805723073,
+      2.05
+    ]
+  },
+  {
+    "id": "cargo_palm_b",
+    "model": "KB3D_TIS_Palm_B",
+    "triangles": 10000,
+    "size": [
+      4.182626247406006,
+      9.814958572387695,
+      4.323600769042969
+    ],
+    "assemblyRevision": 2,
+    "bytes": 868124,
+    "materials": [
+      {
+        "name": "KB3D_TIS_CoconutPalm",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "TIS",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      4.182292699813843,
+      9.814959049224854,
+      4.323600769042969
+    ]
+  },
+  {
+    "id": "cargo_palm_c",
+    "model": "KB3D_TIS_Palm_C",
+    "triangles": 9999,
+    "size": [
+      4.075823783874512,
+      8.872406959533691,
+      4.223379135131836
+    ],
+    "assemblyRevision": 2,
+    "bytes": 862984,
+    "materials": [
+      {
+        "name": "KB3D_TIS_CoconutPalm",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "TIS",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      4.075823545455933,
+      8.872513771057129,
+      4.223378896713257
+    ]
+  },
+  {
+    "id": "cargo_palm_d",
+    "model": "KB3D_TIS_Palm_D",
+    "triangles": 10000,
+    "size": [
+      4.130456924438477,
+      10.879117965698242,
+      4.091193199157715
+    ],
+    "assemblyRevision": 2,
+    "bytes": 869888,
+    "materials": [
+      {
+        "name": "KB3D_TIS_CoconutPalm",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "TIS",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      4.133168935775757,
+      10.879117965698242,
+      4.091192960739136
+    ]
+  },
+  {
+    "id": "cargo_lilypad",
+    "model": "KB3D_AOE_PropLillyPad_B",
+    "triangles": 906,
+    "size": [
+      0.335854709148407,
+      0.00679806899279356,
+      0.3446241021156311
+    ],
+    "assemblyRevision": 2,
+    "bytes": 444936,
+    "materials": [
+      {
+        "name": "KB3D_AOE_AtlasLeaves",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "AOE",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.335854709148407,
+      0.006798069225624204,
+      0.3446240872144699
+    ]
+  },
+  {
+    "id": "cargo_plant",
+    "model": "KB3D_AOE_PropPlant_B",
+    "triangles": 5000,
+    "size": [
+      1.502768337726593,
+      1.0417581439833157,
+      1.4647229313850403
+    ],
+    "assemblyRevision": 2,
+    "bytes": 692968,
+    "materials": [
+      {
+        "name": "KB3D_AOE_Palm",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "AOE",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.5029401183128357,
+      1.0415695905685425,
+      1.4674703478813171
+    ]
+  },
+  {
+    "id": "cargo_boathouse",
+    "model": "KB3D_OUT_BldgSMBoatHouse_A",
+    "triangles": 33485,
+    "size": [
+      10.196738243103027,
+      7.248220164368149,
+      16.90022563934326
+    ],
+    "assemblyRevision": 2,
+    "bytes": 5429024,
+    "materials": [
+      {
+        "name": "KB3D_OUT_WoodOldA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodOldB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodPWhiteOld",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodPBlue",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodPCyanOld",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_RopesTrimW",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodGrayW",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_MetalRustedB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_PlasterGray",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_PlasterDamaged",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodLogsW",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodChippedW",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_MetalRustedC",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_MetalForgedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodGrayB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodPRedOld",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodDarkOldA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_MetalPolishedAnt",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_MetalPGreenOld",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_MetalBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_GlassDirtW",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_RockGrayW",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodPBeige",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_DecalsWWB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_DecalsWWC",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_WoodPGreenOld",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_OUT_FabricAtlasW",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "OUT",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      10.196892261505127,
+      7.245237588882446,
+      16.90028190612793
+    ]
+  },
+  {
+    "id": "cargo_wreck",
+    "model": "KB3D_WRK_BldgLgAirplaneCrash_A",
+    "triangles": 64698,
+    "size": [
+      54.55523109436035,
+      9.675569289247505,
+      43.907569885253906
+    ],
+    "assemblyRevision": 2,
+    "bytes": 7522492,
+    "materials": [
+      {
+        "name": "KB3D_WRK_PlasticWhiteWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_RocksA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_MetalPaintedDamagedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_FabricBeigeDirt",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlaneBodyPanelsWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_IronDarkWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SoilGravel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_RocksB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_MetalPaintedDamagedB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlaneCarpetTrimWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_RubberDirt",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_GlassDirtDamA",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlaneBodyPanelsWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_AtlasLeakesB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_FabricRBFluffEdgeAtlas",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelPaintedBlackWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlasticDirtyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelRoughDirtyA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_IronLightWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_MetalPaintedDamagedC",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_MetalPaintedDamagedE",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_RubberTire",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlasticBlackBurnB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlasticBlackBurn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_FabricBlackDirt",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_GalvanizedSteelDirt",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelRebarTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "WRK",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      54.55282783508301,
+      9.679470300674438,
+      43.90286064147949
+    ]
+  },
+  {
+    "id": "cargo_wreck_seats",
+    "model": "KB3D_WRK_PropAirplaneSeats_B",
+    "triangles": 4000,
+    "size": [
+      2.1259745359420776,
+      1.6564553821996242,
+      1.2818937301635742
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1071328,
+    "materials": [
+      {
+        "name": "KB3D_WRK_FabricRBFluffEdgeAtlas",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_MetalPaintedDamagedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelPaintedBlackWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_PlasticDirtyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_RubberDirt",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelRoughDirtyA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "WRK",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      2.1250585317611694,
+      1.6579114198684692,
+      1.2820723056793213
+    ]
+  },
+  {
+    "id": "cargo_wreck_wheel",
+    "model": "KB3D_WRK_PropAirplaneWheel_A",
+    "triangles": 2999,
+    "size": [
+      1.0814062356948853,
+      0.6564587088068947,
+      1.4017384052276611
+    ],
+    "assemblyRevision": 2,
+    "bytes": 586776,
+    "materials": [
+      {
+        "name": "KB3D_WRK_RubberTire",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelRoughDirtyA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_GalvanizedSteelDirt",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_WRK_SteelRebarTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "WRK",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.0805909633636475,
+      0.6564308702945709,
+      1.4008806943893433
+    ]
+  },
+  {
+    "id": "cargo_retro_hotel",
+    "model": "KB3D_ATP_BldgLgHotel_A",
+    "triangles": 124962,
+    "size": [
+      64.92004013061523,
+      78.0266342288765,
+      53.829410552978516
+    ],
+    "assemblyRevision": 2,
+    "bytes": 7121816,
+    "materials": [
+      {
+        "name": "KB3D_ATP_StreetTileA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeAtiles",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_3DSignageAtlas",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasMaterial",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      65.0,
+      78.00400845545654,
+      53.90935558844133
+    ]
+  },
+  {
+    "id": "cargo_retro_science",
+    "model": "KB3D_ATP_BldgSmScienceCenter_A",
+    "triangles": 84841,
+    "size": [
+      37.971078872680664,
+      8.231575966066275,
+      21.173948287963867
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4857472,
+    "materials": [
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricTanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumAGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrimGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasC",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowDarkGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrimSingle",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasMaterial",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      38.0,
+      8.235266094975522,
+      21.204287723240284
+    ]
+  },
+  {
+    "id": "cargo_retro_cafe",
+    "model": "KB3D_ATP_BldgSmCafe_A",
+    "triangles": 59824,
+    "size": [
+      24.01950740814209,
+      7.421591758728027,
+      19.770788192749023
+    ],
+    "assemblyRevision": 2,
+    "bytes": 5523880,
+    "materials": [
+      {
+        "name": "KB3D_ATP_StreetTileA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhiteB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowLine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteIndustrialChecker",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowBchecker",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_3DSignageAtlas",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteALine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherCyanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_BrassA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricMesh",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      24.0,
+      7.423828086325395,
+      19.770788634730255
+    ]
+  },
+  {
+    "id": "cargo_retro_club",
+    "model": "KB3D_ATP_BldgMdClub_A",
+    "triangles": 84702,
+    "size": [
+      42,
+      51.30488967308693,
+      36.649349212646484
+    ],
+    "assemblyRevision": 2,
+    "bytes": 5698076,
+    "materials": [
+      {
+        "name": "KB3D_ATP_StreetTileA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanBLine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodFloorB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowBLine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreenTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ScreenOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateYellowLine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreengrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasMaterial",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_3DSignageAtlas",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricTanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherCyanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_BrassA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      42.0,
+      51.32841030576012,
+      36.7587664344094
+    ]
+  },
+  {
+    "id": "cargo_retro_tower",
+    "model": "KB3D_ATP_BldgLgBusinessCenter_A",
+    "triangles": 109819,
+    "size": [
+      34.0179500579834,
+      33.19636933883051,
+      18.773622512817383
+    ],
+    "assemblyRevision": 2,
+    "bytes": 6121340,
+    "materials": [
+      {
+        "name": "KB3D_ATP_StreetTileA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrimSingle",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteALine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhiteB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodFloor",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodFloorB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrimGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasMaterial",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ScreenOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      34.0,
+      33.19660296693714,
+      18.76395430588673
+    ]
+  },
+  {
+    "id": "cargo_retro_bar",
+    "model": "KB3D_ATP_BldgSmBar_A",
+    "triangles": 64785,
+    "size": [
+      27.95600986480713,
+      10.626146231067302,
+      19.417975425720215
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4884052,
+    "materials": [
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricTanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteIndustrialChecker",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasMaterial",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_BrassA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricMesh",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      27.999999999999996,
+      10.64545314732869,
+      19.51712206137648
+    ]
+  },
+  {
+    "id": "cargo_retro_lounge",
+    "model": "KB3D_ATP_BldgSmClub_A",
+    "triangles": 64762,
+    "size": [
+      27.966938972473145,
+      6.300090790434671,
+      12.544612884521484
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4306796,
+    "materials": [
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteALine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_StreetTileA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodFloorB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Cardboard",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreengrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasMaterial",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricTanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherCyanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      28.0,
+      6.302330872148635,
+      12.552955365153519
+    ]
+  },
+  {
+    "id": "cargo_retro_municipality",
+    "model": "KB3D_ATP_BldgSmMunicipality_A",
+    "triangles": 74939,
+    "size": [
+      31.988740921020508,
+      11.440210342407227,
+      23.008577346801758
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4270748,
+    "materials": [
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumAGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDarkTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ScreenOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      32.0,
+      11.440811356395779,
+      23.014716286259997
+    ]
+  },
+  {
+    "id": "cargo_retro_university",
+    "model": "KB3D_ATP_BldgMdUniversity_A",
+    "triangles": 84907,
+    "size": [
+      44.008392333984375,
+      23.273474003653973,
+      41.02269172668457
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4717960,
+    "materials": [
+      {
+        "name": "KB3D_ATP_PalimananStoneWhiteB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GrassA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteALine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeBLine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDarkTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodFloor",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellowDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrimSingle",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_BrassA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      44.0,
+      23.269501374147936,
+      41.018371620372115
+    ]
+  },
+  {
+    "id": "cargo_retro_station",
+    "model": "KB3D_ATP_BldgLgTrainStation_A",
+    "triangles": 84848,
+    "size": [
+      33.93455505371094,
+      14.542891493165811,
+      25.174782752990723
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4759008,
+    "materials": [
+      {
+        "name": "KB3D_ATP_ConcreteDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ConcreteTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_StreetTileA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownBline",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_PalimananStoneWhiteB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyPurple",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Concrete",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_RubberA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ScreenOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AtlasDecals",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_ChromeGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_SteelBlackGrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyCyanAgrunge",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      34.0,
+      14.544506177119839,
+      25.222434081633153
+    ]
+  },
+  {
+    "id": "cargo_train",
+    "model": "KB3D_ATP_VehicTrain_A",
+    "triangles": 21980,
+    "size": [
+      4.403260707855225,
+      4.634161727735773,
+      8.490019798278809
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1406896,
+    "materials": [
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalMateOrangeA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalWhite",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlueA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Emissive",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteALine",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueBTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBlueATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_AluminiumA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownBline",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyBrownB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_GlassB",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricTanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_WoodVarnA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      4.400086209117228,
+      4.625777272144677,
+      8.5
+    ]
+  },
+  {
+    "id": "cargo_blimp",
+    "model": "KB3D_SOL_VehicBlimpShip_A",
+    "triangles": 65258,
+    "size": [
+      48.00602912902832,
+      29.542936235666275,
+      17.673776626586914
+    ],
+    "assemblyRevision": 2,
+    "bytes": 7582460,
+    "materials": [
+      {
+        "name": "KB3D_SOL_MetalWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BoatBodyPanelsWhiteWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalWornGrayA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_SteelSatinWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalDarkWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BoatBodyPanelsDarkWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimRopesA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneWiresTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BlimpShipFabric",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_FabricFlagsL",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BoatBodyPanelsWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_WoodPlanksPWhiteWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_WoodenShipFloorWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_WoodBrownWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_WoodVarnishedWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_OffRoadTrimInteriorPanelsA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintRustedGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_GlassWornDirtyA",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintWornBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneAtlasDetails",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintWornGrayA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintWornYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AtlasBooksMapDetails",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneBodyPanelsWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_LightBrightTranslucent",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_PlyWoodPaintDGreen",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_OffRoadMetalPaintDirtyBodyAccent",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_LeatherDarkWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneTrimInteriorPanelsA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimMetalDetails",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalBronzeWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AirshipAtlasDetails",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_WoodHeartwoodAtlasJ",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BarkPineWoodWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_FishingNet",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CarsTrimRubberTire",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      47.99999999999999,
+      29.90229511777685,
+      17.67422035272144
+    ]
+  },
+  {
+    "id": "cargo_cargo_plane",
+    "model": "KB3D_SOL_VehicCargoPlane_A",
+    "triangles": 84874,
+    "size": [
+      37.999942779541016,
+      11.008444462320767,
+      32.090009689331055
+    ],
+    "assemblyRevision": 2,
+    "bytes": 5437556,
+    "materials": [
+      {
+        "name": "KB3D_SOL_CargoPlaneBodyPanelsWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneBodyPanelsWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimMetalDetails",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneBodyPanelsWornShinyA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_GlassWornDirtyA",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneTrimInteriorPanelsA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneWiresTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_LightBrightTranslucent",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintWornBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_LightRedTranslucent",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_SteelSatinWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalWornGrayA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintWornGrayA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneAtlasDetails",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TireAviationTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_LightOrange",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_MetalPaintWornYellow",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneFloorOldA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_FabricCanvasWornCrimson",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_CargoPlaneFabricTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      38.0,
+      11.122877737827258,
+      32.08903091722526
+    ]
+  },
+  {
+    "id": "cargo_transport_heli",
+    "model": "KB3D_MTV_VehicTransportHelicopter_A",
+    "triangles": 64976,
+    "size": [
+      17.599597930908203,
+      5.451558999789995,
+      22.000065803527832
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4490728,
+    "materials": [
+      {
+        "name": "KB3D_MTV_AviationBodyPanelsWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_AviationBodyPanelsWornB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_TrimMetalDetails",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_MetalPaintGreenA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_AviationBodyPanelsInteriorA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_SteelTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_AviationBodyFloor",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_RubberTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_PlasticTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_ElementsDetailAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_UndercarriageTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_SeatsMilitaryATrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_MetalPaintGreenOld",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_TapesTrimA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_HeliTransl",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTV_TiresMedium",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "MTV",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      17.60165910620503,
+      5.454187666921177,
+      22.0
+    ]
+  },
+  {
+    "id": "cargo_flying_boat",
+    "model": "KB3D_CSK_PropFlyingBoat_A",
+    "triangles": 49995,
+    "size": [
+      29.999998092651367,
+      16.408435821533203,
+      14.289953231811523
+    ],
+    "assemblyRevision": 2,
+    "bytes": 4429408,
+    "materials": [
+      {
+        "name": "KB3D_CSK_MetalSilverDirty",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPanelLBlueRustTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalRustTrimC",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalDirtDamagedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPaintRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_RubberBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_AtlasDecalA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_LampsD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_GlassDirtyA",
+        "alphaMode": "BLEND",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPanelGrayRustA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalRustTrimD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPanelDarkRustTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalForgedDarkA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_WoodOldA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPanelLightGrayRustA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPanelGrayRustTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_SteelBrushed",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPaneledOverlapRust",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPaintGrayWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalRustTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalDarkWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalPanelLBlueRustA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalIndustrialFloorA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_CopperClear",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CSK_MetalGrayRustPropellers",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "CSK",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      29.999999999999996,
+      16.408435117307917,
+      14.289952808436235
+    ]
+  },
+  {
+    "id": "cargo_ancient_control",
+    "model": "KB3D_ANT_Part_A",
+    "triangles": 700,
+    "size": [
+      3.167154312133789,
+      2.085465908050537,
+      3.200000047683716
+    ],
+    "assemblyRevision": 2,
+    "bytes": 475512,
+    "materials": [
+      {
+        "name": "KB3D_ANT_StoneM",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ANT_MudM",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ANT_DamageM",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ANT_Beams",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ANT",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      3.167154068566708,
+      2.0854657166460138,
+      3.1999999999999997
+    ]
+  },
+  {
+    "id": "cargo_ruin_a",
+    "model": "KB3D_SOL_PropRuin_A",
+    "triangles": 39980,
+    "size": [
+      15.000000953674316,
+      4.747436497640804,
+      8.93394947052002
+    ],
+    "assemblyRevision": 2,
+    "bytes": 2651124,
+    "materials": [
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientBigFlat",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AncientBoulderFloor",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AncientBigBoulderFloor",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      14.999999999999998,
+      4.7474363108647895,
+      8.93394882969985
+    ]
+  },
+  {
+    "id": "cargo_ruin_b",
+    "model": "KB3D_SOL_PropRuin_B",
+    "triangles": 16205,
+    "size": [
+      15.0,
+      11.400351367750872,
+      4.499672174453735
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1372788,
+    "materials": [
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientBigFlat",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      15.0,
+      11.400351110299434,
+      4.4996736901254994
+    ]
+  },
+  {
+    "id": "cargo_ruin_column_a",
+    "model": "KB3D_SOL_PropRuinColumn_A",
+    "triangles": 2578,
+    "size": [
+      2.999998092651367,
+      16.199985499263594,
+      2.9999979734420776
+    ],
+    "assemblyRevision": 2,
+    "bytes": 759824,
+    "materials": [
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientBigFlat",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      2.999998033048481,
+      16.199985688939567,
+      3.0
+    ]
+  },
+  {
+    "id": "cargo_ruin_column_b",
+    "model": "KB3D_SOL_PropRuinColumn_B",
+    "triangles": 2692,
+    "size": [
+      2.99999737739563,
+      16.199985499263594,
+      3.000000238418579
+    ],
+    "assemblyRevision": 2,
+    "bytes": 763100,
+    "materials": [
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientBigFlat",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      2.999997317793383,
+      16.19998581768549,
+      3.0
+    ]
+  },
+  {
+    "id": "cargo_ruin_column_c",
+    "model": "KB3D_SOL_PropRuinColumn_C",
+    "triangles": 2486,
+    "size": [
+      2.99999737739563,
+      16.199985499263594,
+      3.000000238418579
+    ],
+    "assemblyRevision": 2,
+    "bytes": 757768,
+    "materials": [
+      {
+        "name": "KB3D_SOL_BrickworkAncientBigFlat",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      2.999997317793383,
+      16.199985688939567,
+      3.0
+    ]
+  },
+  {
+    "id": "cargo_ruin_wall",
+    "model": "KB3D_SOL_PropBrokenWall_B",
+    "triangles": 4185,
+    "size": [
+      8,
+      5.99999999802543,
+      2.0798001289367676
+    ],
+    "assemblyRevision": 2,
+    "bytes": 693256,
+    "materials": [
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      8.0,
+      6.000000455526332,
+      2.0798009910488604
+    ]
+  },
+  {
+    "id": "cargo_ruin_bridge",
+    "model": "KB3D_SOL_BuildModuleBridgeStraight_A",
+    "triangles": 35466,
+    "size": [
+      12.000542640686035,
+      3.2677907794713974,
+      0.9891992211341858
+    ],
+    "assemblyRevision": 2,
+    "bytes": 2456056,
+    "materials": [
+      {
+        "name": "KB3D_SOL_BrickworkAncientBigFlat",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncient",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncientRich",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_AncientBigBoulderFloor",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimStoneSideElementsAncientAqua",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      12.0,
+      3.5105416301373555,
+      0.9884508925042186
+    ]
+  },
+  {
+    "id": "cargo_ruin_torch",
+    "model": "KB3D_SOL_PropTorch_A",
+    "triangles": 4998,
+    "size": [
+      0.17703430354595184,
+      0.8552488876302959,
+      0.7001632452011108
+    ],
+    "assemblyRevision": 2,
+    "bytes": 708696,
+    "materials": [
+      {
+        "name": "KB3D_SOL_AncientBoulderRubble",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_BrickworkAncientA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_TrimRopesA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SOL_WoodBrownWornA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SOL",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.17659531427433547,
+      0.8550389580160271,
+      0.7
+    ]
+  },
+  {
+    "id": "cargo_bath",
+    "model": "KB3D_API_BldgPartBathtub_B",
+    "triangles": 8752,
+    "size": [
+      1.850000023841858,
+      1.3210694789886475,
+      1.133414626121521
+    ],
+    "assemblyRevision": 2,
+    "bytes": 383120,
+    "materials": [
+      {
+        "name": "KB3D_API_BathroomTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_MetalTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_KitchenAppliances",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.8500000000000003,
+      1.3210694022294578,
+      1.1334146578959226
+    ]
+  },
+  {
+    "id": "cargo_bath_rug",
+    "model": "KB3D_API_PropRugBathroom_A",
+    "triangles": 1999,
+    "size": [
+      1.1999916434288025,
+      0.06869850464318006,
+      0.7880073189735413
+    ],
+    "assemblyRevision": 2,
+    "bytes": 136248,
+    "materials": [
+      {
+        "name": "KB3D_API_Carpets",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.2,
+      0.06888148608045101,
+      0.7878919190516698
+    ]
+  },
+  {
+    "id": "cargo_towels",
+    "model": "KB3D_API_BldgPartTowelBar_A",
+    "triangles": 3999,
+    "size": [
+      0.7000192403793335,
+      0.4504429211374372,
+      0.14936840534210205
+    ],
+    "assemblyRevision": 2,
+    "bytes": 206028,
+    "materials": [
+      {
+        "name": "KB3D_API_MetalTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_BathroomTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.7,
+      0.45016724067636577,
+      0.14945890030202563
+    ]
+  },
+  {
+    "id": "cargo_bath_light",
+    "model": "KB3D_API_BldgPartBathLamp_A",
+    "triangles": 2224,
+    "size": [
+      0.699999988079071,
+      0.07730477303266525,
+      0.1072920709848404
+    ],
+    "assemblyRevision": 2,
+    "bytes": 196164,
+    "materials": [
+      {
+        "name": "KB3D_API_KitchenAppliances",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_KitchenAppliancesPlastic",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_LightPropTransl",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.7,
+      0.07730477879909908,
+      0.10729207528948198
+    ]
+  },
+  {
+    "id": "cargo_bed_a",
+    "model": "KB3D_API_PropBed_A",
+    "triangles": 15999,
+    "size": [
+      1.8901744484901428,
+      1.0239260733833362,
+      2.1493395566940308
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1209872,
+    "materials": [
+      {
+        "name": "KB3D_API_FurnitureWoodStructure",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_MetalTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_BedClothB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_SofaTrimMaterialC",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_HeadBoard",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_FabricThrowBlanketA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.8890470638445502,
+      1.023991674457977,
+      2.15
+    ]
+  },
+  {
+    "id": "cargo_bed_c",
+    "model": "KB3D_API_PropBed_C",
+    "triangles": 16000,
+    "size": [
+      1.8552150130271912,
+      0.7224230170163369,
+      2.150014638900757
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1139148,
+    "materials": [
+      {
+        "name": "KB3D_API_BlanketA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_BedClothA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_FurnitureWoodRough",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_FurnitureWoodStructure",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.8551972403961614,
+      0.722168395848647,
+      2.15
+    ]
+  },
+  {
+    "id": "cargo_bed_e",
+    "model": "KB3D_API_PropBed_E",
+    "triangles": 15999,
+    "size": [
+      1.3371688723564148,
+      0.8285502791404724,
+      2.149624466896057
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1113536,
+    "materials": [
+      {
+        "name": "KB3D_API_BedClothB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_BedClothA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_BlanketB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_FurnitureWoodStructure",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_WoodTrimB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_API_MetalTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "API",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.3362666400728451,
+      0.8285503307811981,
+      2.15
+    ]
+  },
+  {
+    "id": "cargo_sunshade",
+    "model": "KB3D_ATP_PropUmbrella_B",
+    "triangles": 10000,
+    "size": [
+      4.500079393386841,
+      3.4821505546569824,
+      4.405393838882446
+    ],
+    "assemblyRevision": 2,
+    "bytes": 401076,
+    "materials": [
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyRedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      4.5,
+      3.4821362314400974,
+      4.404998874800633
+    ]
+  },
+  {
+    "id": "cargo_bench",
+    "model": "KB3D_ATP_PropBench_A",
+    "triangles": 2480,
+    "size": [
+      2.0999999046325684,
+      0.8392845392227173,
+      0.7961692810058594
+    ],
+    "assemblyRevision": 2,
+    "bytes": 183608,
+    "materials": [
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_LeatherCyanA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      2.1,
+      0.8392845631074192,
+      0.7961692646723026
+    ]
+  },
+  {
+    "id": "cargo_workbench",
+    "model": "KB3D_ATP_PropTable_H",
+    "triangles": 2104,
+    "size": [
+      2,
+      1.004909634590149,
+      1.4167815446853638
+    ],
+    "assemblyRevision": 2,
+    "bytes": 127732,
+    "materials": [
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      2.0,
+      1.0049096636349473,
+      1.4167815462476867
+    ]
+  },
+  {
+    "id": "cargo_desk",
+    "model": "KB3D_ECE_PropDesk_A",
+    "triangles": 6999,
+    "size": [
+      1.5999999046325684,
+      0.3784443438053131,
+      1.0819218158721924
+    ],
+    "assemblyRevision": 2,
+    "bytes": 451712,
+    "materials": [
+      {
+        "name": "KB3D_ECE_MetalPaintGray",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ECE_PlasticBlackD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ECE_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ECE_SteelWorn",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ECE_MetalPaintWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ECE",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.6,
+      0.3784443173492277,
+      1.081921885357497
+    ]
+  },
+  {
+    "id": "cargo_surgical_chair",
+    "model": "KB3D_CPI_PropSurgicalChair_A",
+    "triangles": 15997,
+    "size": [
+      1.7981627583503723,
+      1.3768394528706267,
+      1.5865336656570435
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1387264,
+    "materials": [
+      {
+        "name": "KB3D_CPI_MetalsTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_MetalsTrimB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_WhiteMetalTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_ColorPlasticTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_MetalPanelDarkTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_EmissiveLightTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_LeatherTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_ScreensGraphics",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_MetalPanelWhiteTrimStrapsA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_CPI_WireTrim",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "CPI",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.8,
+      1.3777863902017802,
+      1.5842471915064986
+    ]
+  },
+  {
+    "id": "cargo_potted_tree",
+    "model": "KB3D_NSF_PropPottedTree_A",
+    "triangles": 9999,
+    "size": [
+      1.2500001192092896,
+      2.803930833004415,
+      1.1306365728378296
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1268104,
+    "materials": [
+      {
+        "name": "KB3D_NSF_MetalBlack",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_NSF_GrassField",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_NSF_TreeWalnutBark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_NSF_CarolinaCherryBranch",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "NSF",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.25,
+      2.8049330212955654,
+      1.1303813332653094
+    ]
+  },
+  {
+    "id": "cargo_potted_tree_c",
+    "model": "KB3D_JPN_PropPottedTree_C",
+    "triangles": 10000,
+    "size": [
+      1.171106219291687,
+      1.8389911174308509,
+      1.2000000476837158
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1698444,
+    "materials": [
+      {
+        "name": "KB3D_JPN_LeafAtlas",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_JPN_PropPotsA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_JPN_SoilGround",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_JPN_AtlasLeaksSmall",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "JPN",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.1711062306326905,
+      1.8373513794037124,
+      1.2
+    ]
+  },
+  {
+    "id": "cargo_shrub_b",
+    "model": "KB3D_ENC_PropShrub_B",
+    "triangles": 5000,
+    "size": [
+      1.3719587326049805,
+      0.5086067617675099,
+      1.3403985500335693
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1454648,
+    "materials": [
+      {
+        "name": "KB3D_ENC_AtlasLeafA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_AtlasFlowersA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_AtlasLeafB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ENC",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.4,
+      0.502353075747796,
+      1.3495596954394578
+    ]
+  },
+  {
+    "id": "cargo_shrub_f",
+    "model": "KB3D_ENC_PropShrub_F",
+    "triangles": 5000,
+    "size": [
+      1.602110207080841,
+      0.9900820245966315,
+      1.426258623600006
+    ],
+    "assemblyRevision": 2,
+    "bytes": 1535840,
+    "materials": [
+      {
+        "name": "KB3D_ENC_AtlasFlowersA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_AtlasLeafB",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_AtlasLeafA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ENC",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.6,
+      1.0339301212455971,
+      1.4342523031230476
+    ]
+  },
+  {
+    "id": "cargo_natural_plant",
+    "model": "KB3D_ENC_PropPlant_A",
+    "triangles": 2510,
+    "size": [
+      1.0572394132614136,
+      0.7174066305160522,
+      1.1000001430511475
+    ],
+    "assemblyRevision": 2,
+    "bytes": 562324,
+    "materials": [
+      {
+        "name": "KB3D_ENC_AtlasLeafA",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ENC",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.057239409521747,
+      0.7174065776585505,
+      1.1
+    ]
+  },
+  {
+    "id": "cargo_tomato",
+    "model": "KB3D_MTM_PropCropTomatoes_A",
+    "triangles": 3124,
+    "size": [
+      0.6096541285514832,
+      0.93760085105896,
+      0.75
+    ],
+    "assemblyRevision": 2,
+    "bytes": 732140,
+    "materials": [
+      {
+        "name": "KB3D_MTM_PlantsHTC",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_MTM_WoodOldD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "MTM",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.6096541104560597,
+      0.9376008312130023,
+      0.75
+    ]
+  },
+  {
+    "id": "cargo_tomato_b",
+    "model": "KB3D_DMZ_Tomatoes_B",
+    "triangles": 3188,
+    "size": [
+      0.5690104961395264,
+      0.8750943541526794,
+      0.699999988079071
+    ],
+    "assemblyRevision": 2,
+    "bytes": 734060,
+    "materials": [
+      {
+        "name": "KB3D_DMZ_PlantsHTC",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_DMZ_WoodOldD",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "DMZ",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.5690105048425019,
+      0.8750943334949909,
+      0.7
+    ]
+  },
+  {
+    "id": "cargo_cucumber",
+    "model": "KB3D_CSK_PropCucumber_A",
+    "triangles": 3406,
+    "size": [
+      0.755761981010437,
+      0.5128343105316162,
+      0.800000011920929
+    ],
+    "assemblyRevision": 2,
+    "bytes": 624252,
+    "materials": [
+      {
+        "name": "KB3D_CSK_PlantsHTC",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "CSK",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.755762062716607,
+      0.5128343401263791,
+      0.8
+    ]
+  },
+  {
+    "id": "cargo_retro_table",
+    "model": "KB3D_ATP_PropTable_A",
+    "triangles": 2360,
+    "size": [
+      1.299989938735962,
+      0.5506846308708191,
+      1.2999999523162842
+    ],
+    "assemblyRevision": 2,
+    "bytes": 135720,
+    "materials": [
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_MetalShynyWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      1.299989914349553,
+      0.5506846498945855,
+      1.3
+    ]
+  },
+  {
+    "id": "cargo_retro_chair",
+    "model": "KB3D_ATP_PropChair_B",
+    "triangles": 5000,
+    "size": [
+      0.5666526556015015,
+      1.2255418300628662,
+      0.6499999761581421
+    ],
+    "assemblyRevision": 2,
+    "bytes": 286572,
+    "materials": [
+      {
+        "name": "KB3D_ATP_WoodVarnLightB",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_FabricWhiteA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_Chrome",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.5666526539946181,
+      1.2255321025147003,
+      0.65
+    ]
+  },
+  {
+    "id": "cargo_retro_lamp",
+    "model": "KB3D_ATP_PropLampPost_A",
+    "triangles": 5000,
+    "size": [
+      0.7999573349952698,
+      4.548654079437256,
+      0.800000011920929
+    ],
+    "assemblyRevision": 2,
+    "bytes": 201772,
+    "materials": [
+      {
+        "name": "KB3D_ATP_Steel",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ATP_EmissiveOff",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ATP",
+      "license": "Original KitBash3D asset licence"
+    },
+    "sourceSize": [
+      0.7999573262986384,
+      4.548653111300772,
+      0.8
+    ]
+  },
+  {
+    "id": "cargo_fixed_turret",
+    "model": "KB3D_BMK_PropSecurityTurret_A",
+    "triangles": 6192,
+    "size": [
+      1.424213171005249,
+      1.936069130897522,
+      2.200000047683716
+    ],
+    "assemblyRevision": 2,
+    "bytes": 394144,
+    "sourceSize": [
+      1.4242131927236434,
+      1.9360692113963807,
+      2.2
+    ],
+    "materials": [
+      {
+        "name": "KB3D_BMK_UNQSecurityTurretA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "BMK",
+      "license": "Original KitBash3D asset licence"
+    }
+  },
+  {
+    "id": "cargo_mobile_turret",
+    "model": "KB3D_BMK_PropGun_D",
+    "triangles": 6452,
+    "size": [
+      1.1999999284744263,
+      0.28935694694519043,
+      0.22227473556995392
+    ],
+    "assemblyRevision": 2,
+    "bytes": 419248,
+    "sourceSize": [
+      1.2,
+      0.28935693902734066,
+      0.22227474493075497
+    ],
+    "materials": [
+      {
+        "name": "KB3D_BMK_UNQGunsA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "BMK",
+      "license": "Original KitBash3D asset licence"
+    }
+  },
+  {
+    "id": "cargo_assault_rifle",
+    "model": "KB3D_SIN_PropAssaultRifle_A",
+    "triangles": 9999,
+    "size": [
+      0.9999949336051941,
+      0.2861121594905853,
+      0.07979043200612068
+    ],
+    "assemblyRevision": 2,
+    "bytes": 468648,
+    "sourceSize": [
+      0.9999999999999999,
+      0.28617907651652014,
+      0.07982072256527933
+    ],
+    "materials": [
+      {
+        "name": "KB3D_SIN_SteelBlackA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_SIN_MetalLightDark",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "SIN",
+      "license": "Original KitBash3D asset licence"
+    }
+  },
+  {
+    "id": "cargo_training_dummy",
+    "model": "KB3D_ENC_PropTranningDummy_B",
+    "triangles": 13950,
+    "size": [
+      0.8500000238418579,
+      1.5279853146348614,
+      0.3772106468677521
+    ],
+    "assemblyRevision": 2,
+    "bytes": 2405856,
+    "sourceSize": [
+      0.85,
+      1.5279371121055871,
+      0.37629640000270814
+    ],
+    "materials": [
+      {
+        "name": "KB3D_ENC_MetalForgedBlackRustedA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_WoodBarkA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_DummyTraining",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_RopesTrimA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_HaleBaleJ",
+        "alphaMode": "MASK",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_WoodOldWornBrightA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_WoodHeartwoodAtlas",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      },
+      {
+        "name": "KB3D_ENC_MetalForgedGrayA",
+        "alphaMode": "OPAQUE",
+        "doubleSided": true
+      }
+    ],
+    "credits": {
+      "creator": "KitBash3D",
+      "kitCode": "ENC",
+      "license": "Original KitBash3D asset licence"
+    }
+  }
+]

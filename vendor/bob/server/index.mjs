@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { VERSION, MAX_PLAYERS, ROOM_PATTERN, callname, validPose, sanitizeWorldState, sanitizeVehicleState } from '../src/multiplayer/protocol.js';
 import { FISH } from '../src/game/FishTable.js';
+import { createScenery, advanceScenery } from '../src/multiplayer/ScenicState.js';
 
 const forbid = socket => socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
 
@@ -31,6 +32,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 		...( room.world ? { world: room.world } : {} ),
 		vehicles: Object.fromEntries( room.vehicles || [] ),
 		crews: Object.fromEntries( room.crews ),
+		scenery: room.scenery,
 	} );
 	const broadcast = (room, message) => { for (const p of room.players.values()) send(p.ws, message); };
 	const leaveVehicle = (room, player) => {
@@ -57,7 +59,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				room = rooms.get(m.room);
 				if (room?.players.size >= maxPlayers) { send(ws, { type: 'error', message: `This crew is full (${maxPlayers} players).` }); ws.close(1008); return; }
 				if (!room) {
-					room = { players: new Map(), tally: { count: 0, kg: 0 }, vehicles: new Map(), crews: new Map(), world: sanitizeWorldState(m.world) };
+					room = { players: new Map(), tally: { count: 0, kg: 0 }, vehicles: new Map(), crews: new Map(), world: sanitizeWorldState(m.world), scenery: createScenery( now ) };
 					rooms.set(m.room, room);
 				}
 				// Keep overhead names unambiguous within a room.
@@ -65,7 +67,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				while ([...room.players.values()].some(p => p.name.toLowerCase() === unique.toLowerCase())) unique = name.slice(0, 16) + '-' + suffix++;
 				player = { id: randomUUID(), name: unique, avatar: m.avatar, ws, room: m.room, pose: null, catchSequence: 0, lastCatch: 0 };
 				room.players.set(player.id, player); clearTimeout(joinTimeout);
-				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room, vehicleCrew: true });
+				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room, vehicleCrew: true, scenicWorld: true });
 				if (room.gate) send(ws, { type: 'gate', value: room.gate });
 				broadcast(room, snapshot(room)); return;
 			}
@@ -123,7 +125,11 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 		});
 	});
 	// 20 Hz: clients interpolate between timestamped poses (PoseBuffer), so the rate sets latency, not smoothness
-	const tick = setInterval(() => { for (const room of rooms.values()) broadcast(room, snapshot(room)); }, 50);
+	const tick = setInterval(() => { for (const room of rooms.values()) {
+		const vehicles = [ ...room.vehicles.values() ].filter( v => room.crews.get( v.id )?.driver );
+		advanceScenery( room.scenery, ( Date.now() - room.scenery.epoch ) / 1000, vehicles );
+		broadcast(room, snapshot(room));
+	} }, 50);
 	const heartbeat = setInterval(() => {
 		for (const ws of wss.clients) { if (!ws.alive) ws.terminate(); else { ws.alive = false; ws.ping(); } }
 	}, 15000);
