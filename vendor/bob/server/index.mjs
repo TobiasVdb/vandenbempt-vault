@@ -4,15 +4,20 @@ import { resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
-import { VERSION, MAX_PLAYERS, ROOM_PATTERN, callname, validPose, sanitizeWorldState, sanitizeVehicleState } from '../src/multiplayer/protocol.js';
+import { VERSION, MAX_PLAYERS, ROOM_PATTERN, callname, chatText, validPose, sanitizeWorldState, sanitizeVehicleState } from '../src/multiplayer/protocol.js';
+import { sanitizeActivity } from '../src/multiplayer/Usage.js';
+import { createUsageMetrics } from './usage.mjs';
 import { FISH } from '../src/game/FishTable.js';
 import { createScenery, advanceScenery } from '../src/multiplayer/ScenicState.js';
+import { createPerformanceApi } from './performance.mjs';
+export { createPerformanceApi } from './performance.mjs';
+export { createUsageMetrics } from './usage.mjs';
 
 const forbid = socket => socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
 
 // One process owns each room. No database, accounts, or client-supplied player IDs.
 // No HTTP server of its own: a host app routes its chosen upgrade path to handleUpgrade.
-export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers = MAX_PLAYERS } = {}) {
+export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers = MAX_PLAYERS, usageMetrics } = {}) {
 	const rooms = new Map();
 	const wss = new WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
 	const handleUpgrade = (req, socket, head) => {
@@ -65,9 +70,10 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				// Keep overhead names unambiguous within a room.
 				let unique = name, suffix = 2;
 				while ([...room.players.values()].some(p => p.name.toLowerCase() === unique.toLowerCase())) unique = name.slice(0, 16) + '-' + suffix++;
-				player = { id: randomUUID(), name: unique, avatar: m.avatar, ws, room: m.room, pose: null, catchSequence: 0, lastCatch: 0 };
+				player = { id: randomUUID(), name: unique, username:name, avatar: m.avatar, ws, room: m.room, pose: null, catchSequence: 0, lastCatch: 0, lastChat:-Infinity };
+				usageMetrics?.join(player.id,name);
 				room.players.set(player.id, player); clearTimeout(joinTimeout);
-				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room, vehicleCrew: true, scenicWorld: true });
+				send(ws, { type: 'welcome', id: player.id, name: unique, room: m.room, vehicleCrew: true, scenicWorld: true, chat:true, usageMetrics:!!usageMetrics });
 				if (room.gate) send(ws, { type: 'gate', value: room.gate });
 				broadcast(room, snapshot(room)); return;
 			}
@@ -76,6 +82,16 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 				player.pose = { position: p.position, yaw: p.yaw, mode: p.mode, fishing: p.fishing,
 					...(p.t !== undefined ? { t: p.t } : {}), ...(p.local ? { local: p.local } : {}),
 					boat: p.boat ? { position: p.boat.position, rotation: p.boat.rotation, ...(p.boat.quat ? { quat: p.boat.quat } : {}), ...(p.boat.kind ? { kind: p.boat.kind } : {}) } : null };
+				usageMetrics?.update(player.id,{...player.activity,vehicle:['boat','deck','passenger'].includes(p.mode)?p.boat?.kind:null});
+			}
+			if(m.type==='activity'){
+				const activity=sanitizeActivity(m.activity);
+				if(activity&&player.pose)player.activity=activity;
+			}
+			if(m.type==='metrics'&&usageMetrics)send(ws,{type:'metrics',metrics:usageMetrics.get(player.username)});
+			if(m.type==='chat'&&now-player.lastChat>=1000){
+				const text=chatText(m.text);
+				if(text){player.lastChat=now;broadcast(room,{type:'chat',id:randomUUID(),sender:player.id,name:player.name,text,sentAt:now});}
 			}
 			if (m.type === 'board' && typeof m.id === 'string' && /^[a-z0-9@-]{1,48}$/.test(m.id) && Number.isSafeInteger(m.request)) {
 				const crew = room.crews.get(m.id) || { driver: null, passenger: null };
@@ -119,6 +135,7 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 		ws.on('close', () => {
 			clearTimeout(joinTimeout);
 			if (!player) return;
+			usageMetrics?.leave(player.id);
 			leaveVehicle(room, player);
 			room.players.delete(player.id);
 			if (!room.players.size) rooms.delete(player.room); else broadcast(room, snapshot(room));
@@ -141,10 +158,12 @@ export function createCoopRooms({ origins = [], maxConnections = 256, maxPlayers
 }
 
 // Standalone host: the built game, /coop and /health from one process.
-export function createCoopServer({ root = resolve('dist'), origins = [], maxConnections = 256 } = {}) {
-	const coop = createCoopRooms({ origins, maxConnections });
+export function createCoopServer({ root = resolve('dist'), origins = [], maxConnections = 256, performanceDirectory, usageMetrics } = {}) {
+	const coop = createCoopRooms({ origins, maxConnections, usageMetrics });
+	const performanceApi = createPerformanceApi({directory:performanceDirectory,origins});
 	const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.woff2': 'font/woff2' };
 	const server = createServer(async (req, res) => {
+		if (new URL(req.url,'http://localhost').pathname==='/api/performance') { await performanceApi.handle(req,res);return; }
 		if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: coop.rooms.size })); return; }
 		if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return; }
 		try {
@@ -157,12 +176,15 @@ export function createCoopServer({ root = resolve('dist'), origins = [], maxConn
 	});
 	server.on('upgrade', (req, socket, head) => { if (req.url === '/coop') coop.handleUpgrade(req, socket, head); else forbid(socket); });
 	return { server, rooms: coop.rooms, close: async () => {
+		await performanceApi.close();
 		await coop.close();
+		await usageMetrics?.close();
 		await new Promise(r => server.close(r));
 	} };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-	const app = createCoopServer({ origins: (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean) });
+	const usageMetrics = await createUsageMetrics();
+	const app = createCoopServer({ origins: (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean), usageMetrics });
 	app.server.listen(Number(process.env.PORT || 8787), process.env.HOST || '0.0.0.0', () => console.log('BOB co-op listening on', app.server.address()));
 	for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await app.close(); process.exit(0); });
 }

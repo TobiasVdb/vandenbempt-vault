@@ -7,6 +7,10 @@ export { sanitizeWorldState, sanitizeVehicleState } from './WorldState.js';
 export function callname(value) {
 	return typeof value === 'string' ? value.normalize('NFKC').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 20) : '';
 }
+export function chatText(value) {
+	if(typeof value!=='string'||value.length>300)return '';
+	return value.normalize('NFKC').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,300);
+}
 const vector = (v, n, bound) => Array.isArray(v) && v.length === n && v.every(x => Number.isFinite(x) && Math.abs(x) <= bound);
 export function validPose(p) {
 	return p && vector(p.position, 3, 30000) && Number.isFinite(p.yaw) && Math.abs(p.yaw) < 10000

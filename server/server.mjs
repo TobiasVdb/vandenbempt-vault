@@ -18,6 +18,11 @@ const distDir = path.resolve(process.cwd(), 'dist')
 // BOB is exported here by the BOB repo (npm run export:hot); the site runs without it.
 const bobDir = path.resolve(process.cwd(), 'vendor', 'bob')
 const BOB_COOP_PATH = '/bob/coop'
+const bobModule = fs.existsSync(path.join(bobDir, 'dist', 'index.html'))
+  ? await import(pathToFileURL(path.join(bobDir, 'server', 'index.mjs')).href)
+  : null
+const bobUsage = bobModule ? await bobModule.createUsageMetrics() : null
+const bobPerformance = bobModule ? bobModule.createPerformanceApi() : null
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i
 const DIGITALOCEAN_APP_ORIGIN_PATTERN = /^https:\/\/[\w-]+\.ondigitalocean\.app$/i
 const FROST_DESIGN_ORIGINS = new Set([
@@ -154,6 +159,10 @@ app.use((request, response, next) => {
   next()
 })
 
+// Let BOB's bounded streaming handler read the body before Express consumes it.
+if (bobPerformance) app.all('/bob/api/performance', async (request, response) => {
+  await bobPerformance.handle(request, response)
+})
 app.use(express.json({ limit: '1mb' }))
 
 const upload = multer({
@@ -3180,8 +3189,8 @@ app.delete('/api/glb/:id', async (request, response) => {
   }
 })
 
-const bobCoop = fs.existsSync(path.join(bobDir, 'dist', 'index.html'))
-  ? (await import(pathToFileURL(path.join(bobDir, 'server', 'index.mjs')).href)).createCoopRooms({ maxPlayers: 32 })
+const bobCoop = bobModule
+  ? bobModule.createCoopRooms({ maxPlayers: 32, usageMetrics: bobUsage })
   : null
 if (bobCoop) {
   // Missing BOB files 404 instead of falling through to the site's index.html.
