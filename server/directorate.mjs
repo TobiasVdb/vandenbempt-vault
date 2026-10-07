@@ -54,7 +54,7 @@ export function registerDirectorate(app, {
   api.use((error, _req, res, _next) => res.status(error.status === 413 ? 413 : 400).json({ error: 'Invalid or oversized request.' }))
   // Before the host's JSON parser and general SPA fallback.
   app.use('/directorate/api', api)
-  app.get('/directorate', (_req, res) => res.redirect(301, '/directorate/'))
+  app.get(/^\/directorate$/, (_req, res) => res.redirect(301, '/directorate/'))
   app.use('/directorate', express.static(directory), (_req, res) => {
     if (fs.existsSync(path.join(directory, 'index.html'))) res.sendFile(path.join(directory, 'index.html'))
     else res.status(503).send('Directorate build is not available.')

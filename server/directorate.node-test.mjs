@@ -16,6 +16,8 @@ test('Directorate forwards credentials to a fixed TLS collector and isolates err
   const base = `http://127.0.0.1:${server.address().port}/directorate/api`
   const headers = { Authorization: 'Bearer test-token' }
   try {
+    assert.equal((await fetch(base.replace('/api', ''), { redirect: 'manual' })).status, 301)
+    assert.equal((await fetch(base.replace('/api', '/') )).status, 200)
     assert.equal((await fetch(base + '/projects')).status, 401)
     assert.equal((await fetch(base + '/projects', { headers: { ...headers, Origin: 'https://foreign.example' } })).status, 403)
     assert.equal((await fetch(base + '/projects', { headers })).status, 200)
