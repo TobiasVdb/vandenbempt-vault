@@ -14,7 +14,12 @@ import { registerDirectorate } from './directorate.mjs'
 
 const { Pool } = pg
 const app = express()
-registerDirectorate(app)
+registerDirectorate(app, { bobSnapshot: () => ({
+  metrics: bobUsage?.summary?.() ?? null,
+  active_rooms: bobCoop?.rooms.size ?? 0,
+  websocket_players: bobCoop ? [...bobCoop.rooms.values()].reduce((total, room) => total + room.players.size, 0) : 0,
+  host_uptime_seconds: Math.floor(process.uptime()),
+}) })
 const port = Number(process.env.PORT || 8080)
 const distDir = path.resolve(process.cwd(), 'dist')
 // BOB is exported here by the BOB repo (npm run export:hot); the site runs without it.

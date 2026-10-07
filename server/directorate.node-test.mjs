@@ -31,3 +31,21 @@ test('Directorate forwards credentials to a fixed TLS collector and isolates err
     assert.doesNotMatch(await failed.text(), /sensitive/)
   } finally { await new Promise((resolve) => server.close(resolve)) }
 })
+
+test('BOB aggregates require collector-verified admin authentication', async () => {
+  let snapshots=0;
+  const app=express();
+  registerDirectorate(app,{bobSnapshot:()=>{snapshots++;return {metrics:{online_users:2}}},
+    request:async (_url,options)=>new Response('{}',{status:options.headers.Authorization==='Bearer valid-admin'?200:401})});
+  const server=app.listen(0,'127.0.0.1');
+  await new Promise(resolve=>server.once('listening',resolve));
+  const url=`http://127.0.0.1:${server.address().port}/directorate/api/bob-metrics`;
+  try {
+    assert.equal((await fetch(url)).status,401);
+    assert.equal((await fetch(url,{headers:{Authorization:'Bearer invalid'}})).status,401);
+    assert.equal(snapshots,0);
+    const response=await fetch(url,{headers:{Authorization:'Bearer valid-admin'}});
+    assert.equal(response.status,200);assert.deepEqual(await response.json(),{metrics:{online_users:2}});
+    assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(snapshots,1);
+  } finally {await new Promise(resolve=>server.close(resolve))}
+})

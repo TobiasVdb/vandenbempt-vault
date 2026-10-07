@@ -7,6 +7,7 @@ export function registerDirectorate(app, {
   directory = path.resolve('vendor/directorate/dist'),
   upstream = process.env.DIRECTORATE_COLLECTOR_URL || 'https://atelierav.be/directorate',
   request = fetch,
+  bobSnapshot,
 } = {}) {
   const base = new URL(upstream.replace(/\/$/, '') + '/')
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash)
@@ -24,6 +25,17 @@ export function registerDirectorate(app, {
     next()
   })
   api.use(express.raw({ limit: '64kb', type: () => true }))
+  api.get('/bob-metrics', async (req, res) => {
+    if (!bobSnapshot) return res.status(503).json({ error: 'BOB metrics unavailable.' })
+    try {
+      const authorized = await request(new URL('api/projects', base), {
+        headers: { Authorization: req.headers.authorization }, signal: AbortSignal.timeout(10000), redirect: 'error',
+      })
+      await authorized.body?.cancel()
+      if (authorized.status !== 200) return res.status(authorized.status === 401 ? 401 : 502).json({ error: 'BOB metrics access denied.' })
+      res.set('Cache-Control', 'no-store').json(bobSnapshot())
+    } catch { res.status(502).json({ error: 'BOB metrics unavailable.' }) }
+  })
   api.use(async (req, res) => {
     const valid = (req.method === 'GET' && /^\/(health|projects|activity|push\/config|projects\/[^/]+\/history)$/.test(req.path))
       || (req.method === 'POST' && /^\/(projects|v1\/ingest|push\/(subscribe|unsubscribe|test)|projects\/[^/]+\/(rotate-key|important-metrics))$/.test(req.path))

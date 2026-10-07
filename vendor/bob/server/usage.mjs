@@ -38,6 +38,12 @@ export async function createUsageMetrics({ directory=process.env.USAGE_LOG_DIR |
 		update(id,{vehicle,airborne,highlight}){const s=sessions.get(id);if(!s)return;advance(s);s.activityAt=now();s.vehicle=vehicleType(vehicle);s.airborne=airborne===true;if(HIGHLIGHTS.includes(highlight)&&!s.record.highlights.includes(highlight))s.record.highlights.push(highlight);},
 		leave(id){const s=sessions.get(id);if(s){advance(s);sessions.delete(id);}},
 		get(username){for(const s of sessions.values())advance(s);const r=users.get(username.toLowerCase());return r?structuredClone({...r,highlightCount:r.highlights.length}):null;},
+		summary(){
+			for(const s of sessions.values())advance(s);
+			const totals={online_users:sessions.size,tracked_profiles:users.size,tracked_sessions_total:0,online_time_ms_total:0,flight_time_ms_total:0,boat_time_ms_total:0,highlights_total:0};
+			for(const r of users.values()){totals.tracked_sessions_total+=r.sessions;totals.online_time_ms_total+=r.onlineMs;totals.flight_time_ms_total+=r.flightMs;totals.boat_time_ms_total+=r.boatMs;totals.highlights_total+=r.highlights.length;}
+			return totals;
+		},
 		flush,
 		async close(){clearInterval(timer);for(const id of sessions.keys())this.leave(id);await flush();},
 	};
