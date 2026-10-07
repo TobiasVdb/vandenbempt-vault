@@ -25,8 +25,8 @@ export function registerDirectorate(app, {
   })
   api.use(express.raw({ limit: '64kb', type: () => true }))
   api.use(async (req, res) => {
-    const valid = (req.method === 'GET' && /^\/(health|projects|activity|projects\/[^/]+\/history)$/.test(req.path))
-      || (req.method === 'POST' && /^\/(projects|v1\/ingest|projects\/[^/]+\/rotate-key)$/.test(req.path))
+    const valid = (req.method === 'GET' && /^\/(health|projects|activity|push\/config|projects\/[^/]+\/history)$/.test(req.path))
+      || (req.method === 'POST' && /^\/(projects|v1\/ingest|push\/(subscribe|unsubscribe|test)|projects\/[^/]+\/(rotate-key|important-metrics))$/.test(req.path))
     if (!valid) return res.status(404).json({ error: 'Not found' })
     const target = new URL('api' + req.url, base)
     // Express paths and query parameters cannot replace the fixed upstream origin.
