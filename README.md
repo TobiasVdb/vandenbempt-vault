@@ -1,5 +1,9 @@
 # House of Tobias
 
+## Directorate
+
+The project telemetry dashboard is served at `/directorate/` from the generated `vendor/directorate` export. Rebuild it from `D:\dev\DirectorateOfOnlineSystems` with `node scripts/export-hot.mjs <this checkout>`; do not edit the export. Its API proxies to `https://atelierav.be/directorate` (optional override: `DIRECTORATE_COLLECTOR_URL`, HTTPS only). The collector runs separately with persistent SQLite on Atelier AV's server, since App Platform's local filesystem is ephemeral. Dashboard administration requires its admin bearer token; reporters use separate project ingestion keys. The proxy stores neither secret and rejects cross-origin requests, oversized bodies, redirects, and unknown API routes.
+
 ## Ring Eater service
 
 The Express server exposes the shared-world API at `/api/ring-eater` and its WebSocket endpoint at `/api/ring-eater/live`. It creates its additive PostgreSQL tables during the existing database startup and uses the configured `DATABASE_URL` or `PG*` variables.

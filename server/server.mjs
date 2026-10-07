@@ -10,9 +10,11 @@ import { seedFlights } from '../scripts/import-flights-once.mjs'
 import { createFamilyTasksService, initializeFamilyTasksDatabase } from './family-tasks.mjs'
 import { createRingEaterService, initializeRingEaterDatabase } from './ring-eater.mjs'
 import { createGenkStandbyService } from './genk-standby.mjs'
+import { registerDirectorate } from './directorate.mjs'
 
 const { Pool } = pg
 const app = express()
+registerDirectorate(app)
 const port = Number(process.env.PORT || 8080)
 const distDir = path.resolve(process.cwd(), 'dist')
 // BOB is exported here by the BOB repo (npm run export:hot); the site runs without it.
