@@ -1,0 +1,944 @@
+{
+  "version": "be71a0536fa05ea5",
+  "timezone": "America/New_York",
+  "days": [
+    {
+      "date": 23,
+      "name": "Vrijdag",
+      "stops": [
+        {
+          "name": "Aankomst JFK + transfer",
+          "start": 780,
+          "end": 900,
+          "departure": 780,
+          "latitude": 40.6413,
+          "longitude": -73.7781,
+          "transfer": true,
+          "booking": false,
+          "next": "Hotel Edison",
+          "mode": "AirTrain JFK · Jamaica · LIRR · Penn Station"
+        },
+        {
+          "name": "Hotel Edison",
+          "start": 900,
+          "end": 960,
+          "departure": 948,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": false,
+          "booking": false,
+          "next": "Radio City Music Hall",
+          "mode": "Walk"
+        },
+        {
+          "name": "Radio City Music Hall",
+          "start": 960,
+          "end": 990,
+          "departure": 986,
+          "latitude": 40.76,
+          "longitude": -73.98,
+          "transfer": false,
+          "booking": false,
+          "next": "Rockefeller Center",
+          "mode": "Walk"
+        },
+        {
+          "name": "Rockefeller Center",
+          "start": 990,
+          "end": 1020,
+          "departure": 1015,
+          "latitude": 40.7587,
+          "longitude": -73.9787,
+          "transfer": false,
+          "booking": false,
+          "next": "St. Patrick’s Cathedral",
+          "mode": "Walk"
+        },
+        {
+          "name": "St. Patrick’s Cathedral",
+          "start": 1020,
+          "end": 1050,
+          "departure": 1033,
+          "latitude": 40.7585,
+          "longitude": -73.976,
+          "transfer": false,
+          "booking": false,
+          "next": "Wine hour · Hotel Edison",
+          "mode": "Walk"
+        },
+        {
+          "name": "Wine hour · Hotel Edison",
+          "start": 1050,
+          "end": 1110,
+          "departure": 1110,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": false,
+          "booking": false,
+          "next": "Diner in Midtown",
+          "mode": "Walk"
+        },
+        {
+          "name": "Diner in Midtown",
+          "start": 1140,
+          "end": 1230,
+          "departure": 1223,
+          "latitude": 40.7603,
+          "longitude": -73.9902,
+          "transfer": false,
+          "booking": false,
+          "next": "Times Square",
+          "mode": "Walk"
+        },
+        {
+          "name": "Times Square",
+          "start": 1230,
+          "end": 1320,
+          "departure": 1320,
+          "latitude": 40.758,
+          "longitude": -73.9855,
+          "transfer": false,
+          "booking": false,
+          "next": "Hotel Edison / terug voor de nacht",
+          "mode": "Walk"
+        },
+        {
+          "name": "Hotel Edison / terug voor de nacht",
+          "start": 1330,
+          "end": 1330,
+          "departure": 1330,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": false,
+          "booking": false,
+          "next": null,
+          "mode": null
+        }
+      ]
+    },
+    {
+      "date": 24,
+      "name": "Zaterdag",
+      "stops": [
+        {
+          "name": "Hotel Edison / naar DUMBO",
+          "start": 540,
+          "end": 570,
+          "departure": 540,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": true,
+          "booking": false,
+          "next": "Washington Street",
+          "mode": "Metro A"
+        },
+        {
+          "name": "Washington Street",
+          "start": 570,
+          "end": 600,
+          "departure": 597,
+          "latitude": 40.7033,
+          "longitude": -73.9894,
+          "transfer": false,
+          "booking": false,
+          "next": "Pebble Beach",
+          "mode": "Walk"
+        },
+        {
+          "name": "Pebble Beach",
+          "start": 600,
+          "end": 630,
+          "departure": 609,
+          "latitude": 40.7044,
+          "longitude": -73.9903,
+          "transfer": false,
+          "booking": false,
+          "next": "Brooklyn Bridge",
+          "mode": "Walk"
+        },
+        {
+          "name": "Brooklyn Bridge",
+          "start": 630,
+          "end": 675,
+          "departure": 668,
+          "latitude": 40.707238,
+          "longitude": -73.998234,
+          "transfer": false,
+          "booking": false,
+          "next": "Time Out Market",
+          "mode": "Walk"
+        },
+        {
+          "name": "Time Out Market",
+          "start": 690,
+          "end": 750,
+          "departure": 746,
+          "latitude": 40.7033,
+          "longitude": -73.9915,
+          "transfer": false,
+          "booking": false,
+          "next": "Ferry richting Hudson Yards",
+          "mode": "Walk"
+        },
+        {
+          "name": "Ferry richting Hudson Yards",
+          "start": 750,
+          "end": 810,
+          "departure": 750,
+          "latitude": 40.7036,
+          "longitude": -73.994,
+          "transfer": true,
+          "booking": false,
+          "next": "Hudson Yards",
+          "mode": "DUMBO · Wall Street · te voet naar Battery Park City · ferry naar Pier 79"
+        },
+        {
+          "name": "Hudson Yards",
+          "start": 810,
+          "end": 855,
+          "departure": 855,
+          "latitude": 40.7538,
+          "longitude": -74.0022,
+          "transfer": false,
+          "booking": false,
+          "next": "Naar One Vanderbilt",
+          "mode": "Walk"
+        },
+        {
+          "name": "Naar One Vanderbilt",
+          "start": 855,
+          "end": 900,
+          "departure": 855,
+          "latitude": 40.7538,
+          "longitude": -74.0022,
+          "transfer": true,
+          "booking": false,
+          "next": "SUMMIT One Vanderbilt",
+          "mode": "Metro 7"
+        },
+        {
+          "name": "SUMMIT One Vanderbilt",
+          "start": 930,
+          "end": 1110,
+          "departure": 1106,
+          "latitude": 40.7529,
+          "longitude": -73.9785,
+          "transfer": false,
+          "booking": true,
+          "next": "Diner / drink",
+          "mode": "Walk"
+        },
+        {
+          "name": "Diner / drink",
+          "start": 1110,
+          "end": 1170,
+          "departure": 1170,
+          "latitude": 40.7541,
+          "longitude": -73.9799,
+          "transfer": false,
+          "booking": false,
+          "next": "Lincoln Center / Juilliard",
+          "mode": "Metro D"
+        },
+        {
+          "name": "Lincoln Center / Juilliard",
+          "start": 1200,
+          "end": 1290,
+          "departure": 1283,
+          "latitude": 40.7725,
+          "longitude": -73.9835,
+          "transfer": false,
+          "booking": false,
+          "next": "Eventueel nog een bar",
+          "mode": "Walk"
+        },
+        {
+          "name": "Eventueel nog een bar",
+          "start": 1290,
+          "end": 1350,
+          "departure": 1350,
+          "latitude": 40.7733,
+          "longitude": -73.9854,
+          "transfer": false,
+          "booking": false,
+          "next": "Hotel Edison / terug voor de nacht",
+          "mode": "Metro 1"
+        },
+        {
+          "name": "Hotel Edison / terug voor de nacht",
+          "start": 1380,
+          "end": 1380,
+          "departure": 1380,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": false,
+          "booking": false,
+          "next": null,
+          "mode": null
+        }
+      ]
+    },
+    {
+      "date": 25,
+      "name": "Zondag",
+      "stops": [
+        {
+          "name": "Hotel Edison / vertrek",
+          "start": 540,
+          "end": 570,
+          "departure": 540,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": true,
+          "booking": false,
+          "next": "Grand Central Terminal",
+          "mode": "Walk"
+        },
+        {
+          "name": "Grand Central Terminal",
+          "start": 570,
+          "end": 615,
+          "departure": 605,
+          "latitude": 40.7527,
+          "longitude": -73.9772,
+          "transfer": false,
+          "booking": false,
+          "next": "Bryant Park / Fifth Avenue",
+          "mode": "Walk"
+        },
+        {
+          "name": "Bryant Park / Fifth Avenue",
+          "start": 615,
+          "end": 660,
+          "departure": 654,
+          "latitude": 40.7536,
+          "longitude": -73.9832,
+          "transfer": false,
+          "booking": false,
+          "next": "Brunch / rustige buffer",
+          "mode": "Walk"
+        },
+        {
+          "name": "Brunch / rustige buffer",
+          "start": 660,
+          "end": 750,
+          "departure": 750,
+          "latitude": 40.7527,
+          "longitude": -73.9848,
+          "transfer": false,
+          "booking": false,
+          "next": "NYPL Schwarzman Building",
+          "mode": "Walk"
+        },
+        {
+          "name": "NYPL Schwarzman Building",
+          "start": 780,
+          "end": 840,
+          "departure": 840,
+          "latitude": 40.7532,
+          "longitude": -73.9822,
+          "transfer": false,
+          "booking": false,
+          "next": "Metro richting Downtown",
+          "mode": "Walk"
+        },
+        {
+          "name": "Metro richting Downtown",
+          "start": 840,
+          "end": 870,
+          "departure": 840,
+          "latitude": 40.7532,
+          "longitude": -73.9822,
+          "transfer": true,
+          "booking": false,
+          "next": "Wall Street",
+          "mode": "Metro 4"
+        },
+        {
+          "name": "Wall Street",
+          "start": 870,
+          "end": 900,
+          "departure": 895,
+          "latitude": 40.7075,
+          "longitude": -74.0108,
+          "transfer": false,
+          "booking": false,
+          "next": "Charging Bull",
+          "mode": "Walk"
+        },
+        {
+          "name": "Charging Bull",
+          "start": 900,
+          "end": 920,
+          "departure": 913,
+          "latitude": 40.7056,
+          "longitude": -74.0134,
+          "transfer": false,
+          "booking": false,
+          "next": "Stone Street",
+          "mode": "Walk"
+        },
+        {
+          "name": "Stone Street",
+          "start": 920,
+          "end": 975,
+          "departure": 959,
+          "latitude": 40.7044,
+          "longitude": -74.0101,
+          "transfer": false,
+          "booking": false,
+          "next": "9/11 Memorial",
+          "mode": "Walk"
+        },
+        {
+          "name": "9/11 Memorial",
+          "start": 975,
+          "end": 1020,
+          "departure": 1015,
+          "latitude": 40.7115,
+          "longitude": -74.0134,
+          "transfer": false,
+          "booking": false,
+          "next": "Oculus",
+          "mode": "Walk"
+        },
+        {
+          "name": "Oculus",
+          "start": 1020,
+          "end": 1050,
+          "departure": 1045,
+          "latitude": 40.7126,
+          "longitude": -74.0113,
+          "transfer": false,
+          "booking": false,
+          "next": "One World / WTC-zone",
+          "mode": "Walk"
+        },
+        {
+          "name": "One World / WTC-zone",
+          "start": 1050,
+          "end": 1095,
+          "departure": 1095,
+          "latitude": 40.713,
+          "longitude": -74.0133,
+          "transfer": false,
+          "booking": false,
+          "next": "Tribeca, Chinatown of diner",
+          "mode": "Walk"
+        },
+        {
+          "name": "Tribeca, Chinatown of diner",
+          "start": 1110,
+          "end": 1200,
+          "departure": 1200,
+          "latitude": 40.7163,
+          "longitude": -74.0086,
+          "transfer": false,
+          "booking": false,
+          "next": "Hotel Edison / terug voor de nacht",
+          "mode": "Metro 2"
+        },
+        {
+          "name": "Hotel Edison / terug voor de nacht",
+          "start": 1245,
+          "end": 1245,
+          "departure": 1245,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": false,
+          "booking": false,
+          "next": null,
+          "mode": null
+        }
+      ]
+    },
+    {
+      "date": 26,
+      "name": "Maandag",
+      "stops": [
+        {
+          "name": "Hotel Edison / vertrek",
+          "start": 525,
+          "end": 570,
+          "departure": 525,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": true,
+          "booking": false,
+          "next": "Central Park",
+          "mode": "Metro A"
+        },
+        {
+          "name": "Central Park",
+          "start": 570,
+          "end": 690,
+          "departure": 668,
+          "latitude": 40.7744,
+          "longitude": -73.9708,
+          "transfer": false,
+          "booking": false,
+          "next": "Upper West Side",
+          "mode": "Walk"
+        },
+        {
+          "name": "Upper West Side",
+          "start": 690,
+          "end": 780,
+          "departure": 775,
+          "latitude": 40.781,
+          "longitude": -73.9793,
+          "transfer": false,
+          "booking": false,
+          "next": "Lunch",
+          "mode": "Walk"
+        },
+        {
+          "name": "Lunch",
+          "start": 780,
+          "end": 840,
+          "departure": 828,
+          "latitude": 40.7793,
+          "longitude": -73.9816,
+          "transfer": false,
+          "booking": false,
+          "next": "Vrije tijd / laatste wandeling",
+          "mode": "Walk"
+        },
+        {
+          "name": "Vrije tijd / laatste wandeling",
+          "start": 840,
+          "end": 900,
+          "departure": 875,
+          "latitude": 40.7738,
+          "longitude": -73.978,
+          "transfer": false,
+          "booking": false,
+          "next": "Hotel Edison / bagage",
+          "mode": "Metro A"
+        },
+        {
+          "name": "Hotel Edison / bagage",
+          "start": 900,
+          "end": 930,
+          "departure": 930,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": false,
+          "booking": false,
+          "next": "Vertrek richting EWR",
+          "mode": "Walk"
+        },
+        {
+          "name": "Vertrek richting EWR",
+          "start": 960,
+          "end": 1080,
+          "departure": 960,
+          "latitude": 40.759,
+          "longitude": -73.9864,
+          "transfer": true,
+          "booking": false,
+          "next": "Vlucht vanaf Newark",
+          "mode": "Penn Station · NJ TRANSIT · Newark Airport Rail Station · AirTrain"
+        },
+        {
+          "name": "Vlucht vanaf Newark",
+          "start": 1195,
+          "end": 1195,
+          "departure": 1195,
+          "latitude": 40.6895,
+          "longitude": -74.1745,
+          "transfer": true,
+          "booking": false,
+          "next": null,
+          "mode": null
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "nyc-23-1-5",
+      "at": 1792784580000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Hotel Edison → Radio City Music Hall. Vertrek 15:48 (New York)."
+    },
+    {
+      "id": "nyc-23-1-0",
+      "at": 1792784880000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Hotel Edison → Radio City Music Hall. Vertrek 15:48 (New York)."
+    },
+    {
+      "id": "nyc-23-2-5",
+      "at": 1792786860000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Radio City Music Hall → Rockefeller Center. Vertrek 16:26 (New York)."
+    },
+    {
+      "id": "nyc-23-2-0",
+      "at": 1792787160000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Radio City Music Hall → Rockefeller Center. Vertrek 16:26 (New York)."
+    },
+    {
+      "id": "nyc-23-3-5",
+      "at": 1792788600000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Rockefeller Center → St. Patrick’s Cathedral. Vertrek 16:55 (New York)."
+    },
+    {
+      "id": "nyc-23-3-0",
+      "at": 1792788900000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Rockefeller Center → St. Patrick’s Cathedral. Vertrek 16:55 (New York)."
+    },
+    {
+      "id": "nyc-23-4-5",
+      "at": 1792789680000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: St. Patrick’s Cathedral → Wine hour · Hotel Edison. Vertrek 17:13 (New York)."
+    },
+    {
+      "id": "nyc-23-4-0",
+      "at": 1792789980000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: St. Patrick’s Cathedral → Wine hour · Hotel Edison. Vertrek 17:13 (New York)."
+    },
+    {
+      "id": "nyc-23-5-5",
+      "at": 1792794300000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Wine hour · Hotel Edison → Diner in Midtown. Vertrek 18:30 (New York)."
+    },
+    {
+      "id": "nyc-23-5-0",
+      "at": 1792794600000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Wine hour · Hotel Edison → Diner in Midtown. Vertrek 18:30 (New York)."
+    },
+    {
+      "id": "nyc-23-6-5",
+      "at": 1792801080000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Diner in Midtown → Times Square. Vertrek 20:23 (New York)."
+    },
+    {
+      "id": "nyc-23-6-0",
+      "at": 1792801380000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Diner in Midtown → Times Square. Vertrek 20:23 (New York)."
+    },
+    {
+      "id": "nyc-23-7-5",
+      "at": 1792806900000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Times Square → Hotel Edison / terug voor de nacht. Vertrek 22:00 (New York)."
+    },
+    {
+      "id": "nyc-23-7-0",
+      "at": 1792807200000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Times Square → Hotel Edison / terug voor de nacht. Vertrek 22:00 (New York)."
+    },
+    {
+      "id": "nyc-24-1-5",
+      "at": 1792849920000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Washington Street → Pebble Beach. Vertrek 09:57 (New York)."
+    },
+    {
+      "id": "nyc-24-1-0",
+      "at": 1792850220000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Washington Street → Pebble Beach. Vertrek 09:57 (New York)."
+    },
+    {
+      "id": "nyc-24-2-5",
+      "at": 1792850640000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Pebble Beach → Brooklyn Bridge. Vertrek 10:09 (New York)."
+    },
+    {
+      "id": "nyc-24-2-0",
+      "at": 1792850940000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Pebble Beach → Brooklyn Bridge. Vertrek 10:09 (New York)."
+    },
+    {
+      "id": "nyc-24-3-5",
+      "at": 1792854180000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Brooklyn Bridge → Time Out Market. Vertrek 11:08 (New York)."
+    },
+    {
+      "id": "nyc-24-3-0",
+      "at": 1792854480000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Brooklyn Bridge → Time Out Market. Vertrek 11:08 (New York)."
+    },
+    {
+      "id": "nyc-24-4-5",
+      "at": 1792858860000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Time Out Market → Ferry richting Hudson Yards. Vertrek 12:26 (New York)."
+    },
+    {
+      "id": "nyc-24-4-0",
+      "at": 1792859160000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Time Out Market → Ferry richting Hudson Yards. Vertrek 12:26 (New York)."
+    },
+    {
+      "id": "nyc-24-6-5",
+      "at": 1792865400000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Hudson Yards → Naar One Vanderbilt. Vertrek 14:15 (New York)."
+    },
+    {
+      "id": "nyc-24-6-0",
+      "at": 1792865700000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Hudson Yards → Naar One Vanderbilt. Vertrek 14:15 (New York)."
+    },
+    {
+      "id": "nyc-24-8-5",
+      "at": 1792880460000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: SUMMIT One Vanderbilt → Diner / drink. Vertrek 18:26 (New York)."
+    },
+    {
+      "id": "nyc-24-8-0",
+      "at": 1792880760000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: SUMMIT One Vanderbilt → Diner / drink. Vertrek 18:26 (New York)."
+    },
+    {
+      "id": "nyc-24-9-5",
+      "at": 1792884300000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Diner / drink → Lincoln Center / Juilliard. Vertrek 19:30 (New York)."
+    },
+    {
+      "id": "nyc-24-9-0",
+      "at": 1792884600000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Diner / drink → Lincoln Center / Juilliard. Vertrek 19:30 (New York)."
+    },
+    {
+      "id": "nyc-24-10-5",
+      "at": 1792891080000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Lincoln Center / Juilliard → Eventueel nog een bar. Vertrek 21:23 (New York)."
+    },
+    {
+      "id": "nyc-24-10-0",
+      "at": 1792891380000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Lincoln Center / Juilliard → Eventueel nog een bar. Vertrek 21:23 (New York)."
+    },
+    {
+      "id": "nyc-24-11-5",
+      "at": 1792895100000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Eventueel nog een bar → Hotel Edison / terug voor de nacht. Vertrek 22:30 (New York)."
+    },
+    {
+      "id": "nyc-24-11-0",
+      "at": 1792895400000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Eventueel nog een bar → Hotel Edison / terug voor de nacht. Vertrek 22:30 (New York)."
+    },
+    {
+      "id": "nyc-25-1-5",
+      "at": 1792936800000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Grand Central Terminal → Bryant Park / Fifth Avenue. Vertrek 10:05 (New York)."
+    },
+    {
+      "id": "nyc-25-1-0",
+      "at": 1792937100000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Grand Central Terminal → Bryant Park / Fifth Avenue. Vertrek 10:05 (New York)."
+    },
+    {
+      "id": "nyc-25-2-5",
+      "at": 1792939740000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Bryant Park / Fifth Avenue → Brunch / rustige buffer. Vertrek 10:54 (New York)."
+    },
+    {
+      "id": "nyc-25-2-0",
+      "at": 1792940040000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Bryant Park / Fifth Avenue → Brunch / rustige buffer. Vertrek 10:54 (New York)."
+    },
+    {
+      "id": "nyc-25-3-5",
+      "at": 1792945500000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Brunch / rustige buffer → NYPL Schwarzman Building. Vertrek 12:30 (New York)."
+    },
+    {
+      "id": "nyc-25-3-0",
+      "at": 1792945800000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Brunch / rustige buffer → NYPL Schwarzman Building. Vertrek 12:30 (New York)."
+    },
+    {
+      "id": "nyc-25-4-5",
+      "at": 1792950900000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: NYPL Schwarzman Building → Metro richting Downtown. Vertrek 14:00 (New York)."
+    },
+    {
+      "id": "nyc-25-4-0",
+      "at": 1792951200000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: NYPL Schwarzman Building → Metro richting Downtown. Vertrek 14:00 (New York)."
+    },
+    {
+      "id": "nyc-25-6-5",
+      "at": 1792954200000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Wall Street → Charging Bull. Vertrek 14:55 (New York)."
+    },
+    {
+      "id": "nyc-25-6-0",
+      "at": 1792954500000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Wall Street → Charging Bull. Vertrek 14:55 (New York)."
+    },
+    {
+      "id": "nyc-25-7-5",
+      "at": 1792955280000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Charging Bull → Stone Street. Vertrek 15:13 (New York)."
+    },
+    {
+      "id": "nyc-25-7-0",
+      "at": 1792955580000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Charging Bull → Stone Street. Vertrek 15:13 (New York)."
+    },
+    {
+      "id": "nyc-25-8-5",
+      "at": 1792958040000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Stone Street → 9/11 Memorial. Vertrek 15:59 (New York)."
+    },
+    {
+      "id": "nyc-25-8-0",
+      "at": 1792958340000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Stone Street → 9/11 Memorial. Vertrek 15:59 (New York)."
+    },
+    {
+      "id": "nyc-25-9-5",
+      "at": 1792961400000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: 9/11 Memorial → Oculus. Vertrek 16:55 (New York)."
+    },
+    {
+      "id": "nyc-25-9-0",
+      "at": 1792961700000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: 9/11 Memorial → Oculus. Vertrek 16:55 (New York)."
+    },
+    {
+      "id": "nyc-25-10-5",
+      "at": 1792963200000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Oculus → One World / WTC-zone. Vertrek 17:25 (New York)."
+    },
+    {
+      "id": "nyc-25-10-0",
+      "at": 1792963500000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Oculus → One World / WTC-zone. Vertrek 17:25 (New York)."
+    },
+    {
+      "id": "nyc-25-11-5",
+      "at": 1792966200000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: One World / WTC-zone → Tribeca, Chinatown of diner. Vertrek 18:15 (New York)."
+    },
+    {
+      "id": "nyc-25-11-0",
+      "at": 1792966500000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: One World / WTC-zone → Tribeca, Chinatown of diner. Vertrek 18:15 (New York)."
+    },
+    {
+      "id": "nyc-25-12-5",
+      "at": 1792972500000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Tribeca, Chinatown of diner → Hotel Edison / terug voor de nacht. Vertrek 20:00 (New York)."
+    },
+    {
+      "id": "nyc-25-12-0",
+      "at": 1792972800000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Tribeca, Chinatown of diner → Hotel Edison / terug voor de nacht. Vertrek 20:00 (New York)."
+    },
+    {
+      "id": "nyc-26-1-5",
+      "at": 1793026980000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Central Park → Upper West Side. Vertrek 11:08 (New York)."
+    },
+    {
+      "id": "nyc-26-1-0",
+      "at": 1793027280000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Central Park → Upper West Side. Vertrek 11:08 (New York)."
+    },
+    {
+      "id": "nyc-26-2-5",
+      "at": 1793033400000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Upper West Side → Lunch. Vertrek 12:55 (New York)."
+    },
+    {
+      "id": "nyc-26-2-0",
+      "at": 1793033700000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Upper West Side → Lunch. Vertrek 12:55 (New York)."
+    },
+    {
+      "id": "nyc-26-3-5",
+      "at": 1793036580000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Lunch → Vrije tijd / laatste wandeling. Vertrek 13:48 (New York)."
+    },
+    {
+      "id": "nyc-26-3-0",
+      "at": 1793036880000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Lunch → Vrije tijd / laatste wandeling. Vertrek 13:48 (New York)."
+    },
+    {
+      "id": "nyc-26-4-5",
+      "at": 1793039400000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Vrije tijd / laatste wandeling → Hotel Edison / bagage. Vertrek 14:35 (New York)."
+    },
+    {
+      "id": "nyc-26-4-0",
+      "at": 1793039700000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Vrije tijd / laatste wandeling → Hotel Edison / bagage. Vertrek 14:35 (New York)."
+    },
+    {
+      "id": "nyc-26-5-5",
+      "at": 1793042700000,
+      "title": "Over 5 minuten vertrekken",
+      "body": "Volgens planning: Hotel Edison / bagage → Vertrek richting EWR. Vertrek 15:30 (New York)."
+    },
+    {
+      "id": "nyc-26-5-0",
+      "at": 1793043000000,
+      "title": "Tijd om te vertrekken",
+      "body": "Volgens planning: Hotel Edison / bagage → Vertrek richting EWR. Vertrek 15:30 (New York)."
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import { createFamilyTasksService, initializeFamilyTasksDatabase } from './famil
 import { createRingEaterService, initializeRingEaterDatabase } from './ring-eater.mjs'
 import { createGenkStandbyService } from './genk-standby.mjs'
 import { registerDirectorate } from './directorate.mjs'
+import { createNycTripService, initializeNycTripDatabase } from './nyc-trip.mjs'
 
 const { Pool } = pg
 const app = express()
@@ -144,6 +145,8 @@ function isAllowedOrigin(origin) {
 }
 
 app.use((request, response, next) => {
+  // The private trip service has its own exact-origin policy, including preflight.
+  if (request.path.startsWith('/api/nyc-trip/')) { next(); return }
   const origin = request.headers.origin
 
   if (origin && isAllowedOrigin(origin)) {
@@ -170,6 +173,7 @@ app.use((request, response, next) => {
 if (bobPerformance) app.all('/bob/api/performance', async (request, response) => {
   await bobPerformance.handle(request, response)
 })
+app.use('/api/nyc-trip', express.json({ limit: '8kb' }))
 app.use(express.json({ limit: '1mb' }))
 
 const upload = multer({
@@ -229,6 +233,8 @@ let familyTasksDbReady = false
 let familyTasksDbInitError = ''
 const poolConfig = getPoolConfig()
 const pool = poolConfig ? new Pool(poolConfig) : null
+let nycTripDbReady = false
+const nycTrip = createNycTripService({ app, pool, isDbReady: () => dbReady && nycTripDbReady })
 const ringEater = createRingEaterService({
   app,
   pool,
@@ -3280,6 +3286,12 @@ initializeDatabase()
           familyTasksDbInitError = error instanceof Error ? error.message : 'Family tasks database initialization failed.'
           console.error('Family tasks database initialization failed:', error)
         })
+
+      void initializeNycTripDatabase(pool).then(() => {
+        nycTripDbReady = true
+        const timer = setInterval(() => { void nycTrip.tick().catch(() => console.warn('NYC reminder service temporarily unavailable.')) }, 15000)
+        timer.unref()
+      }).catch(() => console.warn('NYC trip database initialization failed.'))
 
       if (THUMBNAIL_BOOT_ENABLED) {
         void generateMissingContentThumbnails()
