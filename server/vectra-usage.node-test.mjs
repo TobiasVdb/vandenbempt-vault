@@ -36,6 +36,10 @@ test('Vectra intake restricts origins, strips credentials, bounds bodies and iso
     assert.deepEqual(calls[0].options.headers, { Origin: origin, 'Content-Type': 'application/json' })
     assert.deepEqual(JSON.parse(calls[0].options.body), body)
     assert.equal(calls[0].options.redirect, 'error')
+    const presence = { presence: randomUUID() }
+    assert.equal((await post(presence)).status, 202)
+    assert.deepEqual(JSON.parse(calls[1].options.body), presence)
+    assert.equal((await post({ ...presence, email: 'private' })).status, 400)
     status = 429; const limited = await post(); assert.equal(limited.status, 429); assert.equal(limited.headers.get('retry-after'), '60')
     status = 0; const failed = await post(); assert.equal(failed.status, 503); assert.doesNotMatch(await failed.text(), /private/)
     for (let i = 0; i < 300; i++) await post()

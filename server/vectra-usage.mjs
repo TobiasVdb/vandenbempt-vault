@@ -28,15 +28,17 @@ export function registerVectraUsage(app, { request = fetch,
   router.use(express.json({ limit: '4kb', type: 'application/json' }))
   router.post('/', async (req, res) => {
     const body = req.body
-    if (!body || Object.keys(body).sort().join(',') !== 'actions,id'
+    const presence = body && Object.keys(body).join(',') === 'presence'
+      && typeof body.presence === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.presence)
+    if (!presence && (!body || Object.keys(body).sort().join(',') !== 'actions,id'
       || typeof body.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(body.id)
       || !Array.isArray(body.actions) || !body.actions.length || body.actions.length > 100
-      || !body.actions.every(action => typeof action === 'string' && /^[a-z_]{1,32}$/.test(action)))
+      || !body.actions.every(action => typeof action === 'string' && /^[a-z_]{1,32}$/.test(action))))
       return res.status(400).json({ error: 'Invalid usage batch.' })
     try {
       const result = await request(target, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Origin: req.headers.origin },
-        body: JSON.stringify({ id: body.id, actions: body.actions }),
+        body: JSON.stringify(presence ? { presence: body.presence } : { id: body.id, actions: body.actions }),
         signal: AbortSignal.timeout(5000), redirect: 'error',
       })
       await result.body?.cancel()
