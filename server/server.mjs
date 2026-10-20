@@ -11,10 +11,12 @@ import { createFamilyTasksService, initializeFamilyTasksDatabase } from './famil
 import { createRingEaterService, initializeRingEaterDatabase } from './ring-eater.mjs'
 import { createGenkStandbyService } from './genk-standby.mjs'
 import { registerDirectorate } from './directorate.mjs'
+import { registerVectraUsage } from './vectra-usage.mjs'
 import { createNycTripService, initializeNycTripDatabase } from './nyc-trip.mjs'
 
 const { Pool } = pg
 const app = express()
+registerVectraUsage(app)
 registerDirectorate(app, { bobSnapshot: () => ({
   metrics: bobUsage?.summary?.() ?? null,
   active_rooms: bobCoop?.rooms.size ?? 0,
