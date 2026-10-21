@@ -37,7 +37,7 @@ export function registerDirectorate(app, {
     } catch { res.status(502).json({ error: 'BOB metrics unavailable.' }) }
   })
   api.use(async (req, res) => {
-    const valid = (req.method === 'GET' && /^\/(health|projects|activity|security|push\/config|projects\/[^/]+\/history)$/.test(req.path))
+    const valid = (req.method === 'GET' && /^\/(health|projects|activity|security(?:\/ip)?|push\/config|projects\/[^/]+\/history)$/.test(req.path))
       || (req.method === 'POST' && /^\/(projects|v1\/ingest|push\/(subscribe|unsubscribe|test)|projects\/[^/]+\/(rotate-key|important-metrics))$/.test(req.path))
     if (!valid) return res.status(404).json({ error: 'Not found' })
     const target = new URL('api' + req.url, base)
