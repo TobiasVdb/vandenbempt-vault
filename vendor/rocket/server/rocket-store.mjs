@@ -30,6 +30,7 @@ export async function createLocalStore(file=null){
     async create(name){return mutate(()=>{const player=newPlayer(name);data.players.push(player.row);return {...publicPlayer(player.row),token:player.token};});},
     async authenticate(token){await pending;const row=data.players.find(row=>row.tokenHash===digest(token));return row?publicPlayer(row):null;},
     async buy(id,kind,key){return mutate(()=>purchase(data.players.find(row=>row.id===id),kind,key));},
+    async equip(id,ship){return mutate(()=>{const row=data.players.find(row=>row.id===id);row.profile.ship=ship;return publicPlayer(row);});},
     async reset(id){return mutate(()=>{const row=data.players.find(row=>row.id===id);row.profile=newProfile();data.results=data.results.filter(result=>result.playerId!==id);return publicPlayer(row);});},
     async record(id,result){return mutate(()=>{
       const row=data.players.find(row=>row.id===id);
@@ -61,6 +62,7 @@ export async function createPostgresStore(pool){
     async create(name){const {row,token}=newPlayer(name);await pool.query('INSERT INTO rocket_players(id,name,token_hash,profile) VALUES($1,$2,$3,$4)',[row.id,row.name,row.tokenHash,JSON.stringify(row.profile)]);return {...publicPlayer(row),token};},
     async authenticate(token){return fromDb((await pool.query('SELECT id,name,profile FROM rocket_players WHERE token_hash=$1',[digest(token)])).rows[0]);},
     buy:(id,kind,key)=>transaction(id,row=>purchase(row,kind,key)),
+    equip:(id,ship)=>transaction(id,row=>{row.profile.ship=ship;}),
     reset:id=>transaction(id,async(row,client)=>{row.profile=newProfile();await client.query('DELETE FROM rocket_results WHERE player_id=$1',[id]);}),
     record:(id,result)=>transaction(id,async(row,client)=>{
       const insert=await client.query('INSERT INTO rocket_results(attempt_id,player_id,mission,seconds,success) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING attempt_id',[result.attemptId,id,result.missionId,result.time,result.success]);

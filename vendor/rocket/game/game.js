@@ -221,7 +221,14 @@ function finishOnline(result){
   else{setMessage('DID NOT FINISH','Spacecraft destroyed.',`${state.reason} No coins awarded.`,'Try again →');selected.root.visible=false;playCrash();}
 }
 online=createOnline({storage,getShip:()=>$('ship').value,isReady:()=>fleet.size>0&&levelModels.size===LEVELS.length,
-  onProfile(value){Object.assign(profile,value);saveProgress();startMenu.refresh();},
+  onProfile(value){
+    Object.assign(profile,value);
+    if(mode==='menu'&&value.ship){
+      $('ship').value=value.ship;const source=fleet.get(value.ship);
+      if(source){menuScene.attach(value.ship,source,SKINS[profile.skin].color,flightTuning(profile));$('menu-craft-name').textContent=$('ship').selectedOptions[0].textContent;}
+    }
+    saveProgress();startMenu.refresh();
+  },
   onRace:acceptNetworkRace,
   onStatus(connected){if(!connected)clearInput();$('network-status').textContent=connected?'Live multiplayer · open room':'Reconnecting · controls released';},
   onJoin:room=>launchFromMenu(LEVELS.findIndex(mission=>mission.id===room.mission),false,room.id,room),

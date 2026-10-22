@@ -12,10 +12,12 @@ export const SKINS={
   orchid:{name:'Midnight orchid',cost:100,color:'#9b82ca'},
   pearl:{name:'Pearl white',cost:100,color:'#e5e0d4'},
 };
-export function newProfile(){return {version:1,coins:0,upgrades:{engine:0,frame:0,rcs:0,tank:0},skins:['original'],skin:'original',wins:{},settled:[]};}
+export const SHIP_IDS=['tintin','futurama','comet','wraith','aster'];
+export function newProfile(){return {version:1,coins:0,ship:'aster',upgrades:{engine:0,frame:0,rcs:0,tank:0},skins:['original'],skin:'original',wins:{},settled:[]};}
 export function sanitizeProfile(value){
   const p=newProfile();if(!value||value.version!==1)return p;
   if(Number.isSafeInteger(value.coins)&&value.coins>=0)p.coins=Math.min(value.coins,1e7);
+  if(SHIP_IDS.includes(value.ship))p.ship=value.ship;
   for(const [key,definition] of Object.entries(UPGRADES)){
     const tier=value.upgrades?.[key];if(Number.isInteger(tier)&&tier>=0)p.upgrades[key]=Math.min(tier,definition.costs.length);
   }

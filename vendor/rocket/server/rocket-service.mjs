@@ -51,6 +51,7 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     if(room?.players.size>=8&&!room.players.has(player.id))fail(409,'Flight lane full. Other open games are available.');
     const existing=rooms.get(members.get(player.id));
     if(existing===room&&room?.players.has(player.id)&&!data.restart)return {room:snapshot(room)};
+    player=await store.equip(player.id,data.ship);to(player.id,'profile',{player});
     leave(player.id);room ||= createRoom(data.mission);
     const state=createFlight(room.level,hulls[data.ship],flightTuning(player.profile));state.hull=hulls[data.ship];
     const racer={id:player.id,name:player.name,ship:data.ship,color:SKINS[player.profile.skin].color,state,hull:hulls[data.ship],finishTime:null,
