@@ -1,9 +1,9 @@
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
 /** The same planar floor and landing-pad tops used by the flight simulation. */
-export function plumeSurface(level,x,z=0){
+export function plumeSurface(level,x,z=0,result={}){
   const floor=level.floor;
-  if(!floor.length)return {y:-Infinity,nx:0,ny:1};
+  if(!floor.length){result.y=-Infinity;result.nx=0;result.ny=1;return result;}
   let a=floor[0],b=floor[1];
   for(let i=1;i<floor.length;i++){
     a=floor[i-1];b=floor[i];
@@ -15,15 +15,17 @@ export function plumeSurface(level,x,z=0){
     const inside=pad.radius!==undefined?Math.hypot(x-pad.x,z-(pad.z||0))<=pad.radius:Math.abs(x-pad.x)<=pad.width/2&&Math.abs(z-(pad.z||0))<=(pad.depth??2.5)/2;
     if(inside&&pad.y>=y){y=pad.y;nx=0;ny=1;}
   }
-  return {y,nx,ny};
+  result.y=y;result.nx=nx;result.ny=ny;return result;
 }
 
 /** Sweep a parcel through oriented structural boxes, returning the first contacted face. */
 function obstacleHit(x,y,z,toX,toY,toZ,obstacles){
+  if(!obstacles.length)return null;
   let nearest=null,first=Infinity;
+  const dx=toX-x,dy=toY-y,dz=toZ-z,travel=Math.hypot(dx,dy,dz)+.025;
   for(const box of obstacles){
-    const sx=x-box.x,sy=y-box.y,sz=z-box.z,dx=toX-x,dy=toY-y,dz=toZ-z;
-    const reach=box.radius+Math.hypot(dx,dy,dz)+.025;
+    const sx=x-box.x,sy=y-box.y,sz=z-box.z;
+    const reach=box.radius+travel;
     if(sx*sx+sy*sy+sz*sz>reach*reach)continue;
     let enter=-Infinity,exit=Infinity,axis=-1,sign=1,inside=true,closest=Infinity,insideAxis=0,insideSign=1,rejected=false;
     for(let a=0;a<3;a++){
@@ -34,7 +36,7 @@ function obstacleHit(x,y,z,toX,toY,toZ,obstacles){
       if(distance<closest){closest=distance;insideAxis=a;insideSign=Math.sign(origin)||1;}
       if(Math.abs(direction)<1e-9){if(Math.abs(origin)>extent){rejected=true;break;}continue;}
       let near=(-extent-origin)/direction,far=(extent-origin)/direction;
-      if(near>far)[near,far]=[far,near];
+      if(near>far){const swap=near;near=far;far=swap;}
       if(near>enter){enter=near;axis=a;sign=direction>0?-1:1;}
       exit=Math.min(exit,far);
       if(enter>exit){rejected=true;break;}
@@ -57,7 +59,7 @@ export function plumeOpacity(age,lifetime){
 
 export function createPlumePool({capacity=1200,random=Math.random}={}){
   const particles=Array.from({length:capacity},()=>({active:false}));
-  const clocks=new Map();let cursor=0,obstacleHits=0;
+  const clocks=new Map(),surfaceScratch={};let cursor=0,obstacleHits=0;
 
   function spawn(source,level,delay,interval,effectiveRate){
     const p=particles[cursor++%capacity],side=cursor%2?1:-1;
@@ -119,7 +121,7 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
         }
         p.wallNx=hit.nx;p.wallNy=hit.ny;p.wallNz=hit.nz;p.wallD=-hit.nx*p.x-hit.ny*p.y-hit.nz*p.z;p.wallAge=0;
       }
-      const surface=plumeSurface(level,p.x,p.z),margin=.025;
+      const surface=plumeSurface(level,p.x,p.z,surfaceScratch),margin=.025;
       if(p.y<surface.y+margin){
         p.y=surface.y+margin;
         const incoming=p.vx*surface.nx+p.vy*surface.ny;

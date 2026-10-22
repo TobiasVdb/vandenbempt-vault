@@ -21,6 +21,7 @@ import { levelAssetFile, prepareLevelModel, resetLevelModel } from './level-asse
 import { createRocketAudio } from './rocket-audio.js';
 import { createFlightPresentation } from './flight-presentation.js';
 import { batchCraftDetails } from './craft-batching.js';
+import { createRenderBudget } from './render-budget.js';
 
 const $=id=>document.getElementById(id);
 const canvas=$('flight');
@@ -39,7 +40,9 @@ const camera=new THREE.OrthographicCamera(-28,28,16,-16,.1,150);
 let renderer;
 try {renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}
 catch(error){$('menu-status').textContent='WebGL is unavailable. Enable browser hardware acceleration, then reload this page.';throw error;}
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
+const renderBudget=createRenderBudget();renderer.setPixelRatio(renderBudget.resize(innerWidth,innerHeight,devicePixelRatio));renderer.setSize(innerWidth,innerHeight);
+const graphics=renderer.getContext(),graphicsInfo=graphics.getExtension('WEBGL_debug_renderer_info');
+canvas.dataset.gpuMode=graphicsInfo?(/swiftshader|llvmpipe|software/i.test(graphics.getParameter(graphicsInfo.UNMASKED_RENDERER_WEBGL))?'software':'hardware'):'unknown';
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();
@@ -197,6 +200,7 @@ function openMenu(){
   }
   startMenu.setReady(Boolean(source)&&levelModels.size===LEVELS.length);
   $('menu-garage').disabled=!source;
+  online?.refreshLobby();
 }
 async function launchFromMenu(index,play,roomId=null,joinedRoom=null){
   if(joining)return;joining=true;
@@ -242,7 +246,7 @@ function finishOnline(result){
   if(result.success){setMessage(result.rank===1?'RACE WON':`FINISHED #${result.rank}`,result.coins?`Victory. +${result.coins} coins.`:'Flight complete.',`${level.name} · ${formatTime(result.time)} · Result saved to your pilot.`,course===LEVELS.length-1?'Race again →':'Next mission →');playChime();}
   else{setMessage('DID NOT FINISH','Spacecraft destroyed.',`${state.reason} No coins awarded.`,'Try again →');selected.root.visible=false;playCrash();}
 }
-online=createOnline({storage,getShip:()=>$('ship').value,isReady:()=>fleet.size>0&&levelModels.size===LEVELS.length,
+online=createOnline({storage,getShip:()=>$('ship').value,getMission:()=>level,isReady:()=>fleet.size>0&&levelModels.size===LEVELS.length,
   onProfile(value){
     const loadoutChanged=profile.ship!==(value.ship??profile.ship)||profile.skin!==value.skin||Object.keys(profile.upgrades).some(key=>profile.upgrades[key]!==value.upgrades[key]);
     Object.assign(profile,sanitizeProfile(value));updateShipChoices();
@@ -256,7 +260,6 @@ online=createOnline({storage,getShip:()=>$('ship').value,isReady:()=>fleet.size>
   onStatus(connected){if(!connected)clearInput();$('network-status').textContent=connected?'Live multiplayer · open room':'Reconnecting · controls released';},
   onJoin:room=>launchFromMenu(LEVELS.findIndex(mission=>mission.id===room.mission),false,room.id,room),
 });
-$('lobby-mission').replaceChildren(...LEVELS.map(mission=>{const option=document.createElement('option');option.value=mission.id;option.textContent=mission.name;return option;}));
 // Network input cadence must not depend on WebGL frame rate or shader compilation.
 setInterval(()=>{
   if(!networkRoom)return;
@@ -404,7 +407,7 @@ function updateHud(){
 }
 
 function resize(){
-  const w=innerWidth,h=innerHeight;renderer.setSize(w,h);
+  const w=innerWidth,h=innerHeight;renderer.setPixelRatio(renderBudget.resize(w,h,devicePixelRatio));renderer.setSize(w,h);
   const aspect=w/h,height=Math.max(24,54/aspect);
   // Portrait follows the craft rather than shrinking the whole course into a tiny strip.
   const viewHeight=aspect<1?25:Math.min(height,36),viewWidth=viewHeight*aspect;
@@ -493,6 +496,8 @@ for(const button of document.querySelectorAll('[data-menu-control]')){
 function frame(now){
   requestAnimationFrame(frame);const frameDelta=(now-last)/1000,dt=Math.min(frameDelta,.08);last=now;
   if(document.hidden)return;
+  const pixelRatio=renderBudget.sample(frameDelta*1000);if(pixelRatio!==null)renderer.setPixelRatio(pixelRatio);
+  canvas.dataset.pixelRatio=renderer.getPixelRatio().toFixed(2);
   frameSeconds+=frameDelta;frameCount++;
   if(frameSeconds>=1){canvas.dataset.fps=String(Math.round(frameCount/frameSeconds));canvas.dataset.drawCalls=String(renderer.info.render.calls);frameSeconds=0;frameCount=0;}
   if(mode==='garage'){

@@ -113,10 +113,11 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         centers[i*3]=p.x;centers[i*3+1]=p.y;centers[i*3+2]=p.z;
         sizes[i*2]=p.width;sizes[i*2+1]=p.height;
         rotations[i]=p.rotation;types[i]=p.water?2:Number(p.impacted);
-        parcels.set([p.opacity,p.heat,p.seed,p.age],i*4);
+        parcels[i*4]=p.opacity;parcels[i*4+1]=p.heat;parcels[i*4+2]=p.seed;parcels[i*4+3]=p.age;
         planes[i*3]=p.nx;planes[i*3+1]=p.ny;planes[i*3+2]=p.plane;
-        walls.set([p.wallNx,p.wallNy,p.wallNz,p.wallD],i*4);jets.set([p.jetNx,p.jetNy,p.jetD],i*3);
-        velocities.set([p.vx,p.vy,p.vz],i*3);hotLengths[i]=p.hotLength;throttles[i]=p.throttle;
+        walls[i*4]=p.wallNx;walls[i*4+1]=p.wallNy;walls[i*4+2]=p.wallNz;walls[i*4+3]=p.wallD;
+        jets[i*3]=p.jetNx;jets[i*3+1]=p.jetNy;jets[i*3+2]=p.jetD;
+        velocities[i*3]=p.vx;velocities[i*3+1]=p.vy;velocities[i*3+2]=p.vz;hotLengths[i]=p.hotLength;throttles[i]=p.throttle;
       }
       geometry.instanceCount=renderCount;
       for(const attribute of Object.values(geometry.attributes))if(attribute.isInstancedBufferAttribute)attribute.needsUpdate=true;

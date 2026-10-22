@@ -13,6 +13,7 @@ async function body(req){
   try{return JSON.parse(text||'{}');}catch{fail(400,'Invalid JSON.');}
 }
 const cleanName=value=>typeof value==='string'?value.trim().replace(/\s+/g,' '):'';
+const ROOM_CAPACITY=8;
 
 /** Authoritative rooms reuse gameplay physics; only inputs cross the client boundary. */
 export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
@@ -22,7 +23,7 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
   function send(res,type,data){if(res.destroyed)return;if(res.writableLength>262144){res.end();return;}res.write(`data: ${JSON.stringify({type,...data})}\n\n`);}
   function to(id,type,data){for(const res of streams.get(id)||[])send(res,type,data);}
   function everyone(type,data){for(const responses of streams.values())for(const res of responses)send(res,type,data);}
-  function roomList(){return [...rooms.values()].map(room=>({id:room.id,mission:room.level.id,name:room.level.name,players:room.players.size,capacity:8}));}
+  function roomList(){return [...rooms.values()].map(room=>({id:room.id,mission:room.level.id,name:room.level.name,players:room.players.size,capacity:ROOM_CAPACITY}));}
   function lobby(){lastLobby=now();everyone('lobby',{rooms:roomList(),players:[...sessions.values()].filter(player=>streams.has(player.id)).map(player=>({id:player.id,name:player.name,room:members.get(player.id)||null}))});}
   function snapshot(room){return {id:room.id,mission:room.level.id,elapsed:room.race.elapsed,started:room.race.started,contacts:room.race.contacts,
     racers:room.race.racers.map(racer=>({id:racer.id,name:racer.name,ship:racer.ship||'futurama',color:racer.color??null,state:racer.state,hull:racer.hull,finishTime:racer.finishTime,waiting:Boolean(racer.waiting),result:racer.result||null}))};}
@@ -48,12 +49,19 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     if(!Object.hasOwn(hulls,data.ship))fail(400,'Unknown spacecraft.');
     let room=data.room?rooms.get(data.room):null;
     if(data.room&&!room)fail(404,'That game has ended. Choose another open game.');
-    if(!room&&!data.create)room=[...rooms.values()].find(room=>room.level.id===data.mission&&room.players.size<8&&!room.finishTimes.size&&!room.players.has(player.id));
-    if(room?.players.size>=8&&!room.players.has(player.id))fail(409,'Flight lane full. Other open games are available.');
+    if(!room&&!data.create)room=[...rooms.values()].find(room=>room.level.id===data.mission&&room.players.size<ROOM_CAPACITY&&!room.finishTimes.size&&!room.players.has(player.id));
+    if(room?.players.size>=ROOM_CAPACITY&&!room.players.has(player.id))fail(409,'Flight lane full. Other open games are available.');
     const existing=rooms.get(members.get(player.id));
     if(existing===room&&room?.players.has(player.id)&&!data.restart)return {room:snapshot(room)};
     player=await store.equip(player.id,data.ship);to(player.id,'profile',{player});
+    // Another join may have taken the last seat while this profile transaction awaited.
+    if(room?.players.size>=ROOM_CAPACITY&&!room.players.has(player.id))fail(409,'Flight lane full. Other open games are available.');
     leave(player.id);room ||= createRoom(data.mission);
+    while(room.race.racers.length>=ROOM_CAPACITY){
+      const bot=room.race.racers.find(racer=>racer.pilot);
+      if(!bot)fail(409,'Flight lane full. Other open games are available.');
+      room.race.racers=room.race.racers.filter(racer=>racer!==bot);room.finishTimes.delete(bot.id);
+    }
     const state=createFlight(room.level,hulls[data.ship],flightTuning(player.profile));state.hull=hulls[data.ship];
     const racer={id:player.id,name:player.name,ship:data.ship,color:SKINS[player.profile.skin].color,state,hull:hulls[data.ship],finishTime:null,
       attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
@@ -144,7 +152,14 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
       }
       if(route==='/invite'){
         limited(`invite:${player.id}`,3000);const room=rooms.get(members.get(player.id));if(!room)fail(409,'Create or join a game first.');
-        everyone('invite',{name:player.name,room:room.id,mission:room.level.name});return json(res,200,{room:room.id});
+        const invitation={name:player.name,room:room.id,mission:room.level.name};
+        if(data.target!==undefined){
+          if(data.target===player.id)fail(400,'Choose another pilot.');
+          if(typeof data.target!=='string'||!streams.has(data.target))fail(409,'That pilot is no longer online.');
+          if(members.has(data.target))fail(409,'That pilot is already in a game. Join them instead.');
+          to(data.target,'invite',invitation);
+        }else everyone('invite',invitation);
+        return json(res,200,{room:room.id});
       }
       if(route==='/buy'||route==='/equip'){
         if(members.has(player.id))fail(409,'Return to the menu before changing your loadout.');

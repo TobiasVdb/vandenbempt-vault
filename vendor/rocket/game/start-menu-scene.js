@@ -106,6 +106,8 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
     camera.left=-wide/2;camera.right=wide/2;camera.top=span/2;camera.bottom=-span/2;
     camera.position.set(x,y+1.3,12);camera.lookAt(x,y,0);camera.updateProjectionMatrix();
     backdrop?.update(camera);
+    // At altitude the pad is outside the shadow volume; skip an invisible shadow pass.
+    key.shadow.autoUpdate=sample.altitude<6;key.shadow.intensity=sample.altitude<6?1:0;
     key.position.set(sample.x-3,sample.y+6,6);key.target.position.set(sample.x,sample.y,0);
     rim.position.set(sample.x+3,sample.y+2,-3);rim.target.position.set(sample.x,sample.y,0);
   }

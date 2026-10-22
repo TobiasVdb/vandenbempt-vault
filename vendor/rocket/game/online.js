@@ -1,10 +1,11 @@
 const API=new URL('../api/',import.meta.url);
 export const PLAYER_KEY='hollow-player-v1';
 
-export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,isReady}){
+export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,getMission,isReady}){
   const $=id=>document.getElementById(id),identityDialog=$('pilot-dialog'),status=$('lobby-status');
   let identity=null,player=null,room=null,connected=false,stream=null,stopped=false,retryTimer=null,joinBusy=false,inputBusy=false,pendingInput=null,inputTimer=null,lastInputAt=-Infinity;
   let resolveReady;const ready=new Promise(resolve=>resolveReady=resolve);
+  let lobby=null,busy=false,invitation=null;
   try{identity=JSON.parse(storage?.getItem(PLAYER_KEY)||'null');}catch{/* A malformed identity requires a new pilot. */}
   async function request(route,data){
     const response=await fetch(new URL(route,API),{method:data===undefined?'GET':'POST',headers:{...(identity?.token?{Authorization:`Bearer ${identity.token}`} :{}),...(data!==undefined?{'Content-Type':'application/json'}:{})},body:data===undefined?undefined:JSON.stringify(data),signal:AbortSignal.timeout(12000)});
@@ -17,32 +18,60 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,i
     const input=pendingInput;pendingInput=null;inputBusy=true;lastInputAt=performance.now();
     request('input',input).catch(error=>{if(error.status!==429)status.textContent=error.message;}).finally(()=>{inputBusy=false;flushInput();});
   }
-  function applyPlayer(value){player=value;onProfile(value.profile);$('pilot-name').textContent=value.name;}
-  function message(name,text,invite=null){
-    const row=document.createElement('li'),label=document.createElement('strong');label.textContent=name;row.append(label,document.createTextNode(` ${text}`));
-    if(invite){const button=document.createElement('button');button.textContent='Join game';button.addEventListener('click',()=>join({room:invite}).then(onJoin).catch(error=>status.textContent=error.message));row.append(button);}
-    const list=$('chat-log');list.append(row);while(list.children.length>40)list.firstChild.remove();list.scrollTop=list.scrollHeight;
+  function applyPlayer(value){player=value;onProfile(value.profile);}
+  function renderLobby(){
+    const list=$('pilot-list'),focused=document.activeElement?.dataset.lobbyAction;list.replaceChildren();list.setAttribute('aria-busy',String(busy));
+    $('online-count').textContent=connected&&lobby?`${lobby.players.length} online`:connected?'Connecting':'Reconnecting';
+    if(!connected||!lobby){const item=document.createElement('li');item.className='lobby-empty';item.textContent=connected?'Finding online pilots…':'Reconnecting to pilots…';list.append(item);return;}
+    const games=new Map(lobby.rooms.map(game=>[game.id,game]));
+    const pilots=[...lobby.players].sort((a,b)=>(b.id===player.id)-(a.id===player.id)||a.name.localeCompare(b.name));
+    for(const pilot of pilots){
+      const self=pilot.id===player.id,game=games.get(pilot.room),row=document.createElement('li'),text=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('span');
+      name.textContent=pilot.name;detail.textContent=`${self?'You · ':''}${pilot.room?`In game${game?` · ${game.name}`:''}`:'In menu'}`;text.append(name,detail);row.append(text);
+      if(!self){
+        const button=document.createElement('button'),full=game&&game.players>=game.capacity;
+        button.textContent=pilot.room?full?'Full':'Join':'Invite';button.disabled=busy||!isReady()||Boolean(pilot.room&&(!game||full));button.dataset.lobbyAction=pilot.id;
+        button.setAttribute('aria-label',pilot.room?`Join ${pilot.name}${game?` in ${game.name}`:''}`:`Invite ${pilot.name}`);
+        button.title=pilot.room?`Join ${pilot.name}'s game`:`Invite ${pilot.name} to ${getMission().name}`;
+        button.addEventListener('click',()=>pilot.room?joinPilot(pilot.room):invitePilot(pilot));row.append(button);
+      }
+      list.append(row);
+    }
+    if(pilots.every(pilot=>pilot.id===player.id)){const item=document.createElement('li');item.className='lobby-empty';item.textContent='No other pilots online.';list.append(item);}
+    if(focused)list.querySelector(`[data-lobby-action="${focused}"]`)?.focus();
+  }
+  function renderInvitation(){
+    const panel=$('lobby-invitation');panel.replaceChildren();panel.hidden=!invitation;
+    if(!invitation)return;
+    const text=document.createElement('p'),accept=document.createElement('button'),dismiss=document.createElement('button');
+    text.textContent=`${invitation.name} invited you to ${invitation.mission}.`;accept.textContent='Join';accept.disabled=busy||!connected||!isReady();accept.setAttribute('aria-label',`Accept invitation from ${invitation.name}`);
+    accept.addEventListener('click',()=>joinPilot(invitation.room));dismiss.textContent='Dismiss';dismiss.disabled=busy;dismiss.addEventListener('click',()=>{invitation=null;renderInvitation();});panel.append(text,accept,dismiss);
+  }
+  async function act(action){
+    if(busy)return;const focused=document.activeElement?.dataset.lobbyAction;busy=true;renderLobby();renderInvitation();
+    try{await action();}catch(error){status.textContent=error.message;}finally{busy=false;renderLobby();renderInvitation();if(focused){const button=$('pilot-list').querySelector(`[data-lobby-action="${focused}"]`);if(button?.offsetParent)button.focus();}}
+  }
+  function joinPilot(id){return act(async()=>{const game=await join({room:id});invitation=null;await onJoin(game);});}
+  function invitePilot(pilot){return act(async()=>{
+    const game=await join({mission:getMission().id,create:true});
+    try{await request('invite',{target:pilot.id});}
+    catch(error){
+      try{await request('leave',{});room=null;}catch(cleanupError){throw new Error(`${error.message} ${cleanupError.message}`);}
+      throw error;
+    }
+    status.textContent=`Invited ${pilot.name}.`;await onJoin(game);
+  });
   }
   function event(value){
-    if(value.type==='connected'){connected=true;applyPlayer(value.player);status.textContent='Connected · all games are free to join';onStatus(true);resolveReady();}
+    if(value.type==='connected'){connected=true;applyPlayer(value.player);status.textContent='Connected';onStatus(true);resolveReady();renderLobby();renderInvitation();}
     if(value.type==='profile')applyPlayer(value.player);
     if(value.type==='lobby'){
-      $('online-count').textContent=`${value.players.length} online`;
-      const list=$('room-list');list.replaceChildren();
-      if(!value.rooms.length){const item=document.createElement('p');item.textContent='No games yet. Play a mission or invite someone.';list.append(item);}
-      for(const game of value.rooms){
-        const row=document.createElement('div'),text=document.createElement('span'),button=document.createElement('button');
-        text.textContent=`${game.name} · ${game.players}/${game.capacity}`;button.textContent=game.id===room?.id?'In game':'Join game';button.disabled=game.players>=game.capacity||!isReady();
-        button.addEventListener('click',()=>join({room:game.id}).then(onJoin).catch(error=>status.textContent=error.message));row.append(text,button);list.append(row);
-      }
-      const pilots=$('pilot-list');pilots.replaceChildren();
-      for(const pilot of value.players){const item=document.createElement('span');item.textContent=pilot.name;pilots.append(item);}
+      lobby=value;renderLobby();
     }
     if(value.type==='race'){room=value.room;onRace(room,player.id);}
     if(value.type==='left')room=null;
     if(value.type==='notice')status.textContent=value.message;
-    if(value.type==='chat')message(value.name,value.text);
-    if(value.type==='invite')message(value.name,`invites you to ${value.mission}.`,value.room);
+    if(value.type==='invite'){invitation=value;renderInvitation();}
   }
   async function connect(){
     if(stopped)return;stream?.abort();stream=new AbortController();
@@ -55,7 +84,7 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,i
       }
       throw new Error('Connection interrupted.');
     }catch(error){
-      if(stopped)return;connected=false;onStatus(false);status.textContent='Disconnected · reconnecting. Flight inputs have been released.';
+      if(stopped)return;connected=false;onStatus(false);renderLobby();renderInvitation();status.textContent='Disconnected · reconnecting. Flight inputs have been released.';
       if(error.status===401){identityDialog.showModal();$('pilot-error').textContent='This browser identity was not found. Create a new pilot to reconnect.';return;}
       retryTimer=setTimeout(connect,2000);
     }
@@ -79,22 +108,9 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,i
     await ready;if(!connected)throw new Error('Reconnect to the lobby before joining.');joinBusy=true;
     try{const result=await request('join',{ship:getShip(),...data});room=result.room;return room;}finally{joinBusy=false;}
   }
-  $('chat-form').addEventListener('submit',async e=>{
-    e.preventDefault();const input=$('chat-input'),button=$('chat-send');button.disabled=true;
-    try{await request('chat',{text:input.value});input.value='';}catch(error){status.textContent=error.message;}finally{button.disabled=false;}
-  });
-  $('lobby-invite').addEventListener('click',async()=>{
-    const button=$('lobby-invite');button.disabled=true;
-    try{await join({mission:$('lobby-mission').value,create:true});await request('invite',{});
-      const url=new URL(location.href);url.search='';url.searchParams.set('room',room.id);const link=$('invite-link');link.value=url.href;link.hidden=false;link.select();status.textContent='Invitation sent. Copy the link, or use Join game to launch.';
-    }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
-  });
-  $('lobby-join').addEventListener('click',()=>join(room?{room:room.id}:{mission:$('lobby-mission').value}).then(onJoin).catch(error=>status.textContent=error.message));
-  for(const mission of document.querySelectorAll('#course option')){const option=mission.cloneNode(true);$('lobby-mission').append(option);}
-  // Mission values are supplied by the caller after the game's course list is populated.
   queueMicrotask(restore);
   return {
-    ready,join,
+    ready,join,refreshLobby(){renderLobby();renderInvitation();},
     get player(){return player;},get connected(){return connected;},get room(){return room;},
     async leave(){room=null;if(identity)await request('leave',{});},
     async buy(kind,key,ship){const value=await request('buy',{kind,key,ship});applyPlayer(value.player);return {ok:true};},
