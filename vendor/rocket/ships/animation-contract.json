@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "autoplay": {
+    "clip": "Idle_loop",
+    "loop": true
+  },
+  "triggers": {
+    "Engine_start": {
+      "group": "engine",
+      "loop": false,
+      "holdLastFrame": true
+    },
+    "Engine_stop": {
+      "group": "engine",
+      "loop": false,
+      "holdLastFrame": true
+    },
+    "Service_open": {
+      "group": "service",
+      "loop": false,
+      "holdLastFrame": true
+    },
+    "Service_close": {
+      "group": "service",
+      "loop": false,
+      "holdLastFrame": true
+    }
+  },
+  "notes": "Suggested playback mapping for future game integration. The GLB format does not force autoplay. Navigation lenses remain visible without animation playback.",
+  "ships": {
+    "tintin": {
+      "idleFeatures": [
+        "beacon pulse"
+      ],
+      "clips": [
+        "Idle_loop",
+        "Engine_start",
+        "Engine_stop",
+        "Service_open",
+        "Service_close"
+      ]
+    },
+    "futurama": {
+      "idleFeatures": [
+        "beacon pulse"
+      ],
+      "clips": [
+        "Idle_loop",
+        "Engine_start",
+        "Engine_stop",
+        "Service_open",
+        "Service_close"
+      ]
+    },
+    "comet": {
+      "idleFeatures": [
+        "beacon pulse"
+      ],
+      "clips": [
+        "Idle_loop",
+        "Engine_start",
+        "Engine_stop",
+        "Service_open",
+        "Service_close"
+      ]
+    },
+    "wraith": {
+      "idleFeatures": [
+        "beacon pulse"
+      ],
+      "clips": [
+        "Idle_loop",
+        "Engine_start",
+        "Engine_stop",
+        "Service_open",
+        "Service_close"
+      ]
+    },
+    "aster": {
+      "idleFeatures": [
+        "beacon pulse",
+        "turbine rotation"
+      ],
+      "clips": [
+        "Idle_loop",
+        "Engine_start",
+        "Engine_stop",
+        "Service_open",
+        "Service_close"
+      ]
+    }
+  }
+}

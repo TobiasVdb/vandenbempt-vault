@@ -1,0 +1,728 @@
+[
+  {
+    "id": "tintin",
+    "bytes": 500944,
+    "triangles": 16410,
+    "vertices": 13048,
+    "textures": 0,
+    "scale": 1.0101010003706326,
+    "collisionArea": 0.7712988417504798,
+    "collisionCorners": 7,
+    "outline": [
+      [
+        -0.33838384355310147,
+        -0.9696969386813912
+      ],
+      [
+        0.33838384355310147,
+        -0.9696969386813912
+      ],
+      [
+        0.15656565626158228,
+        0.34343434373841775
+      ],
+      [
+        0.09090909364575961,
+        0.7373737495367094
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        -0.09090909364575961,
+        0.7373737495367094
+      ],
+      [
+        -0.15656565626158228,
+        0.34343434373841775
+      ]
+    ],
+    "finCount": 3,
+    "finSpacing": [
+      120.03103696231182,
+      119.92288923935956,
+      120.04607379832858
+    ],
+    "markers": {
+      "thruster_left": {
+        "position": [
+          -0.13230000436306,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_main": {
+        "position": [
+          0,
+          -0.9649999737739563,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_right": {
+        "position": [
+          0.13230000436306,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      }
+    },
+    "animations": [
+      {
+        "name": "Engine_start",
+        "duration": 1.1666666269302368,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Engine_stop",
+        "duration": 1,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Idle_loop",
+        "duration": 2,
+        "channels": 1,
+        "targets": [
+          "nav_beacon_flash"
+        ]
+      },
+      {
+        "name": "Service_open",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      },
+      {
+        "name": "Service_close",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      }
+    ],
+    "navigationLights": [
+      "nav_port_lens",
+      "nav_starboard_lens",
+      "nav_beacon_lens"
+    ],
+    "passed": true,
+    "errors": []
+  },
+  {
+    "id": "futurama",
+    "bytes": 572244,
+    "triangles": 16774,
+    "vertices": 14458,
+    "textures": 0,
+    "scale": 0.999001000696339,
+    "collisionArea": 0.7323844835141334,
+    "collisionCorners": 7,
+    "outline": [
+      [
+        -0.3246753133172902,
+        -0.9390609382727547
+      ],
+      [
+        0.3246753133172902,
+        -0.9390609382727547
+      ],
+      [
+        0.15484515629883455,
+        0.33966034380946125
+      ],
+      [
+        0.07992007826935413,
+        0.7692307514817491
+      ],
+      [
+        0,
+        0.999001000696339
+      ],
+      [
+        -0.07992007826935413,
+        0.7692307514817491
+      ],
+      [
+        -0.15484515629883455,
+        0.33966034380946125
+      ]
+    ],
+    "finCount": 3,
+    "finSpacing": [
+      119.97093799186726,
+      120.0424480981522,
+      119.98661390998065
+    ],
+    "markers": {
+      "thruster_left": {
+        "position": [
+          -0.13230000436306,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_main": {
+        "position": [
+          0,
+          -0.9649999737739563,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_right": {
+        "position": [
+          0.13230000436306,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      }
+    },
+    "animations": [
+      {
+        "name": "Engine_start",
+        "duration": 1.1666666269302368,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Engine_stop",
+        "duration": 1,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Idle_loop",
+        "duration": 2,
+        "channels": 1,
+        "targets": [
+          "nav_beacon_flash"
+        ]
+      },
+      {
+        "name": "Service_open",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      },
+      {
+        "name": "Service_close",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      }
+    ],
+    "navigationLights": [
+      "nav_port_lens",
+      "nav_starboard_lens",
+      "nav_beacon_lens"
+    ],
+    "passed": true,
+    "errors": []
+  },
+  {
+    "id": "comet",
+    "bytes": 490088,
+    "triangles": 15518,
+    "vertices": 12681,
+    "textures": 0,
+    "scale": 1,
+    "collisionArea": 0.9929999936819076,
+    "collisionCorners": 5,
+    "outline": [
+      [
+        -0.4300000071525574,
+        -0.9599999785423279
+      ],
+      [
+        0.4300000071525574,
+        -0.9599999785423279
+      ],
+      [
+        0.1599999964237213,
+        0.6200000047683716
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        -0.1599999964237213,
+        0.6200000047683716
+      ]
+    ],
+    "finCount": 3,
+    "finSpacing": [
+      119.97812861653938,
+      120.01738534266042,
+      120.00448604080019
+    ],
+    "markers": {
+      "thruster_left": {
+        "position": [
+          -0.16660000383853912,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_main": {
+        "position": [
+          0,
+          -0.9649999737739563,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_right": {
+        "position": [
+          0.16660000383853912,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      }
+    },
+    "animations": [
+      {
+        "name": "Engine_start",
+        "duration": 1.1666666269302368,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Engine_stop",
+        "duration": 1,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Idle_loop",
+        "duration": 2,
+        "channels": 1,
+        "targets": [
+          "nav_beacon_flash"
+        ]
+      },
+      {
+        "name": "Service_open",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      },
+      {
+        "name": "Service_close",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      }
+    ],
+    "navigationLights": [
+      "nav_port_lens",
+      "nav_starboard_lens",
+      "nav_beacon_lens"
+    ],
+    "passed": true,
+    "errors": []
+  },
+  {
+    "id": "wraith",
+    "bytes": 330416,
+    "triangles": 9076,
+    "vertices": 8709,
+    "textures": 0,
+    "scale": 1,
+    "collisionArea": 0.7122000036269425,
+    "collisionCorners": 7,
+    "outline": [
+      [
+        -0.3149999976158142,
+        -0.9399999976158142
+      ],
+      [
+        0.3149999976158142,
+        -0.9399999976158142
+      ],
+      [
+        0.16500000655651093,
+        0.25
+      ],
+      [
+        0.10000000149011612,
+        0.6499999761581421
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        -0.10000000149011612,
+        0.6499999761581421
+      ],
+      [
+        -0.16500000655651093,
+        0.25
+      ]
+    ],
+    "finCount": 4,
+    "finSpacing": [
+      90.05524589031573,
+      89.94475410968427,
+      90.05524589031573,
+      89.94475410968427
+    ],
+    "markers": {
+      "thruster_left": {
+        "position": [
+          -0.1117200031876564,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_main": {
+        "position": [
+          0,
+          -0.9649999737739563,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_right": {
+        "position": [
+          0.1117200031876564,
+          -0.8669999837875366,
+          -0.03500000014901161
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      }
+    },
+    "animations": [
+      {
+        "name": "Engine_start",
+        "duration": 1.1666666269302368,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Engine_stop",
+        "duration": 1,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Idle_loop",
+        "duration": 2,
+        "channels": 1,
+        "targets": [
+          "nav_beacon_flash"
+        ]
+      },
+      {
+        "name": "Service_open",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      },
+      {
+        "name": "Service_close",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      }
+    ],
+    "navigationLights": [
+      "nav_port_lens",
+      "nav_starboard_lens",
+      "nav_beacon_lens"
+    ],
+    "passed": true,
+    "errors": []
+  },
+  {
+    "id": "aster",
+    "bytes": 443836,
+    "triangles": 11848,
+    "vertices": 11293,
+    "textures": 0,
+    "scale": 0.9995934642755727,
+    "collisionArea": 0.7291817606691745,
+    "collisionCorners": 6,
+    "outline": [
+      [
+        -0.26489225373372755,
+        -0.9696056889459039
+      ],
+      [
+        0.26489225373372755,
+        -0.9696056889459039
+      ],
+      [
+        0.14993902559937725,
+        0.679723562857039
+      ],
+      [
+        0.11495325047700533,
+        0.9396178540358219
+      ],
+      [
+        -0.11495325047700533,
+        0.7996747833365409
+      ],
+      [
+        -0.15493698815432203,
+        0.5497764172676477
+      ]
+    ],
+    "finCount": 4,
+    "finSpacing": [
+      89.98672652848644,
+      90.01327347151356,
+      89.98672652848644,
+      90.01327347151356
+    ],
+    "markers": {
+      "thruster_left": {
+        "position": [
+          -0.14000000059604645,
+          -0.8399999737739563,
+          -0.02199999988079071
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_main": {
+        "position": [
+          0,
+          -0.9599999785423279,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "thruster_right": {
+        "position": [
+          0.14000000059604645,
+          -0.8399999737739563,
+          -0.02199999988079071
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ]
+      }
+    },
+    "animations": [
+      {
+        "name": "Idle_loop",
+        "duration": 2,
+        "channels": 2,
+        "targets": [
+          "aster_turbine_rotor",
+          "nav_beacon_flash"
+        ]
+      },
+      {
+        "name": "Engine_start",
+        "duration": 1.1666666269302368,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Engine_stop",
+        "duration": 1,
+        "channels": 8,
+        "targets": [
+          "cooling_hinge_1_0",
+          "cooling_hinge_1_1",
+          "cooling_hinge_1_2",
+          "cooling_hinge_1_3",
+          "cooling_hinge_-1_0",
+          "cooling_hinge_-1_1",
+          "cooling_hinge_-1_2",
+          "cooling_hinge_-1_3"
+        ]
+      },
+      {
+        "name": "Service_open",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      },
+      {
+        "name": "Service_close",
+        "duration": 1.1666666269302368,
+        "channels": 1,
+        "targets": [
+          "service_hinge"
+        ]
+      }
+    ],
+    "navigationLights": [
+      "nav_port_lens",
+      "nav_starboard_lens",
+      "nav_beacon_lens"
+    ],
+    "passed": true,
+    "errors": []
+  }
+]

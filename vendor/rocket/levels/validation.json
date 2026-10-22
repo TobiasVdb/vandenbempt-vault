@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "source": "viewer/game/levels.js",
+  "allValid": true,
+  "missions": [
+    {
+      "id": "amber",
+      "name": "Amber Hollow",
+      "file": "01-amber.glb",
+      "bytes": 81396,
+      "triangles": 521,
+      "roles": {
+        "level": 1,
+        "decoration": 41,
+        "collision": 17,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "narrows",
+      "name": "The Narrows",
+      "file": "02-narrows.glb",
+      "bytes": 82700,
+      "triangles": 529,
+      "roles": {
+        "level": 1,
+        "decoration": 41,
+        "collision": 18,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "cinder",
+      "name": "Cinder Passage",
+      "file": "03-cinder.glb",
+      "bytes": 83852,
+      "triangles": 537,
+      "roles": {
+        "level": 1,
+        "decoration": 41,
+        "collision": 19,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "rings",
+      "name": "Knife-edge Sprint",
+      "file": "04-rings.glb",
+      "bytes": 170888,
+      "triangles": 2961,
+      "roles": {
+        "level": 1,
+        "decoration": 35,
+        "collision": 7,
+        "gate": 1,
+        "gate_lamp": 2,
+        "gate_rim": 1,
+        "launch": 1,
+        "pad_light": 1,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 3
+      },
+      "valid": true
+    },
+    {
+      "id": "moon",
+      "name": "Silver Sea",
+      "file": "05-moon.glb",
+      "bytes": 123208,
+      "triangles": 2021,
+      "roles": {
+        "level": 1,
+        "decoration": 43,
+        "collision": 7,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 3
+      },
+      "valid": true
+    },
+    {
+      "id": "heavy",
+      "name": "Ironfall",
+      "file": "06-heavy.glb",
+      "bytes": 80812,
+      "triangles": 585,
+      "roles": {
+        "level": 1,
+        "decoration": 53,
+        "collision": 7,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 3
+      },
+      "valid": true
+    },
+    {
+      "id": "water",
+      "name": "Pelagic Run",
+      "file": "07-water.glb",
+      "bytes": 276964,
+      "triangles": 2001,
+      "roles": {
+        "level": 1,
+        "decoration": 119,
+        "collision": 7,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 3
+      },
+      "valid": true
+    },
+    {
+      "id": "clouds",
+      "name": "Milkglass Banks",
+      "file": "08-clouds.glb",
+      "bytes": 498072,
+      "triangles": 6069,
+      "roles": {
+        "level": 1,
+        "decoration": 65,
+        "cloud_volume": 2,
+        "collision": 7,
+        "gate": 3,
+        "gate_lamp": 6,
+        "gate_rim": 3,
+        "launch": 1,
+        "pad_light": 1,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 3
+      },
+      "valid": true
+    },
+    {
+      "id": "wind",
+      "name": "Against the Gale",
+      "file": "09-wind.glb",
+      "bytes": 75480,
+      "triangles": 506,
+      "roles": {
+        "level": 1,
+        "decoration": 51,
+        "collision": 7,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 3
+      },
+      "valid": true
+    },
+    {
+      "id": "dark",
+      "name": "The Unlit",
+      "file": "10-dark.glb",
+      "bytes": 127052,
+      "triangles": 873,
+      "roles": {
+        "level": 1,
+        "decoration": 41,
+        "collision": 11,
+        "fog": 20,
+        "goal": 1,
+        "launch": 1,
+        "pad_light": 2,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "orbit",
+      "name": "Above the Air",
+      "file": "11-orbit.glb",
+      "bytes": 77004,
+      "triangles": 1712,
+      "roles": {
+        "level": 1,
+        "collision": 1,
+        "launch": 1,
+        "decoration": 10,
+        "orbit_objective": 1,
+        "pad_light": 1,
+        "spawn": 1,
+        "spawn_slot": 3,
+        "terrain": 1
+      },
+      "valid": true
+    }
+  ]
+}

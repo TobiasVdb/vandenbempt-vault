@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e8e7e1">
+  <title>Hangar — Five flight studies</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23202325' d='m16 2 5 12 5 14-10-5-10 5 5-14z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="./" aria-label="Hangar home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 2 5 12 5 14-10-5-10 5 5-14z"/></svg>HANGAR<span>Flight studies / 01—05</span></a>
+    <div class="header-actions"><a href="./game/">Play flight trials ↗</a><span class="local-label">BLENDER → GLB</span><button id="compare" aria-pressed="false">Compare fleet <span aria-hidden="true">↗</span></button></div>
+  </header>
+  <main>
+    <section id="stage" class="stage" aria-label="Interactive 3D ship viewer">
+      <div class="stage-heading"><p class="eyebrow" id="category">01 / LUNAR EXPEDITION</p><h1 id="ship-title">Tintin</h1><p id="ship-subtitle">A classic silhouette. Built for the moon.</p></div>
+      <div class="camera-controls" role="group" aria-label="Camera position"><button data-view="hero" class="active" aria-pressed="true">Perspective</button><button data-view="front" aria-pressed="false">Game view</button><button data-view="rear" aria-pressed="false">Rear</button><button id="reset" title="Reset camera">Reset</button></div>
+      <canvas id="viewport" tabindex="0" aria-label="3D model. Drag to rotate, scroll to zoom, right drag to pan. Use camera buttons for preset views."></canvas>
+      <div id="status" role="status">Loading the fleet…</div>
+      <div id="fleet-labels" aria-hidden="true"></div>
+      <div class="stage-footer"><span>DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM</span><button id="theme" aria-pressed="false">Dark studio</button></div>
+    </section>
+    <aside class="inspector" aria-label="Fleet and inspection tools">
+      <div class="section-label"><span>THE FLEET</span><span>05 SHIPS</span></div>
+      <nav id="ship-list" aria-label="Select spacecraft"></nav>
+      <div class="specification">
+        <div class="section-label"><span>MODEL</span><span id="model-format">GLTF 2.0</span></div>
+        <dl><div><dt>Triangles</dt><dd id="triangles">—</dd></div><div><dt>File size</dt><dd id="file-size">—</dd></div><div><dt>Collision area</dt><dd id="collision-area">—</dd></div><div><dt>Textures</dt><dd id="textures">—</dd></div><div><dt>Animations</dt><dd id="animation-count">—</dd></div></dl>
+        <p id="validation" class="validation">Checking export limits…</p>
+      </div>
+      <fieldset class="inspection"><legend>INSPECT</legend><label><input type="checkbox" id="wireframe"><span>Wireframe</span></label><label><input type="checkbox" id="collision"><span>Collision hull & size box</span></label><label><input type="checkbox" id="thrusters"><span>Thruster positions</span></label><label><input type="checkbox" id="rotate"><span>Turntable</span></label></fieldset>
+      <fieldset class="inspection flight-systems"><legend>FLIGHT SYSTEMS</legend>
+        <label><input type="checkbox" id="idle-animation" checked><span>Autoplay idle loop</span></label>
+        <label><input type="checkbox" id="pause-animations"><span>Pause animations</span></label>
+        <div class="trigger-buttons" role="group" aria-label="Preview prepared animation triggers">
+          <button data-clip="Engine_start" disabled>Engine start</button><button data-clip="Engine_stop" disabled>Engine stop</button>
+          <button data-clip="Service_open" disabled>Open service panel</button><button data-clip="Service_close" disabled>Close service panel</button>
+        </div>
+        <p id="animation-status" role="status">Loading animation clips…</p>
+        <p class="animation-note">Trigger previews are ready for future game controls. Engine clips operate the cooling shutters.</p>
+        <button id="reset-systems" disabled>Reset systems</button>
+      </fieldset>
+      <div class="downloads"><a id="download" class="download-primary" download href="../ships/tintin.glb">Download GLB <span aria-hidden="true">↓</span></a><a id="blend" class="blend-link" download href="../ships/tintin.blend">Editable Blender source ↗</a></div>
+    </aside>
+  </main>
+  <footer class="page-footer"><span>Five spacecraft. One size class.</span><span>1 × 2 m flight envelope <i>·</i> Three thruster markers</span></footer>
+  <noscript>This viewer needs JavaScript. The five GLB files are available in the ships folder.</noscript>
+</body>
+</html>

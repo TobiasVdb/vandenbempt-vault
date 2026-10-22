@@ -1,5 +1,14 @@
 # House of Tobias
 
+## Rocket multiplayer
+
+`/rocket/` serves Hollow, with its own `/rocket/api/` routes, live rooms and ephemeral lobby chat. The source of truth is `D:/dev/rocketdesign`; regenerate `vendor/rocket` using `node scripts/export-rocket.mjs Y:/HouseOfTobias/vendor/rocket` from there. Do not hand-edit generated files. No new production dependencies or secret configuration are required.
+
+The adapter reuses the existing PostgreSQL pool. Startup creates only additive `rocket_players` and `rocket_results` tables; the API stays unavailable if initialization fails. Player identity is a browser-stored random ID plus a private bearer token; only token hashes are stored in PostgreSQL. Coins, owned skins, equipped paint, upgrades and best times persist per pilot. Room physics and chat are memory-only: keep the app at one instance until rooms use a shared simulation/broadcast service. Chat has no history or database table.
+
+Server-authoritative races accept thrust and steering, calculate collisions and objectives with the game's physics, and award rewards from server results only. New browsers choose a name. Missing Rocket files 404 within the mount and cannot enter the host SPA fallback. Other service prefixes and their WebSocket listeners are unchanged. `GET /rocket/api/health` verifies the Rocket store is ready. `server/rocket.node-test.mjs` covers route isolation and asset imports; the source repo includes game and API tests.
+
+
 ## De Pleckers trip tracking and alerts
 
 `/nyc-follow/` is the private-code follow and device-pairing page. Its public HTML contains no private locations or credentials. `/api/nyc-trip/*` is a separate authenticated service; it stays closed until PostgreSQL initialization succeeds and `NYC_TRIP_ADMIN_TOKEN` is set to a random base64url token of at least 40 characters. Existing household APIs and access rules are unchanged.

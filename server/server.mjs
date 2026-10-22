@@ -236,6 +236,25 @@ let familyTasksDbReady = false
 let familyTasksDbInitError = ''
 const poolConfig = getPoolConfig()
 const pool = poolConfig ? new Pool(poolConfig) : null
+// Rocket owns only this mount and additive rocket_* tables; other routes stay independent.
+const rocketDir = path.resolve(process.cwd(), 'vendor', 'rocket')
+let rocketService = null
+const rocketModules = fs.existsSync(path.join(rocketDir, 'server', 'rocket-service.mjs'))
+  ? await Promise.all([
+    import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-service.mjs')).href),
+    import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-store.mjs')).href),
+    import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-http.mjs')).href),
+  ]) : null
+if (rocketModules) {
+  const handleRocket = rocketModules[2].createRocketHttp({ root: rocketDir, getService: () => rocketService })
+  app.get(/^\/rocket$/, (_request, response) => response.redirect(302, '/rocket/'))
+  app.use('/rocket', (request, response) => {
+    void handleRocket(request, response).catch(() => {
+      if (!response.headersSent) response.status(500)
+      response.end()
+    })
+  })
+}
 let nycTripDbReady = false
 const nycTrip = createNycTripService({ app, pool, isDbReady: () => dbReady && nycTripDbReady })
 const ringEater = createRingEaterService({
@@ -3278,6 +3297,14 @@ initializeDatabase()
           ringDbInitError = error instanceof Error ? error.message : 'Ring Eater database initialization failed.'
           console.error('Ring Eater database initialization failed:', error)
         })
+
+      if (rocketModules) {
+        void rocketModules[1].createPostgresStore(pool).then((store) => {
+          const hulls = JSON.parse(fs.readFileSync(path.join(rocketDir, 'server', 'ship-hulls.json'), 'utf8'))
+          rocketService = rocketModules[0].createRocketService({ store, hulls })
+          console.log('Rocket player database and multiplayer rooms are ready.')
+        }).catch(() => console.warn('Rocket database initialization failed; /rocket/api stays unavailable.'))
+      }
 
       void initializeFamilyTasksDatabase(pool)
         .then(() => {
