@@ -29,6 +29,11 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
       varying vec4 vWall;
       varying float vThrottle;
       void main(){
+        // Cooling smoke shares this buffer with fire. Clip invisible parcels before
+        // rasterization instead of shading their large billboards just to discard them.
+        if((firePass>.5&&parcel.y<.005)||(firePass<.5&&parcel.x<.001)){
+          gl_Position=vec4(2.0,2.0,2.0,1.0);return;
+        }
         vUv=uv;vOpacity=parcel.x;vHeat=parcel.y;vSeed=parcel.z;vAge=parcel.w;vKind=kind;vPlane=surfacePlane;
         vWall=wallPlane;vJet=jetPlane;vThrottle=throttle;
         vec2 dimensions=puffSize;
