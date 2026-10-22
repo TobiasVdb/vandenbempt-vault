@@ -7,7 +7,7 @@ const noise=seed=>fraction(Math.sin(seed*127.1+311.7)*43758.5453);
 export function createMenuBackdrop(scene){
   const root=new THREE.Group();root.name='menu_movement_backdrop';scene.add(root);
   const stars=[];
-  for(const [name,count,size,opacity,parallax,z] of [['distant_stars',1700,1.6,.65,.97,-36],['near_stars',220,2.3,.75,.94,-32]]){
+  for(const [name,count,size,opacity,depth] of [['distant_stars',1700,1.6,.65,48],['near_stars',220,2.3,.75,44]]){
     const positions=[],colors=[];
     for(let i=0;i<count;i++){
       positions.push((noise(i+1)-.5)*64,(noise(i+5001)-.5)*64,0);
@@ -16,7 +16,7 @@ export function createMenuBackdrop(scene){
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
     // Orthographic PointsMaterial sizes are pixels; subpixel world-sized stars were invisible.
     const points=new THREE.Points(geometry,new THREE.PointsMaterial({size,sizeAttenuation:false,vertexColors:true,transparent:true,opacity,fog:false,depthWrite:false,toneMapped:false}));
-    points.name=name;points.position.z=z;root.add(points);stars.push({points,parallax});
+    points.name=name;root.add(points);stars.push({points,depth});
   }
   const ridges=[];
   for(const [name,color,height,parallax,z] of [['far_horizon','#193443',.6,.96,-26],['near_horizon','#25434c',1,.9,-21]]){
@@ -37,7 +37,13 @@ export function createMenuBackdrop(scene){
       // Keep a remote horizon in view during high climbs, while local ground stays physical.
       const atHorizon=camera.position.y+(-24-camera.position.z)*direction.y/direction.z;
       const base=Math.max(0,atHorizon-span*.27);
-      for(const {points,parallax} of stars){points.position.x=camera.position.x*parallax;points.position.y=camera.position.y*parallax;}
+      // Stars are effectively at infinity: translation and follow-camera zoom must not
+      // make them slide or expand. Keep their screen positions fixed behind the terrain.
+      for(const {points,depth} of stars){
+        points.position.copy(camera.position).addScaledVector(direction,depth);
+        points.quaternion.copy(camera.quaternion);
+        points.scale.set((camera.right-camera.left)/(12*camera.zoom),span/(12*camera.zoom),1);
+      }
       for(const {ridge,parallax} of ridges){ridge.position.x=camera.position.x*parallax;ridge.position.y=base;}
     },
   };
