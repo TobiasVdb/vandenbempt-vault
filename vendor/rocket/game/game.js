@@ -29,6 +29,7 @@ let storage=null;try{storage=localStorage;}catch{/* Session play remains availab
 const saved=loadProfile(storage),profile=saved.profile;
 let persistent=saved.persistent,garageChanged=false,attemptId='',race=null,worldEffects=null;
 const controls=createControls();
+const menuControls=createControls();
 const keyControls={KeyW:'thrust',ArrowUp:'thrust',Space:'thrust',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right'};
 const scene=new THREE.Scene();scene.background=new THREE.Color('#211d19');scene.fog=new THREE.Fog('#211d19',58,110);
 const camera=new THREE.OrthographicCamera(-28,28,16,-16,.1,150);
@@ -162,7 +163,7 @@ const startMenu=createStartMenu({profile,storage,levels:LEVELS,reducedMotion,
     $('wallet').textContent=`${profile.coins} coins`;
     openMenu();
   },
-  onMotion:paused=>menuScene.setPaused(paused),
+  onMotion:paused=>{menuControls.clear();menuScene.setPaused(paused);},
   onReset:()=>online.reset(),
 });
 function leaveNetwork(){networkRoom=null;online?.leave().catch(error=>$('network-status').textContent=error.message);}
@@ -222,10 +223,11 @@ function finishOnline(result){
 }
 online=createOnline({storage,getShip:()=>$('ship').value,isReady:()=>fleet.size>0&&levelModels.size===LEVELS.length,
   onProfile(value){
+    const loadoutChanged=profile.ship!==(value.ship??profile.ship)||profile.skin!==value.skin||Object.keys(profile.upgrades).some(key=>profile.upgrades[key]!==value.upgrades[key]);
     Object.assign(profile,value);
     if(mode==='menu'&&value.ship){
       $('ship').value=value.ship;const source=fleet.get(value.ship);
-      if(source){menuScene.attach(value.ship,source,SKINS[profile.skin].color,flightTuning(profile));$('menu-craft-name').textContent=$('ship').selectedOptions[0].textContent;}
+      if(source&&loadoutChanged){menuScene.attach(value.ship,source,SKINS[profile.skin].color,flightTuning(profile));$('menu-craft-name').textContent=$('ship').selectedOptions[0].textContent;}
     }
     saveProgress();startMenu.refresh();
   },
@@ -297,7 +299,7 @@ function togglePause(){
   mode='paused';$('pause').firstChild.textContent='Resume ';
   setMessage('FLIGHT ON HOLD','Take a breather.',networkRoom?'Your controls are released. The shared race continues while you pause.':'Your position, fuel, and flight time are held.','Resume flight →');
 }
-function clearInput(){controls.clear();if(networkRoom)online?.sendInput({thrust:false,turn:0});if(audioGain)audioGain.gain.setTargetAtTime(0,context.currentTime,.03);for(const b of document.querySelectorAll('[data-control]'))b.classList.remove('active');}
+function clearInput(){controls.clear();menuControls.clear();if(networkRoom)online?.sendInput({thrust:false,turn:0});if(audioGain)audioGain.gain.setTargetAtTime(0,context.currentTime,.03);for(const b of document.querySelectorAll('[data-control],[data-menu-control]'))b.classList.remove('active');}
 function finish(){
   clearInput();mode='ended';$('pause').disabled=true;
   if(completed(state)){
@@ -425,15 +427,19 @@ $('home').addEventListener('click',()=>{openMenu();$('menu-play').focus();});
 $('ship').addEventListener('change',()=>launchFromMenu(course,false));$('course').addEventListener('change',()=>launchFromMenu(Number($('course').value),false));
 window.addEventListener('resize',resize);
 window.addEventListener('keydown',e=>{
-  if(mode==='menu'||garage.isOpen()||e.target.closest('select,input,textarea'))return;
+  if(garage.isOpen()||document.querySelector('dialog[open]')||e.target.closest('select,input,textarea'))return;
   if(e.target.closest('button,a')&&['Space','Enter'].includes(e.code))return;
+  if(mode==='menu'){
+    if(e.code in keyControls){e.preventDefault();if(!e.repeat)menuControls.press(e.code,keyControls[e.code]);}
+    return;
+  }
   if(mode==='ended'&&['Enter','Space'].includes(e.code)){e.preventDefault();if(!e.repeat)begin();return;}
   if(e.code in keyControls){e.preventDefault();if(mode==='running'&&!e.repeat)controls.press(e.code,keyControls[e.code]);}
   if(e.repeat)return;
   if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();togglePause();}
   if(e.code==='KeyR'){e.preventDefault();launchFromMenu(course,false);}
 });
-window.addEventListener('keyup',e=>controls.release(e.code));
+window.addEventListener('keyup',e=>{controls.release(e.code);menuControls.release(e.code);});
 window.addEventListener('blur',()=>{clearInput();if(mode==='running')togglePause();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='running')togglePause();});
 for(const button of document.querySelectorAll('[data-control]')){
@@ -442,13 +448,26 @@ for(const button of document.querySelectorAll('[data-control]')){
   button.addEventListener('click',e=>{if(e.detail===0&&mode==='running'){controls.press('keyboard-button',control);controls.release('keyboard-button');}});
   for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,e=>{controls.release(`pointer:${e.pointerId}`);button.classList.remove('active');});
 }
+for(const button of document.querySelectorAll('[data-menu-control]')){
+  const control=button.dataset.menuControl;
+  button.addEventListener('pointerdown',e=>{
+    if(mode!=='menu'||document.querySelector('dialog[open]'))return;
+    e.preventDefault();button.setPointerCapture(e.pointerId);menuControls.press(`menu-pointer:${e.pointerId}`,control);button.classList.add('active');
+  });
+  button.addEventListener('click',e=>{if(e.detail===0&&mode==='menu'){menuControls.press('menu-button',control);menuControls.release('menu-button');}});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,e=>{menuControls.release(`menu-pointer:${e.pointerId}`);button.classList.remove('active');});
+}
 
 function frame(now){
   requestAnimationFrame(frame);const frameDelta=(now-last)/1000,dt=Math.min(frameDelta,.08);last=now;
   frameSeconds+=frameDelta;frameCount++;
   if(frameSeconds>=1){canvas.dataset.fps=String(Math.round(frameCount/frameSeconds));canvas.dataset.drawCalls=String(renderer.info.render.calls);frameSeconds=0;frameCount=0;}
   if(mode==='menu'){
-    if(!document.hidden){startMenu.update(menuScene.update(frameDelta,renderer));renderer.render(menuScene.scene,menuScene.camera);}
+    if(!document.hidden){
+      const canSteer=!document.querySelector('dialog[open]');
+      startMenu.update(menuScene.update(frameDelta,renderer,seconds=>{const input=canSteer?menuControls.read():{};menuControls.advance(seconds);return input;}));
+      renderer.render(menuScene.scene,menuScene.camera);
+    }
     canvas.dataset.mode='menu';return;
   }
   if(selected&&state){

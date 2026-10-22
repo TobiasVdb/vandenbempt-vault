@@ -41,17 +41,20 @@ export function createStartMenu({profile,storage,levels,onPlay,onMission,onDelet
     refresh,
     show(){root.hidden=false;document.body.classList.add('at-menu');refresh();},
     hide(){root.hidden=true;document.body.classList.remove('at-menu');},
-    setReady(value){ready=value;play.disabled=!ready;choose.disabled=!ready;status.textContent=ready?'Ready for launch.':'Preparing the fleet…';},
+    setReady(value){ready=value;play.disabled=!ready;choose.disabled=!ready;for(const button of document.querySelectorAll('[data-menu-control]'))button.disabled=!ready;status.textContent=ready?'Ready for launch.':'Preparing the fleet…';},
     update(sample){
       const labels={'menu-phase':sample.phase,'menu-altitude':`${sample.altitude.toFixed(1)} m`,'menu-engine':`${Math.round(sample.throttle*100)}%`,
         'menu-step':`${String(sample.step).padStart(2,'0')} / ${sample.totalSteps}`,'menu-route':`Station ${String(sample.station+1).padStart(2,'0')} → Station ${String(sample.destination+1).padStart(2,'0')}`,
         'menu-speed':`${Math.hypot(sample.horizontalSpeed,sample.verticalSpeed).toFixed(1)} m/s`};
+      labels['menu-pilot']=sample.pilot==='crashed'?`Scene resets in ${Math.ceil(sample.resetIn)}s`:sample.pilot==='manual'?`Manual control · autopilot in ${Math.ceil(sample.takeoverIn)}s`:sample.pilot==='recovering'?'Autopilot is recovering the flight':'Autopilot · steer to take control';
       for(const [id,value] of Object.entries(labels)){const el=document.getElementById(id);if(el.textContent!==value)el.textContent=value;}
       root.dataset.phase=sample.phase;root.dataset.altitude=sample.altitude.toFixed(3);root.dataset.throttle=sample.throttle.toFixed(3);
       root.dataset.x=sample.x.toFixed(3);root.dataset.angle=sample.angle.toFixed(3);root.dataset.horizontalSpeed=sample.horizontalSpeed.toFixed(3);root.dataset.destination=String(sample.destination+1);
       root.dataset.verticalSpeed=sample.verticalSpeed.toFixed(3);root.dataset.fuel=sample.fuel.toFixed(3);root.dataset.legs=String(sample.legs);
       root.dataset.plumeAir=String(sample.plume.air);root.dataset.plumeGround=String(sample.plume.ground);root.dataset.plumeGroundHeight=sample.plume.maxGroundHeight.toFixed(3);
       root.dataset.plumeObstacleHits=String(sample.plume.obstacleHits);
+      root.dataset.pilot=sample.pilot;root.dataset.resetIn=sample.resetIn.toFixed(3);root.dataset.sceneResets=String(sample.resets);
+      root.dataset.menuDebris=String(sample.debris);root.dataset.towersDestroyed=String(sample.towersDestroyed);
     },
   };
 }

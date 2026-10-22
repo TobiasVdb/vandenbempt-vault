@@ -92,7 +92,7 @@ function fractureHull(object,root){
 }
 
 /** Bounded debris, with inherited motion, spin, terrain bounce and a fading engine flash. */
-export function createDestructionEffect(scene,{capacity=96,reducedMotion=false,random=Math.random}={}){
+export function createDestructionEffect(scene,{capacity=96,reducedMotion=false,random=Math.random,horizontalLimit=24.965}={}){
   const placeholder=new THREE.BufferGeometry(),material=new THREE.MeshStandardMaterial({color:'#534d45'});
   const pieces=Array.from({length:capacity},()=>{
     const mesh=new THREE.Mesh(placeholder,material);mesh.visible=false;mesh.name='wreck_fragment';scene.add(mesh);
@@ -143,7 +143,7 @@ export function createDestructionEffect(scene,{capacity=96,reducedMotion=false,r
           const ceiling=surfaceAt(level.roof,mesh.position.x)-.035;
           if(mesh.position.y>ceiling){mesh.position.y=ceiling;piece.velocity.y=-Math.abs(piece.velocity.y)*.3;piece.spin.multiplyScalar(.8);}
         }
-        if(level.objective!=='orbit'&&Math.abs(mesh.position.x)>24.965){mesh.position.x=Math.sign(mesh.position.x)*24.965;piece.velocity.x=-Math.sign(mesh.position.x)*Math.abs(piece.velocity.x)*.3;}
+        if(level.objective!=='orbit'&&Math.abs(mesh.position.x)>horizontalLimit){mesh.position.x=Math.sign(mesh.position.x)*horizontalLimit;piece.velocity.x=-Math.sign(mesh.position.x)*Math.abs(piece.velocity.x)*.3;}
         mesh.material.forEach((m,i)=>{m.opacity=piece.opacity[i]*Math.min(1,piece.life/2);});
       }
       flashLife=Math.max(0,flashLife-seconds);flash.intensity=flashLife*35;

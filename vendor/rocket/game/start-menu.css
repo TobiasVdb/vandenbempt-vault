@@ -11,3 +11,6 @@
 .menu-flight .menu-route{font-size:10px;letter-spacing:.3px;color:#8aa6af;margin:8px 0 0}.menu-stats{gap:20px}
 @media(max-width:1000px){.menu-stats{gap:12px}}
 @media(max-width:680px){.menu-flight .menu-route{font-size:8px;margin-top:6px}}
+
+.menu-footer{gap:18px}.menu-pilot-controls{display:flex;gap:6px;pointer-events:auto}.menu-pilot-controls button{min-height:32px;padding:7px 12px;font-size:10px;color:#a9bdc4;background:#10202aaa;border-color:#8da8b63d;touch-action:none;user-select:none}.menu-pilot-controls button:hover{background:#233d4c}.menu-pilot-controls button.active{background:#d7ddcf;color:#14222a}.menu-flight .menu-pilot{font-size:10px;line-height:1.5;letter-spacing:0;color:#a9b28f;margin:0 0 12px}.start-menu[data-pilot=manual] .menu-pilot{color:#d4b17e}.start-menu[data-pilot=crashed] .menu-pilot{color:#df9b81}
+@media(max-width:680px){.menu-footer{bottom:12px}.menu-footer>span{display:none}.menu-pilot-controls button{min-width:62px}.menu-flight .menu-pilot{font-size:9px;margin-bottom:5px}}
