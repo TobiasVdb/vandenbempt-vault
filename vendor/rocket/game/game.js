@@ -345,12 +345,12 @@ function finish(){
 }
 function renderShip(dt=0){
   const pose=networkRoom?flightPresentation.sample('you',performance.now()/1000,dt)||state:state;
-  selected.appearance.configure(state.tuning);
+  selected.appearance.configure(state.tuning,level.theme==='dark');
   selected.root.position.set(pose.x,pose.y,.4);selected.root.rotation.z=pose.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,state.rcsTurn,state.damage,level.controls==='translation'?(state.status==='flying'?state.translation:null)||{x:0,y:0}:null);syncDamage(selected,state);
   for(const racer of race.racers.slice(1)){
     const model=botVisuals.get(racer.id);if(!model)continue;
     const pose=networkRoom?flightPresentation.sample(racer.id,performance.now()/1000,dt)||racer.state:racer.state;
-    model.appearance.configure(racer.state.tuning);
+    model.appearance.configure(racer.state.tuning,level.theme==='dark');
     model.root.position.set(pose.x,pose.y,.4);model.root.rotation.z=pose.angle;model.root.updateMatrixWorld(true);model.appearance.update(racer.state.tuning.rcs,racer.state.rcsTurn,racer.state.damage,level.controls==='translation'?(racer.state.status==='flying'?racer.state.translation:null)||{x:0,y:0}:null);syncDamage(model,racer.state);
   }
 }

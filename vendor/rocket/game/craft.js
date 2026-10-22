@@ -4,7 +4,7 @@ import { createCraftDamage } from './damage-effect.js';
 
 const paintNames=new Set(['Ceramic ivory','Vermilion enamel','Sage green alloy','Oxblood fins','Pearl titanium armor','Aster porcelain alloy']);
 export function decorateCraft(root){
-  const materials=new Map(),jets=[],translationJets=[],fittings=[];
+  const materials=new Map(),jets=[],translationJets=[],fittings=[],navigationLamps=[];
   const jetHeight=.57,attachments=[];let front=.17;
   const collision=root.getObjectByName('collision');
   if(collision?.geometry){
@@ -57,11 +57,15 @@ export function decorateCraft(root){
   for(const [name,color] of [['nav_port_lens','#ed4848'],['nav_starboard_lens','#63ee92']]){
     const lens=root.getObjectByName(name);if(!lens)continue;
     root.updateMatrixWorld(true);const position=root.worldToLocal(lens.getWorldPosition(new THREE.Vector3()));
-    const lamp=new THREE.PointLight(color,.7,4,2);lamp.position.copy(position);root.add(lamp);
+    const lamp=new THREE.PointLight(color,.7,4,2);lamp.position.copy(position);root.add(lamp);navigationLamps.push(lamp);
   }
   return {
     damage:createCraftDamage(root),
-    configure(tuning){for(const fitting of fittings)fitting.mesh.visible=(tuning[`${fitting.kind}Tier`]||0)>=fitting.tier;},
+    configure(tuning,navigationLighting=true){
+      for(const fitting of fittings)fitting.mesh.visible=(tuning[`${fitting.kind}Tier`]||0)>=fitting.tier;
+      // Emissive navigation lenses remain visible in daylight; only night needs cast light.
+      for(const lamp of navigationLamps)lamp.visible=navigationLighting;
+    },
     paint(color){
       for(const {copy,color:original} of materials.values())if(paintNames.has(copy.name)){
         if(color){copy.color.set(color);if(['Ceramic ivory','Aster porcelain alloy'].includes(copy.name))copy.color.lerp(new THREE.Color('#e5e4dc'),.25);}

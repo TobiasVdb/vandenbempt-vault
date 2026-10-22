@@ -8,7 +8,7 @@ export function batchCraftDetails(root,animations=[]){
   root.traverse(object=>{
     if(!object.isMesh||!object.visible||object.children.length||Array.isArray(object.material)||object.material.transparent)return;
     const name=object.name.replaceAll('_',' ');
-    if(!/fastener|seam|stripe|insignia|stencil|manifold|brace|structural rail|heat shield|power module|coupling|recess|throat|rotor blade|louver/i.test(name))return;
+    if(!/fastener|seam|stripe|insignia|stencil|manifold|brace|structural rail|conformal titanium rail|cooling slot|heat shield|power module|coupling|recess|throat|rotor blade|louver/i.test(name))return;
     if(/nav|window|visor|glaz|fin|wing|cheek|fairing|bell|collar|cooling ring|reinforced lip/i.test(name))return;
     // Siblings retain their shared parent's animation when merged in that parent's space.
     if(animated.has(object.name))return;
