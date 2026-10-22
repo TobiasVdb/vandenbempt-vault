@@ -79,19 +79,19 @@ export function checkTerrainCollision(state,level,hull=DEFAULT_HULL,solids=terra
   if(!['ready','flying'].includes(state.status))return;
   const body=worldHull(state,hull);
   const pads=level.pads.map(p=>[[p.x-p.width/2,p.y-.38],[p.x+p.width/2,p.y-.38],[p.x+p.width/2,p.y],[p.x-p.width/2,p.y]]);
-  if([...solids,...pads].some(p=>polygonsOverlap(body,p)))crash(state,'Contact with the terrain.');
+  if([...solids,...pads].some(p=>polygonsOverlap(body,p)))crash(state,level.theme==='space'?'Collision with a meteor.':'Contact with the terrain.');
 }
 
 export function createFlight(level, hull=DEFAULT_HULL, tuning={}) {
   const pad=level.pads[0];
-  return {x:pad.x,y:pad.y-Math.min(...hull.map(p=>p[1]))+.015,vx:0,vy:0,angle:0,omega:0,
+  return {x:level.spawn?.x??pad.x,y:level.spawn?.y??pad.y-Math.min(...hull.map(p=>p[1]))+.015,vx:0,vy:0,angle:0,omega:0,
     fuel:tuning.capacity??100,time:0,status:'ready',thrust:0,reason:'',pad:0,gate:0,orbitHold:0,rcsTurn:0,damage:createDamageState(),
     tuning:{thrust:10,turnPower:2.9,capacity:100,rcs:0,...tuning}};
 }
 
 export function environmentAt(state,level){
   const altitude=Math.max(0,state.y+8),orbital=level.objective==='orbit';
-  const density=orbital?Math.exp(-altitude/(level.scaleHeight||13)):1;
+  const density=level.theme==='space'?0:orbital?Math.exp(-altitude/(level.scaleHeight||13)):1;
   const gravity=orbital?level.gravity/(1+altitude/level.planetRadius)**2:(level.gravity??4);
   let drag=level.drag??.055,verticalDrag=level.verticalDrag??.035,cloud=0;
   for(const volume of level.clouds||[])if(((state.x-volume.x)/volume.rx)**2+((state.y-volume.y)/volume.ry)**2<=1)cloud+=volume.drag;
@@ -134,18 +134,26 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   const tuning=state.tuning||{thrust:10,turnPower:2.9,capacity:100,rcs:0};
   const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y};
   const turn=clamp(input.turn||0,-1,1),engine=state.damage.engine/100,steering=state.damage[turn>0?'right':'left']/100;
-  const thrust=Boolean(input.thrust)&&state.fuel>0&&engine>0;
+  const translation=level.controls==='translation';
+  const thrust=!translation&&Boolean(input.thrust)&&state.fuel>0&&engine>0;
   state.thrust=thrust?engine:0;
-  if (state.status==='ready' && !thrust) {state.fuel=Math.min(tuning.capacity,state.fuel+dt*12);return;}
+  let tx=translation?clamp(input.translateX||0,-1,1):0,ty=translation?clamp(input.translateY||0,-1,1):0;
+  const magnitude=Math.max(1,Math.hypot(tx,ty));tx/=magnitude;ty/=magnitude;
+  if(state.fuel<=0||engine<=0){tx=0;ty=0;}
+  if (state.status==='ready' && !thrust&&!(translation&&(tx||ty||turn))) {if(!translation)state.fuel=Math.min(tuning.capacity,state.fuel+dt*12);return;}
   state.status='flying';state.time+=dt;
-  state.rcsTurn=tuning.rcs>0&&state.fuel>0&&steering>0?turn:0;
+  state.rcsTurn=(translation||tuning.rcs>0)&&state.fuel>0&&steering>0?turn:0;
   const turnPower=(tuning.rcs>0&&(state.fuel<=0||steering===0)?2.9:tuning.turnPower)*(.35+.65*steering);
-  state.omega+=(turn*turnPower-state.omega*4.4)*dt;
+  state.omega+=(translation?state.rcsTurn*turnPower:turn*turnPower-state.omega*4.4)*dt;
   state.angle=(state.angle+state.omega*dt+Math.PI*3)%(Math.PI*2)-Math.PI;
   const force=thrust?tuning.thrust*env.engineScale*engine:0;
   state.vx+=(-Math.sin(state.angle)*force-(state.vx-env.wind)*env.drag)*dt;
   state.vy+=(Math.cos(state.angle)*force-env.downward-state.vy*env.verticalDrag)*dt;
-  state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15:0)+Math.abs(state.rcsTurn)*.12));
+  if(translation){
+    const acceleration=level.translationForce*(tuning.thrust/10)*engine;
+    state.vx+=tx*acceleration*dt;state.vy+=ty*acceleration*dt;state.translation={x:tx,y:ty};
+  }
+  state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15:0)+Math.hypot(tx,ty)*.8+Math.abs(state.rcsTurn)*.12));
   const previous=worldHull(state,hull),oldBottom=Math.min(...previous.map(p=>p[1]));
   state.x+=state.vx*dt;state.y+=state.vy*dt;
   const body=worldHull(state,hull),bottom=Math.min(...body.map(p=>p[1])),left=Math.min(...body.map(p=>p[0])),right=Math.max(...body.map(p=>p[0]));

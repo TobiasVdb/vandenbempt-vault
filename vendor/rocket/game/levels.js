@@ -41,6 +41,10 @@ LEVELS.push(
   {id:'orbit',name:'Above the Air',planet:'Kepler',difficulty:'11 / ORBITAL INSERTION',subtitle:'Climb out of the thick air. Then build sideways speed.',theme:'orbit',gravity:2.6,planetRadius:120,scaleHeight:13,reward:200,objective:'orbit',floor:[[-100000,-8],[100000,-8]],roof:[],pads:[pads()[0]],route:[],brief:'Climb to 55–100 m above the surface. Dense low air reduces engine output and adds drag. In thin air, turn sideways and reach circular orbital speed. Hold altitude, vertical speed under 1.8 m/s, and 95–115% target orbital speed for 3 seconds. Game distances and speeds are scaled.'},
 );
 for(const level of LEVELS)if(['ice','moon','volcanic','water','clouds','storm','orbit'].includes(level.theme)){level.openSky=true;level.roof=[];}
+LEVELS.push({id:'drift',name:'Driftfield',planet:'Deep space',difficulty:'12 / ZERO GRAVITY',subtitle:'Thread the meteor field on manoeuvring thrusters alone.',theme:'space',gravity:0,drag:0,verticalDrag:0,engineScale:0,controls:'translation',translationForce:3,reward:220,objective:'rings',floor:[],roof:[],pads:[],spawn:{x:-21,y:0},openSky:true,
+  rings:[{x:-9,y:5,radius:2.5},{x:4,y:-3,radius:2.5},{x:19,y:4,radius:2.5}],route:[[-16,5],[-9,5],[-5,5],[0,-3],[4,-3],[9,-3],[14,4],[19,4]],
+  meteors:[{x:-17,y:-4,rx:2.2,ry:2},{x:-13,y:10,rx:2.8,ry:2.2},{x:-7,y:-1,rx:2.2,ry:2.4},{x:-1,y:10,rx:2.4,ry:2.8},{x:3,y:3,rx:2.2,ry:2.4},{x:5,y:-9,rx:2.5,ry:2},{x:12,y:-8,rx:2.4,ry:2},{x:14,y:10,rx:2.5,ry:2.5},{x:20,y:-2,rx:2.1,ry:2.3},{x:25,y:8,rx:2.3,ry:2}],
+  brief:'Zero gravity. No atmosphere, no main engine. Use WASD or arrows for screen-relative thrust in all four directions; Space also thrusts up. Q/E rotate. Release to coast, use opposite thrust to brake. Cross the three amber gates from left to right in order, avoiding the solid meteors. First through wins 220 coins. Manoeuvring jets are included; upgrades are optional.'});
 
 export function missionBrief(level){
   return level.brief||'Race Ash and Vesper across the cave. Land upright on green, below 2.2 m/s downward and 1.7 m/s sideways. First to finish earns coins.';
@@ -54,9 +58,13 @@ export function terrainSolids(level) {
       solids.push([a,b,[b[0],edge],[a[0],edge]]);
     }
   }
-  if(level.objective!=='orbit')solids.push([[-28,-20],[-25,-20],[-25,20],[-28,20]],[[25,-20],[28,-20],[28,20],[25,20]]);
+  if(level.objective!=='orbit'&&level.theme!=='space')solids.push([[-28,-20],[-25,-20],[-25,20],[-28,20]],[[25,-20],[28,-20],[28,20],[25,20]]);
+  for(const meteor of level.meteors||[])solids.push(meteorPolygon(meteor));
   return solids;
 }
+
+// Collision and the faceted GLB surface share this convex outline.
+export function meteorPolygon({x,y,rx,ry}){return Array.from({length:10},(_,i)=>{const angle=(i+.16*Math.sin(i*2.3+x))*Math.PI/5;return [x+Math.cos(angle)*rx,y+Math.sin(angle)*ry];});}
 
 export function surfaceAt(points, x) {
   for (let i=1;i<points.length;i++) {

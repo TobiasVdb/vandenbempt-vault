@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createFlightSystems } from '../flight-systems.js';
 import { LEVELS, surfaceAt, missionBrief } from './levels.js';
 import { FIXED_STEP, convexHull, worldHull, completed, environmentAt, orbitalTarget } from './physics.js';
-import { createControls } from './controls.js';
+import { createControls, translationKeys } from './controls.js';
 import { createRace, stepRace, standings, raceResult } from './race.js';
 import { loadProfile, saveProfile, flightTuning, settleRace, SKINS } from './progression.js';
 import { createGarage } from './garage.js';
@@ -143,6 +143,7 @@ function removeRemoteVisual(id,model){
   const materials=new Set();model.root.traverse(object=>{if(object.material)for(const material of Array.isArray(object.material)?object.material:[object.material])materials.add(material);});
   for(const material of materials)material.dispose();
   for(const side of ['left','right'])model.root.getObjectByName(`upper_rotation_${side}`)?.traverse(object=>object.geometry?.dispose());
+  for(const direction of ['left','right','up','down'])model.root.getObjectByName(`translation_jet_${direction}`)?.traverse(object=>object.geometry?.dispose());
   botVisuals.delete(id);$(`rival-${id}`)?.remove();
 }
 
@@ -239,7 +240,7 @@ $('lobby-mission').replaceChildren(...LEVELS.map(mission=>{const option=document
 // Network input cadence must not depend on WebGL frame rate or shader compilation.
 setInterval(()=>{
   if(!networkRoom)return;
-  online.sendInput(mode==='running'?controls.read():{thrust:false,turn:0});controls.advance(.1);
+  online.sendInput(mode==='running'?controls.read(level.controls==='translation'):{thrust:false,turn:0});controls.advance(.1);
 },100);
 let scoresRequest=0;
 async function showScores(){
@@ -278,6 +279,9 @@ function resetFlight(brief=false){
 }
 function changeCourse(){
   course=Number($('course').value);level=LEVELS[course];buildCave();
+  const space=level.controls==='translation';document.body.classList.toggle('space-flight',space);
+  canvas.setAttribute('aria-label',space?'Flight area. WASD or arrows thrust in four directions. Q and E rotate. P pauses, R restarts.':flightCanvasLabel);
+  $('control-legend').textContent=space?'WASD / ARROWS: MOVE · Q / E: ROTATE · OPPOSITE THRUST: BRAKE':'W / SPACE: THRUST · A / D: ROTATE';
   $('course-number').textContent=level.difficulty;$('course-name').textContent=level.name;$('course-description').textContent=level.subtitle;
   resetFlight(true);
 }
@@ -315,10 +319,10 @@ function finish(){
   }
 }
 function renderShip(){
-  selected.root.position.set(state.x,state.y,.4);selected.root.rotation.z=state.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,state.rcsTurn,state.damage);syncDamage(selected,state);
+  selected.root.position.set(state.x,state.y,.4);selected.root.rotation.z=state.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,state.rcsTurn,state.damage,level.controls==='translation'?(state.status==='flying'?state.translation:null)||{x:0,y:0}:null);syncDamage(selected,state);
   for(const racer of race.racers.slice(1)){
     const model=botVisuals.get(racer.id);if(!model)continue;
-    model.root.position.set(racer.state.x,racer.state.y,.4);model.root.rotation.z=racer.state.angle;model.root.updateMatrixWorld(true);model.appearance.update(racer.state.tuning.rcs,racer.state.rcsTurn,racer.state.damage);syncDamage(model,racer.state);
+    model.root.position.set(racer.state.x,racer.state.y,.4);model.root.rotation.z=racer.state.angle;model.root.updateMatrixWorld(true);model.appearance.update(racer.state.tuning.rcs,racer.state.rcsTurn,racer.state.damage,level.controls==='translation'?(racer.state.status==='flying'?racer.state.translation:null)||{x:0,y:0}:null);syncDamage(model,racer.state);
   }
 }
 function syncDamage(model,flight){
@@ -344,10 +348,11 @@ function updateHud(){
   $('fuel').max=state.tuning.capacity;$('fuel').value=state.fuel;$('fuel-value').innerHTML=`${Math.ceil(state.fuel)}<span>/${state.tuning.capacity}</span>`;
   $('vertical').innerHTML=`${Math.abs(state.vy).toFixed(1)} <small>${state.vy<-.1?'↓':state.vy>.1?'↑':''} m/s</small>`;
   const bottom=Math.min(...worldHull(state,selected.hull).map(p=>p[1]));
-  let floor=surfaceAt(level.floor,state.x);
+  let floor=level.floor.length?surfaceAt(level.floor,state.x):0;
   for(const pad of level.pads)if(Math.abs(state.x-pad.x)<pad.width/2)floor=Math.max(floor,pad.y);
-  $('altitude-label').textContent=level.objective==='orbit'?'ALTITUDE':'CLEARANCE';
-  $('altitude').innerHTML=`${(level.objective==='orbit'?env.altitude:Math.max(0,bottom-floor)).toFixed(1)} <small>m</small>`;
+  const space=level.controls==='translation';
+  $('altitude-label').textContent=space?'SPEED':level.objective==='orbit'?'ALTITUDE':'CLEARANCE';
+  $('altitude').innerHTML=`${(space?Math.hypot(state.vx,state.vy):level.objective==='orbit'?env.altitude:Math.max(0,bottom-floor)).toFixed(1)} <small>${space?'m/s':'m'}</small>`;
   $('timer').textContent=formatTime(race.elapsed);
   $('environment-readout').textContent=`${level.planet} · Gravity ${(env.gravity/4).toFixed(2)}×${level.wind?` · Headwind ${Math.abs(env.wind).toFixed(1)} m/s`:env.cloud?' · Inside cloud':level.theme==='water'?' · Submerged':''}`;
   const order=standings(race),signature=order.map(r=>`${r.id}:${r.finishTime}:${r.state.status}:${Math.ceil(r.state.damage.hull)}:${race.started}`).join('|');
@@ -355,18 +360,20 @@ function updateHud(){
     const row=document.createElement('li');row.className=racer.id==='you'?'is-you':'';
     row.textContent=`${index+1}. ${racer.name}`;const status=document.createElement('span');status.textContent=racer.finishTime!==null?formatTime(racer.finishTime):racer.state.status==='crashed'?'DNF':race.started?`Racing${racer.state.damage.hull<100?` · ${Math.ceil(racer.state.damage.hull)}%`:''}`:'Ready';row.append(status);return row;
   }));}
-  $('environment-readout').textContent+=` · T/W ${(state.tuning.thrust*env.engineScale*(state.damage.engine/100)/env.gravity).toFixed(2)}`;
+  $('environment-readout').textContent+=space?' · VACUUM · MAIN ENGINE OFF':` · T/W ${(state.tuning.thrust*env.engineScale*(state.damage.engine/100)/env.gravity).toFixed(2)}`;
   document.querySelector('.landing-rule').textContent=level.objective==='land'?'LAND UPRIGHT · BELOW 2.2 m/s':level.objective==='rings'?'FLY THROUGH THE GATES · NO LANDING':'CLIMB INTO THIN AIR · BUILD ORBITAL SPEED';
   $('objective-readout').textContent=level.objective==='orbit'?`Air ${Math.round(env.density*100)}% · Speed ${state.vx.toFixed(1)}/${orbitalTarget(state,level).toFixed(1)} m/s · Hold ${state.orbitHold.toFixed(1)}/3 s`:level.objective==='rings'?`Gates ${state.gate}/${level.rings.length} · ${level.reward} coins for first`:`First to land wins · ${level.reward} coins`;
   $('vertical').style.color=state.vy < -2.2?'#f0a377':'';
   const hint=$('flight-hint');hint.hidden=mode!=='running';
   if(mode==='running')hint.textContent=state.fuel<=0?'Propellant depleted. Coast carefully.':state.status==='ready'?'W / Space to start the race. A / D to rotate.':state.notice?state.notice:level.objective==='orbit'?(env.altitude<55?'Climb to 55–100 m. Thin air gives stronger acceleration.':`Turn right into orbit. Aim for ${orbitalTarget(state,level).toFixed(1)} m/s sideways; keep vertical speed below 1.8.`):level.objective==='rings'?(level.id==='rings'?'Climb, pitch nose-right, then fly horizontally through the ring.':`Fly through gate ${state.gate+1} from the left. Cloud banks slow you down.`):Math.abs(state.x-level.pads[1].x)<5?'Slow down. Straighten up. Set down gently.':level.theme==='dark'?'Follow the green beacons. Your engine lights the nearby rock.':'Lean right to cross. Lean left to slow down.';
+  if(mode==='running'&&space)hint.textContent=state.fuel<=0?'Propellant depleted. Momentum continues.':`WASD / arrows thrust · Q/E rotate · Opposite thrust brakes · Gate ${Math.min(state.gate+1,level.rings.length)}/${level.rings.length}`;
   // DOM telemetry is also useful for accessibility and repeatable runtime inspection.
   canvas.dataset.flightState=state.status;canvas.dataset.mode=mode;
   canvas.dataset.x=state.x.toFixed(2);canvas.dataset.y=state.y.toFixed(2);canvas.dataset.angle=state.angle.toFixed(3);
   canvas.dataset.mission=level.id;canvas.dataset.coins=String(profile.coins);canvas.dataset.rank=String(standings(race).findIndex(r=>r.id==='you')+1);
   canvas.dataset.plumeParticles=String(plume.count);
   canvas.dataset.shipContacts=String(race.contacts);
+  canvas.dataset.vx=state.vx.toFixed(3);canvas.dataset.vy=state.vy.toFixed(3);canvas.dataset.mainThrust=String(state.thrust);canvas.dataset.gates=String(state.gate);
   canvas.dataset.hullIntegrity=state.damage.hull.toFixed(1);canvas.dataset.debris=String(destruction.count);
 }
 
@@ -381,9 +388,9 @@ function resize(){
 const projected=new THREE.Vector3();
 function updateCamera(dt){
   if(!state)return;
-  const half=camera.right,desired=level.objective==='orbit'?state.x+state.vx*.4:half>=27?0:THREE.MathUtils.clamp(state.x+state.vx*.65,-26+half,26-half);
+  const half=camera.right,desired=level.objective==='orbit'||level.theme==='space'?state.x+state.vx*.4:half>=27?0:THREE.MathUtils.clamp(state.x+state.vx*.65,-26+half,26-half);
   cameraX=THREE.MathUtils.lerp(cameraX,desired,1-Math.exp(-dt*4));
-  const y=level.objective==='orbit'?Math.max(innerWidth<680?-2.5:0,state.y-1):state.y>9?state.y-7:innerWidth<680?state.y*.38:0;
+  const y=level.theme==='space'?state.y:level.objective==='orbit'?Math.max(innerWidth<680?-2.5:0,state.y-1):state.y>9?state.y-7:innerWidth<680?state.y*.38:0;
   camera.position.set(cameraX+(Math.random()-.5)*shake,y+1+(Math.random()-.5)*shake,50);camera.lookAt(cameraX,y+1,0);camera.updateMatrixWorld();shake=Math.max(0,shake-dt*.5);
   const target=level.objective==='rings'?level.rings[Math.min(state.gate,level.rings.length-1)]:level.pads[1];
   const labels=[level.pads[0],target];
@@ -434,7 +441,8 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(mode==='ended'&&['Enter','Space'].includes(e.code)){e.preventDefault();if(!e.repeat)begin();return;}
-  if(e.code in keyControls){e.preventDefault();if(mode==='running'&&!e.repeat)controls.press(e.code,keyControls[e.code]);}
+  const flightKeys=level.controls==='translation'?translationKeys:keyControls;
+  if(e.code in flightKeys){e.preventDefault();if(mode==='running'&&!e.repeat)controls.press(e.code,flightKeys[e.code]);}
   if(e.repeat)return;
   if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();togglePause();}
   if(e.code==='KeyR'){e.preventDefault();launchFromMenu(course,false);}
@@ -475,7 +483,7 @@ function frame(now){
       renderShip();
     }else if(mode==='running'&&!online){
       accumulator+=dt;
-      while(accumulator>=FIXED_STEP){stepRace(race,controls.read(),FIXED_STEP);controls.advance(FIXED_STEP);accumulator-=FIXED_STEP;if(race.finished){finish();accumulator=0;break;}}
+      while(accumulator>=FIXED_STEP){stepRace(race,controls.read(level.controls==='translation'),FIXED_STEP);controls.advance(FIXED_STEP);accumulator-=FIXED_STEP;if(race.finished){finish();accumulator=0;break;}}
       renderShip();
     }
     const firing=mode==='running'&&state.thrust>0&&state.status==='flying';

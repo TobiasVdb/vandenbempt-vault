@@ -1,6 +1,7 @@
 import { createFlight, stepFlight, completed, orbitalTarget, FIXED_STEP, DEFAULT_HULL, resolveShipCollision, checkTerrainCollision } from './physics.js';
 import { terrainSolids } from './levels.js';
 import { createPilot, pilotInput } from './pilots.js';
+import { hasFlightInput } from './controls.js';
 
 export function createRace(level,{hull=DEFAULT_HULL,tuning={},bots=[]}={}){
   const player=createFlight(level,hull,tuning);player.hull=hull;
@@ -13,7 +14,7 @@ export function createRace(level,{hull=DEFAULT_HULL,tuning={},bots=[]}={}){
 }
 export function stepRace(race,input,dt=FIXED_STEP,playerInputs=null){
   if(race.finished)return;
-  if(!race.started&&!input.thrust)return;
+  if(!race.started&&!(race.level.controls==='translation'?hasFlightInput(input):input.thrust))return;
   race.started=true;race.elapsed+=dt;
   const commands=race.racers.map(racer=>racer.waiting?{}:racer.pilot?pilotInput(racer.pilot,racer.state,race.level,race.elapsed):playerInputs?.get(racer.id)??input);
   // Limit surface travel, including rotating tips, to avoid tunnelling at orbital speeds.

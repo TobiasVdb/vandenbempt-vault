@@ -6,6 +6,14 @@ export function createPilot({speed=2.4,delay=0}={}){return {waypoint:0,pwm:0,spe
 /** Feedback control, not a prerecorded path: every command goes through normal flight physics. */
 export function pilotInput(pilot,state,level,elapsed){
   if(elapsed<pilot.delay||!['ready','flying'].includes(state.status))return {};
+  if(level.controls==='translation'){
+    const route=[...level.route,[level.rings.at(-1).x+2,level.rings.at(-1).y]];
+    let target=route[Math.min(pilot.waypoint,route.length-1)];
+    if(Math.hypot(target[0]-state.x,target[1]-state.y)<.5&&pilot.waypoint<route.length-1)target=route[++pilot.waypoint];
+    const speed=pilot.speed,acceleration=level.translationForce*state.tuning.thrust/10;
+    const axis=(position,velocity,goal)=>clamp((clamp((goal-position)*1.3,-speed,speed)-velocity)*2/acceleration,-1,1);
+    return {thrust:false,turn:clamp(-state.angle*4-state.omega*3,-1,1),translateX:axis(state.x,state.vx,target[0]),translateY:axis(state.y,state.vy,target[1])};
+  }
   const env=environmentAt(state,level);
   let ax,ay,desiredAngle;
   if(level.objective==='orbit'){

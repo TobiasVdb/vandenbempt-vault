@@ -5,7 +5,7 @@ export function createGarage({profile,getGravity,onOpen,onChange,onClose,purchas
   function render(){
     document.getElementById('garage-coins').textContent=profile.coins.toLocaleString();
     const tuning=flightTuning(profile);
-    document.getElementById('loadout-stats').textContent=`Vacuum thrust/weight ${(tuning.thrust/getGravity()).toFixed(2)} · Acceleration ${tuning.thrust.toFixed(1)} m/s² · Fuel ${tuning.capacity} · Rotation jets ${profile.upgrades.rcs}/3`;
+    document.getElementById('loadout-stats').textContent=`${getGravity()>0?`Vacuum thrust/weight ${(tuning.thrust/getGravity()).toFixed(2)}`:'Zero gravity · manoeuvring jets included'} · Acceleration ${tuning.thrust.toFixed(1)} m/s² · Fuel ${tuning.capacity} · Rotation jets ${profile.upgrades.rcs}/3`;
     items.replaceChildren();skins.replaceChildren();
     for(const [key,definition] of Object.entries(UPGRADES)){
       const tier=profile.upgrades[key],cost=definition.costs[tier],row=document.createElement('div');row.className='shop-row';

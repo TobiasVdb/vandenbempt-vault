@@ -4,15 +4,15 @@ import { createCraftDamage } from './damage-effect.js';
 
 const paintNames=new Set(['Ceramic ivory','Vermilion enamel','Sage green alloy','Oxblood fins','Pearl titanium armor','Aster porcelain alloy']);
 export function decorateCraft(root){
-  const materials=new Map(),jets=[];
-  const jetHeight=.57,attachments=[];
+  const materials=new Map(),jets=[],translationJets=[];
+  const jetHeight=.57,attachments=[];let front=.17;
   const collision=root.getObjectByName('collision');
   if(collision?.geometry){
     root.updateWorldMatrix(true,true);
     const transform=root.matrixWorld.clone().invert().multiply(collision.matrixWorld),points=[];
     const position=collision.geometry.attributes.position;
     for(let i=0;i<position.count;i++){
-      const point=new THREE.Vector3().fromBufferAttribute(position,i).applyMatrix4(transform);points.push([point.x,point.y]);
+      const point=new THREE.Vector3().fromBufferAttribute(position,i).applyMatrix4(transform);points.push([point.x,point.y]);front=Math.max(front,point.z+.025);
     }
     const hull=convexHull(points);
     for(let i=0;i<hull.length;i++){
@@ -20,6 +20,16 @@ export function decorateCraft(root){
       if(a[1]===b[1]||jetHeight<Math.min(a[1],b[1])||jetHeight>Math.max(a[1],b[1]))continue;
       attachments.push(a[0]+(b[0]-a[0])*(jetHeight-a[1])/(b[1]-a[1]));
     }
+  }
+  // Small fore/aft and lateral ports are supplied by the zero-g mission's manoeuvring kit.
+  for(const [name,x,y,dx,dy] of [['left',-.18,.05,-1,0],['right',.18,.05,1,0],['up',0,.38,0,1],['down',0,-.38,0,-1]]){
+    const group=new THREE.Group();group.name=`translation_jet_${name}`;group.position.set(x,y,front);group.visible=false;root.add(group);
+    const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(.018,.026,.055,8),new THREE.MeshStandardMaterial({color:'#82949f',metalness:.8,roughness:.35}));
+    const flare=new THREE.Mesh(new THREE.ConeGeometry(.024,.2,8),new THREE.MeshBasicMaterial({color:'#9de2ff',transparent:true,opacity:.8,toneMapped:false,blending:THREE.AdditiveBlending,depthWrite:false}));
+    const angle=Math.atan2(-dx,dy);nozzle.rotation.z=angle;flare.rotation.z=angle;
+    nozzle.position.set(dx*.02,dy*.02,0);flare.position.set(dx*.14,dy*.14,0);group.add(nozzle,flare);
+    // Exhaust points outward; the opposing port provides the requested acceleration.
+    translationJets.push({group,flare,dx,dy});
   }
   root.traverse(object=>{
     if(!object.isMesh)return;
@@ -53,6 +63,10 @@ export function decorateCraft(root){
         else copy.color.copy(original);
       }
     },
-    update(tier,turn,damage){for(const jet of jets){jet.group.visible=tier>0&&(damage?.[jet.side>0?'right':'left']??100)>0;jet.flare.visible=turn*jet.side>.05;}},
+    update(tier,turn,damage,translation=null){
+      for(const jet of jets){jet.group.visible=(tier>0||translation!==null)&&(damage?.[jet.side>0?'right':'left']??100)>0;jet.flare.visible=turn*jet.side>.05;}
+      const c=Math.cos(root.rotation.z),s=Math.sin(root.rotation.z),x=translation?translation.x*c+translation.y*s:0,y=translation?-translation.x*s+translation.y*c:0;
+      for(const jet of translationJets){jet.group.visible=translation!==null;const force=Math.max(0,-x*jet.dx-y*jet.dy);jet.flare.visible=force>.02;jet.flare.scale.y=.4+force*.6;}
+    },
   };
 }

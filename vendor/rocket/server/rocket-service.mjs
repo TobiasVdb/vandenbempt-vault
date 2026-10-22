@@ -3,6 +3,7 @@ import { LEVELS } from '../game/levels.js';
 import { createRace, stepRace } from '../game/race.js';
 import { createFlight, completed, FIXED_STEP, worldHull, polygonsOverlap } from '../game/physics.js';
 import { flightTuning, SKINS } from '../game/progression.js';
+import { hasFlightInput } from '../game/controls.js';
 
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
@@ -29,7 +30,7 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     room.players.delete(id);room.race.racers=room.race.racers.filter(racer=>racer.id!==id);members.delete(id);room.touched=now();to(id,'left',{});lobby();
   }
   function spawn(room,racer){
-    const pad=room.level.pads[0],half=Math.max(...racer.hull.map(p=>Math.abs(p[0])));
+    const pad=room.level.pads[0]||{...room.level.spawn,width:5},half=Math.max(...racer.hull.map(p=>Math.abs(p[0])));
     for(const offset of [0,-.85,.85,-1.7,1.7]){
       if(Math.abs(offset)+half>pad.width/2-.04)continue;racer.state.x=pad.x+offset;
       if(!room.race.racers.some(other=>other!==racer&&!other.waiting&&['ready','flying'].includes(other.state.status)&&polygonsOverlap(worldHull(racer.state,racer.hull),worldHull(other.state,other.hull)))){racer.waiting=false;return;}
@@ -82,8 +83,9 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
         for(const racer of room.players.values()){
           if(racer.waiting)spawn(room,racer);
           const input=!racer.waiting&&now()-racer.inputAt<700?racer.input:{};
-          inputs.set(racer.id,input);anyThrust ||= Boolean(input.thrust);
-          if(input.thrust&&racer.startedAt===null)racer.startedAt=room.race.elapsed;
+          const active=room.level.controls==='translation'?hasFlightInput(input):Boolean(input.thrust);
+          inputs.set(racer.id,input);anyThrust ||= active;
+          if(active&&racer.startedAt===null)racer.startedAt=room.race.elapsed;
         }
         stepRace(room.race,{thrust:anyThrust},FIXED_STEP,inputs);
         for(const racer of room.race.racers)if(racer.finishTime!==null)room.finishTimes.set(racer.id,racer.finishTime);
@@ -131,7 +133,9 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
       if(route==='/input'){
         const racer=rooms.get(members.get(player.id))?.players.get(player.id);if(!racer)fail(409,'Join a game first.');
         if(typeof data.thrust!=='boolean'||!Number.isFinite(data.turn)||Math.abs(data.turn)>1)fail(400,'Invalid flight input.');
-        limited(`input:${player.id}`,25);racer.input={thrust:data.thrust,turn:data.turn};racer.inputAt=now();return json(res,200,{ok:true});
+        const translation={};
+        for(const axis of ['translateX','translateY'])if(data[axis]!==undefined){if(!Number.isFinite(data[axis])||Math.abs(data[axis])>1)fail(400,'Invalid translation input.');translation[axis]=data[axis];}
+        limited(`input:${player.id}`,25);racer.input={thrust:data.thrust,turn:data.turn,...translation};racer.inputAt=now();return json(res,200,{ok:true});
       }
       if(route==='/chat'){
         limited(`chat:${player.id}`,750);const text=typeof data.text==='string'?data.text.trim():'';

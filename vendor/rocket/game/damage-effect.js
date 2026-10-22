@@ -137,13 +137,13 @@ export function createDestructionEffect(scene,{capacity=96,reducedMotion=false,r
         const mesh=piece.mesh,water=level.theme==='water',env=environmentAt({x:mesh.position.x,y:mesh.position.y,vx:piece.velocity.x},level);
         piece.velocity.y-=env.downward*dt;piece.velocity.multiplyScalar(Math.exp(-(water?.9:.12*env.density)*dt));
         mesh.position.addScaledVector(piece.velocity,dt);mesh.rotation.x+=piece.spin.x*dt;mesh.rotation.y+=piece.spin.y*dt;mesh.rotation.z+=piece.spin.z*dt;
-        const ground=plumeSurface(level,mesh.position.x,mesh.position.z).y+.035;
+        const ground=level.theme==='space'?-Infinity:plumeSurface(level,mesh.position.x,mesh.position.z).y+.035;
         if(mesh.position.y<ground){mesh.position.y=ground;piece.velocity.y=Math.abs(piece.velocity.y)*.2;if(piece.velocity.y<.12)piece.velocity.y=0;piece.velocity.x*=.72;piece.velocity.z*=.72;piece.spin.multiplyScalar(.65);}
         if(level.roof.length){
           const ceiling=surfaceAt(level.roof,mesh.position.x)-.035;
           if(mesh.position.y>ceiling){mesh.position.y=ceiling;piece.velocity.y=-Math.abs(piece.velocity.y)*.3;piece.spin.multiplyScalar(.8);}
         }
-        if(level.objective!=='orbit'&&Math.abs(mesh.position.x)>horizontalLimit){mesh.position.x=Math.sign(mesh.position.x)*horizontalLimit;piece.velocity.x=-Math.sign(mesh.position.x)*Math.abs(piece.velocity.x)*.3;}
+        if(level.objective!=='orbit'&&level.theme!=='space'&&Math.abs(mesh.position.x)>horizontalLimit){mesh.position.x=Math.sign(mesh.position.x)*horizontalLimit;piece.velocity.x=-Math.sign(mesh.position.x)*Math.abs(piece.velocity.x)*.3;}
         mesh.material.forEach((m,i)=>{m.opacity=piece.opacity[i]*Math.min(1,piece.life/2);});
       }
       flashLife=Math.max(0,flashLife-seconds);flash.intensity=flashLife*35;

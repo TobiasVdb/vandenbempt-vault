@@ -11,6 +11,7 @@ export const THEMES={
   storm:{sky:'#252a32',rocks:['#57574c','#6b6555','#424d52','#7c7058'],back:'#303941'},
   dark:{sky:'#02060b',rocks:['#252e38','#30313b','#1f3038','#332c37'],back:'#03070d'},
   orbit:{sky:'#142b48',rocks:['#4b5966','#6a736a','#505660'],back:'#111b2e'},
+  space:{sky:'#02050e',rocks:['#666c76','#5c626c','#717783','#626872'],back:'#101929'},
 };
 
 export function createWorldEffects(scene,group,level,{reducedMotion=false,levelModel=null}={}){

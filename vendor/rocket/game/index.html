@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#201e1c"><meta name="description" content="Race five custom spacecraft against bots across eleven planetary missions. Earn coins for upgrades and skins.">
+  <meta name="theme-color" content="#201e1c"><meta name="description" content="Race five custom spacecraft against bots across twelve planetary and deep-space missions. Earn coins for upgrades and skins.">
   <title>Hollow — Rocket flight trials</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23ddb17e' d='m16 2 5 12 5 14-10-5-10 5 5-14z'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./game.css">
@@ -15,7 +15,7 @@
   <main id="game" aria-label="Rocket cave landing game">
     <canvas id="flight" tabindex="0" aria-label="Flight area. W or Space to thrust, A and D to rotate. P pauses, R restarts."></canvas>
     <section id="start-menu" class="start-menu" aria-label="Start menu">
-      <header class="menu-masthead"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 1 4 10 5 11-9-4-9 4 5-11z"/></svg>FLIGHT TRIALS</span><span>05 SPACECRAFT <i>/</i> 11 MISSIONS</span></header>
+      <header class="menu-masthead"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 1 4 10 5 11-9-4-9 4 5-11z"/></svg>FLIGHT TRIALS</span><span>05 SPACECRAFT <i>/</i> 12 MISSIONS</span></header>
       <div class="menu-content"><p class="menu-eyebrow">OFF-WORLD RACING</p><h1>HOLLOW</h1><p class="menu-intro">Race rivals across caves, oceans and orbit.<br>Earn your next upgrade. Find your next flight.</p>
         <nav class="menu-nav" aria-label="Main menu"><button id="menu-play" disabled>Play <span aria-hidden="true">→</span></button><button id="menu-missions" disabled>Missions <span aria-hidden="true">↗</span></button><button id="menu-delete">Delete profile</button></nav>
         <p id="menu-next" class="menu-next">Next flight / Amber Hollow</p><div class="menu-profile-block"><span>YOUR PILOT PROFILE</span><p id="menu-profile">0 coins · 0 race wins</p></div><p id="menu-status" role="status">Preparing the fleet…</p>
@@ -37,14 +37,15 @@
     <p id="network-status" role="status"></p><div id="flight-hint" role="status" hidden>Ease off. Gravity does the rest.</div>
     <footer class="flight-deck">
       <section class="fleet"><label for="ship">YOUR SPACECRAFT</label><select id="ship" aria-label="Choose spacecraft"><option value="tintin">01 — Tintin</option><option value="futurama">02 — Planet Express</option><option value="comet">03 — Comet</option><option value="wraith">04 — Wraith</option><option value="aster" selected>05 — Aster</option></select></section>
-      <section class="keyboard" aria-label="Controls"><span><kbd>A</kbd><kbd>D</kbd> ROTATE</span><span><kbd>W</kbd> / <kbd>SPACE</kbd> THRUST</span><span class="landing-rule">LAND UPRIGHT · BELOW 2.2 m/s</span></section>
+      <section class="keyboard" aria-label="Controls"><span id="control-legend">W / SPACE: THRUST · A / D: ROTATE</span><span class="landing-rule">LAND UPRIGHT · BELOW 2.2 m/s</span></section>
       <section class="course"><label for="course">FLIGHT COURSE</label><select id="course" aria-label="Choose course"><option value="0">01 — Amber Hollow</option><option value="1">02 — The Narrows</option><option value="2">03 — Cinder Passage</option></select></section>
     </footer>
-    <div class="touch-controls" aria-label="Touch flight controls"><div><button data-control="left" aria-label="Rotate left">↶</button><button data-control="right" aria-label="Rotate right">↷</button></div><button data-control="thrust" aria-label="Thrust">THRUST</button></div>
+    <div class="touch-controls standard-controls" aria-label="Touch flight controls"><div><button data-control="left" aria-label="Rotate left">↶</button><button data-control="right" aria-label="Rotate right">↷</button></div><button data-control="thrust" aria-label="Thrust">THRUST</button></div>
+    <div class="touch-controls space-controls" aria-label="Directional thrusters"><div class="translation-pad"><button data-control="up" aria-label="Thrust up">↑</button><button data-control="strafeLeft" aria-label="Thrust left">←</button><button data-control="down" aria-label="Thrust down">↓</button><button data-control="strafeRight" aria-label="Thrust right">→</button></div><div><button data-control="left" aria-label="Rotate counterclockwise">Q ↶</button><button data-control="right" aria-label="Rotate clockwise">E ↷</button></div></div>
     <noscript>Enable JavaScript to fly. This game uses WebGL and Three.js.</noscript>
   </main>
   <dialog id="garage-dialog" aria-labelledby="garage-title"><header><div><p class="eyebrow">YOUR RACING WORKSHOP</p><h2 id="garage-title">Make it your own.</h2></div><button id="garage-close" aria-label="Close garage">Close</button></header><div class="garage-summary"><strong><span id="garage-coins">0</span> coins</strong><p id="loadout-stats"></p></div><p id="save-status">Progress saves in this browser.</p><h3>Performance</h3><div id="upgrade-list"></div><h3>Paint shop</h3><div id="skin-list"></div><p id="shop-status" role="status"></p></dialog>
-  <dialog id="missions-dialog" class="menu-dialog" aria-labelledby="missions-title"><header><div><p class="eyebrow">CAMPAIGN / 11 FLIGHTS</p><h2 id="missions-title">Missions</h2></div><button id="missions-close" aria-label="Close missions">Close</button></header><p class="mission-explainer">Choose a destination. Finish first to earn the listed reward.</p><div id="mission-list"></div></dialog>
+  <dialog id="missions-dialog" class="menu-dialog" aria-labelledby="missions-title"><header><div><p class="eyebrow">CAMPAIGN / 12 FLIGHTS</p><h2 id="missions-title">Missions</h2></div><button id="missions-close" aria-label="Close missions">Close</button></header><p class="mission-explainer">Choose a destination. Finish first to earn the listed reward.</p><div id="mission-list"></div></dialog>
   <dialog id="delete-profile-dialog" class="menu-dialog delete-dialog" aria-labelledby="delete-title"><h2 id="delete-title">Delete your profile?</h2><p>This resets this pilot's coins, upgrades, skins and mission records on the server. Your pilot name and reconnect ID remain.</p><div class="delete-actions"><button id="delete-cancel">Cancel</button><button id="delete-confirm">Delete profile</button></div><p id="delete-error" role="status"></p></dialog>
 <dialog id="pilot-dialog" aria-labelledby="pilot-title"><h2 id="pilot-title">Your first flight.</h2><p>Choose your pilot name. Your coins, upgrades and paint will follow this browser's player ID. Everyone can join an open game.</p><form id="pilot-form"><label for="pilot-input">Pilot name</label><input id="pilot-input" name="name" minlength="2" maxlength="24" required autocomplete="nickname" autofocus><button id="pilot-submit">Enter the lobby</button><p id="pilot-error" role="status"></p></form></dialog>
 </body>

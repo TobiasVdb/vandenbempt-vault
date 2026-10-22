@@ -3,6 +3,7 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 /** The same planar floor and landing-pad tops used by the flight simulation. */
 export function plumeSurface(level,x,z=0){
   const floor=level.floor;
+  if(!floor.length)return {y:-Infinity,nx:0,ny:1};
   let a=floor[0],b=floor[1];
   for(let i=1;i<floor.length;i++){
     a=floor[i-1];b=floor[i];
