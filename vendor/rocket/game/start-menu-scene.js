@@ -74,9 +74,10 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
   const plume=createPlumeEffect(scene,{capacity:600,reducedMotion,random});
   const destruction=createDestructionEffect(scene,{capacity:reducedMotion?72:144,reducedMotion,random,horizontalLimit:Infinity});
   const plumeLevel={theme:'sandstone',gravity:4,objective:'land',roof:[],floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],pads:STATION_POSITIONS.map(x=>({x,y:.16,width:2.1,radius:1.05})),obstacles:stations.flatMap(item=>item.structure.boxes)};
-  const actors=new Map();let actor=null,flight=createLaunchSequence(DEFAULT_HULL),viewWidth=1,viewHeight=1,paused=reducedMotion,verticalZoom=0,visualTime=0;
+  const actors=new Map();let actor=null,flight=createLaunchSequence(DEFAULT_HULL),viewWidth=1,viewHeight=1,paused=reducedMotion,verticalZoom=0,visualTime=0,previousPose=null;
   const anchor=new THREE.Vector3();
   function restoreScene(){
+    previousPose=null;
     plume.reset();destruction.reset();
     for(const item of stations){item.destroyed=false;item.tower.visible=true;item.arm.rotation.y=0;item.structure.update();}
     plumeLevel.obstacles=stations.flatMap(item=>item.structure.boxes);
@@ -141,9 +142,13 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
       let sample=flight.sample();
       for(let step=0;step<steps;step++){
         const command=typeof input==='function'?input(dt):input;
+        if(dt>0)previousPose=sample;
         sample=actor&&!parked?flight.update(dt,command,collideStructures):flight.sample();
         if(actor&&sample.resets!==actor.resets)restoreScene();
-        stations.forEach((item,index)=>{item.arm.rotation.y=-sample.arms[index]*Math.PI/2;item.structure.update();});
+        stations.forEach((item,index)=>{
+          const angle=-sample.arms[index]*Math.PI/2;
+          if(item.arm.rotation.y!==angle){item.arm.rotation.y=angle;item.structure.update();}
+        });
         follow(sample,dt);
         if(!actor)continue;
         actor.root.position.set(sample.x,sample.y,0);actor.root.rotation.z=sample.angle;actor.root.updateMatrixWorld(true);
@@ -160,6 +165,14 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
         if(sample.firing)plume.emit('showcase',emitter,dt,plumeLevel);
         plume.update(dt,plumeLevel,camera,renderer,[emitter]);
         destruction.update(dt,plumeLevel);
+      }
+      // Render between the fixed simulation ticks rather than repeating a 60 Hz pose.
+      // Never blend across a crash reset or the change to a new flight leg.
+      if(actor&&!paused&&previousPose&&previousPose.resets===sample.resets&&previousPose.legs===sample.legs&&previousPose.status===sample.status){
+        const alpha=visualTime*60,pose={...sample};
+        for(const key of ['x','y','altitude','horizontalSpeed','verticalSpeed','flightBlend'])pose[key]=THREE.MathUtils.lerp(previousPose[key],sample[key],alpha);
+        pose.angle=previousPose.angle+Math.atan2(Math.sin(sample.angle-previousPose.angle),Math.cos(sample.angle-previousPose.angle))*alpha;
+        actor.root.position.set(pose.x,pose.y,0);actor.root.rotation.z=pose.angle;follow(pose);
       }
       // Expose only presentation telemetry to the DOM; it never touches a campaign race.
       return {...sample,paused,loaded:Boolean(actor),width:viewWidth,height:viewHeight,plume:plume.statistics,debris:destruction.count,towersDestroyed:stations.filter(item=>item.destroyed).length};
