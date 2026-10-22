@@ -18,7 +18,6 @@ import { createStartMenuScene } from './start-menu-scene.js';
 import { createStartMenu } from './start-menu.js';
 import { createOnline } from './online.js';
 import { levelAssetFile, prepareLevelModel, resetLevelModel } from './level-assets.js';
-import { createGlidepath } from './glidepath.js';
 import { createRocketAudio } from './rocket-audio.js';
 import { createFlightPresentation } from './flight-presentation.js';
 import { batchCraftDetails } from './craft-batching.js';
@@ -57,11 +56,11 @@ const scenery=new THREE.Group();scene.add(scenery);
 const loader=new GLTFLoader();
 const plume=createPlumeEffect(scene,{reducedMotion});
 const destruction=createDestructionEffect(scene,{capacity:reducedMotion?32:96,reducedMotion});
-const glidepath=createGlidepath(scene),rocketAudio=createRocketAudio();
+const rocketAudio=createRocketAudio();
 const flightPresentation=createFlightPresentation();
 let selected=null,course=0,level=LEVELS[0],plumeEnvironment=level,state=null;
 let mode='menu',elapsed=0,accumulator=0,last=performance.now(),lastEngine=false,cameraX=0,shake=0;
-let context=null,soundEnabled=false,predictionClock=0;
+let context=null,soundEnabled=false;
 let lastStandings='',frameSeconds=0,frameCount=0;
 let online=null,networkRoom=null,joining=false;
 function renderScene(world,view){
@@ -519,15 +518,7 @@ function frame(now){
     }
     const firing=mode==='running'&&state.thrust>0&&state.status==='flying';
     rocketAudio.update(firing?state.thrust:0,{rcs:mode==='running'&&state.status==='flying'?Math.max(Math.abs(state.rcsTurn),Math.hypot(state.translation?.x||0,state.translation?.y||0)):0,submerged:level.theme==='water'});
-    predictionClock+=dt;
-    if(mode==='running'&&state.status==='flying'){
-      if(predictionClock>=.12){
-        predictionClock=0;const projected=glidepath.update(state,controls.read(level.controls==='translation'),level,selected.hull),warning=$('impact-warning');
-        warning.hidden=!projected.impact&&!projected.landing;
-        warning.dataset.severity=projected.impact?(projected.impact.time<.8?'critical':'caution'):'safe';
-        warning.textContent=projected.impact?`IMPACT ${projected.impact.kind}  T−${projected.impact.time.toFixed(2)}s`:projected.landing?`LANDING WINDOW  T−${projected.landing.time.toFixed(2)}s`:'';
-      }
-    }else{glidepath.hide();$('impact-warning').hidden=true;predictionClock=.12;}
+    // Flight-path prediction is temporarily disabled while responsiveness is assessed.
     if(mode!=='paused'&&firing!==lastEngine){selected.system.playTrigger(firing?'Engine_start':'Engine_stop');lastEngine=firing;}
     if(mode!=='paused'){selected.system.update(dt);}
     engineLight.intensity=firing?(level.theme==='dark'?18:5):0;engineLight.distance=level.theme==='dark'?12:5;
