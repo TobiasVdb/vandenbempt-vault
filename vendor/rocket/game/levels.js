@@ -64,7 +64,7 @@ export function terrainSolids(level) {
 }
 
 // Collision and the faceted GLB surface share this convex outline.
-export function meteorPolygon({x,y,rx,ry}){return Array.from({length:10},(_,i)=>{const angle=(i+.16*Math.sin(i*2.3+x))*Math.PI/5;return [x+Math.cos(angle)*rx,y+Math.sin(angle)*ry];});}
+export function meteorPolygon({x,y,rx,ry}){return Array.from({length:16},(_,i)=>{const angle=(i+.12*Math.sin(i*2.3+x))*Math.PI/8;return [x+Math.cos(angle)*rx,y+Math.sin(angle)*ry];});}
 
 export function surfaceAt(points, x) {
   for (let i=1;i<points.length;i++) {

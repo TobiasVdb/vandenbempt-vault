@@ -146,9 +146,9 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
         limited(`invite:${player.id}`,3000);const room=rooms.get(members.get(player.id));if(!room)fail(409,'Create or join a game first.');
         everyone('invite',{name:player.name,room:room.id,mission:room.level.name});return json(res,200,{room:room.id});
       }
-      if(route==='/buy'){
+      if(route==='/buy'||route==='/equip'){
         if(members.has(player.id))fail(409,'Return to the menu before changing your loadout.');
-        const updated=await store.buy(player.id,data.kind,data.key);to(player.id,'profile',{player:updated});return json(res,200,{player:updated});
+        const updated=route==='/equip'?await store.equip(player.id,data.ship):await store.buy(player.id,data.kind,data.key,data.ship);to(player.id,'profile',{player:updated});return json(res,200,{player:updated});
       }
       if(route==='/reset'){leave(player.id);const updated=await store.reset(player.id);to(player.id,'profile',{player:updated});return json(res,200,{player:updated});}
       fail(404,'Unknown rocket API route.');

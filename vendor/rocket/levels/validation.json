@@ -222,8 +222,8 @@
       "id": "drift",
       "name": "Driftfield",
       "file": "12-drift.glb",
-      "bytes": 390372,
-      "triangles": 6036,
+      "bytes": 881240,
+      "triangles": 28136,
       "roles": {
         "level": 1,
         "collision": 10,

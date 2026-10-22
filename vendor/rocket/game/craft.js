@@ -4,7 +4,7 @@ import { createCraftDamage } from './damage-effect.js';
 
 const paintNames=new Set(['Ceramic ivory','Vermilion enamel','Sage green alloy','Oxblood fins','Pearl titanium armor','Aster porcelain alloy']);
 export function decorateCraft(root){
-  const materials=new Map(),jets=[],translationJets=[];
+  const materials=new Map(),jets=[],translationJets=[],fittings=[];
   const jetHeight=.57,attachments=[];let front=.17;
   const collision=root.getObjectByName('collision');
   if(collision?.geometry){
@@ -39,6 +39,10 @@ export function decorateCraft(root){
     };
     object.material=Array.isArray(object.material)?object.material.map(clone):clone(object.material);
   });
+  const fittingMaterial=new THREE.MeshStandardMaterial({color:'#b49a66',metalness:.75,roughness:.4});
+  for(const [kind,y,width] of [['engine',-.66,.12],['tank',-.26,.17],['frame',.18,.1]])for(let tier=1;tier<=3;tier++){
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(width,.018,.022),fittingMaterial);mesh.name=`fitted_${kind}_${tier}`;mesh.position.set(0,y+(tier-1)*.037,front);mesh.visible=false;root.add(mesh);fittings.push({mesh,kind,tier});
+  }
   for(const side of [-1,1]){
     const edge=attachments.length?(side>0?Math.max(...attachments):Math.min(...attachments)):side*.12;
     const group=new THREE.Group();group.name=`upper_rotation_${side>0?'right':'left'}`;
@@ -57,6 +61,7 @@ export function decorateCraft(root){
   }
   return {
     damage:createCraftDamage(root),
+    configure(tuning){for(const fitting of fittings)fitting.mesh.visible=(tuning[`${fitting.kind}Tier`]||0)>=fitting.tier;},
     paint(color){
       for(const {copy,color:original} of materials.values())if(paintNames.has(copy.name)){
         if(color){copy.color.set(color);if(['Ceramic ivory','Aster porcelain alloy'].includes(copy.name))copy.color.lerp(new THREE.Color('#e5e4dc'),.25);}

@@ -6,7 +6,7 @@ import { LEVELS, surfaceAt, missionBrief } from './levels.js';
 import { FIXED_STEP, convexHull, worldHull, completed, environmentAt, orbitalTarget } from './physics.js';
 import { createControls, translationKeys } from './controls.js';
 import { createRace, stepRace, standings, raceResult } from './race.js';
-import { loadProfile, saveProfile, flightTuning, settleRace, SKINS } from './progression.js';
+import { loadProfile, saveProfile, sanitizeProfile, flightTuning, settleRace, SKINS, SHIPS } from './progression.js';
 import { createGarage } from './garage.js';
 import { createWorldEffects } from './world.js';
 import { decorateCraft } from './craft.js';
@@ -18,6 +18,10 @@ import { createStartMenuScene } from './start-menu-scene.js';
 import { createStartMenu } from './start-menu.js';
 import { createOnline } from './online.js';
 import { levelAssetFile, prepareLevelModel, resetLevelModel } from './level-assets.js';
+import { createGlidepath } from './glidepath.js';
+import { createRocketAudio } from './rocket-audio.js';
+import { createFlightPresentation } from './flight-presentation.js';
+import { batchCraftDetails } from './craft-batching.js';
 
 const $=id=>document.getElementById(id);
 const canvas=$('flight');
@@ -27,7 +31,7 @@ const levelModels=new Map();
 const botVisuals=new Map();
 let storage=null;try{storage=localStorage;}catch{/* Session play remains available when storage is blocked. */}
 const saved=loadProfile(storage),profile=saved.profile;
-let persistent=saved.persistent,garageChanged=false,attemptId='',race=null,worldEffects=null;
+let persistent=saved.persistent,attemptId='',race=null,worldEffects=null;
 const controls=createControls();
 const menuControls=createControls();
 const keyControls={KeyW:'thrust',ArrowUp:'thrust',Space:'thrust',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right'};
@@ -42,6 +46,7 @@ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();
 const environment=pmrem.fromScene(room,.04);scene.environment=environment.texture;scene.environmentIntensity=.65;room.dispose();pmrem.dispose();
 const menuScene=createStartMenuScene({environment:environment.texture,reducedMotion});
+const garageScene=createStartMenuScene({environment:environment.texture,reducedMotion,parked:true});
 const flightCanvasLabel=canvas.getAttribute('aria-label');
 const ambient=new THREE.HemisphereLight('#f8dfb5','#433526',1.2);scene.add(ambient);
 const sun=new THREE.DirectionalLight('#ffd6a0',1.8);sun.position.set(-14,20,18);scene.add(sun);
@@ -52,11 +57,18 @@ const scenery=new THREE.Group();scene.add(scenery);
 const loader=new GLTFLoader();
 const plume=createPlumeEffect(scene,{reducedMotion});
 const destruction=createDestructionEffect(scene,{capacity:reducedMotion?32:96,reducedMotion});
+const glidepath=createGlidepath(scene),rocketAudio=createRocketAudio();
+const flightPresentation=createFlightPresentation();
 let selected=null,course=0,level=LEVELS[0],plumeEnvironment=level,state=null;
 let mode='menu',elapsed=0,accumulator=0,last=performance.now(),lastEngine=false,cameraX=0,shake=0;
-let context=null,audioGain=null,audioOsc=null,soundEnabled=false;
+let context=null,soundEnabled=false,predictionClock=0;
 let lastStandings='',frameSeconds=0,frameCount=0;
 let online=null,networkRoom=null,joining=false;
+function renderScene(world,view){
+  const started=performance.now();renderer.render(world,view);
+  canvas.dataset.renderMs=(performance.now()-started).toFixed(1);
+  canvas.dataset.triangles=String(renderer.info.render.triangles);
+}
 
 function disposeGroup(group){
   group.traverse(o=>{o.geometry?.dispose();if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();});group.clear();
@@ -64,8 +76,8 @@ function disposeGroup(group){
 function buildCave(){
   // Cached GLBs retain their geometry when a mission is revisited; only transient weather is disposed.
   cave.clear();disposeGroup(scenery);
-  const dark=level.theme==='dark';
-  ambient.intensity=dark?0:1.2;sun.intensity=dark?0:1.8;fill.intensity=dark?0:.8;scene.environmentIntensity=dark?0:.65;
+  const dark=level.theme==='dark',space=level.theme==='space';
+  ambient.intensity=dark?0:space?.25:1.2;sun.intensity=dark?0:space?2.4:1.8;fill.intensity=dark?0:space?.15:.8;scene.environmentIntensity=dark?0:space?.18:.65;
   plumeEnvironment=level;
   const model=levelModels.get(level.id);
   if(!model){worldEffects=null;return;}
@@ -123,6 +135,7 @@ async function loadShip(id){
     const p=new THREE.Vector3().fromBufferAttribute(attribute,i).applyMatrix4(collision.matrixWorld);points.push([p.x,p.y]);
   }
   const hull=convexHull(points);
+  batchCraftDetails(root,gltf.animations);
   collision.visible=false;root.traverse(o=>{if(o.isMesh)o.frustumCulled=false;});
   const template=root.clone(true),appearance=decorateCraft(root);
   const marker=root.getObjectByName('thruster_main');
@@ -151,11 +164,13 @@ function saveProgress(){
   if(!online?.player)persistent=saveProfile(storage,profile);$('wallet').textContent=`${profile.coins} coins`;
   $('save-status').textContent=online?.player?'Coins, upgrades and paint save to your pilot on the server.':persistent?'Progress saves in this browser.':'Browser storage is unavailable. Progress lasts for this session only.';
 }
-const garage=createGarage({profile,getGravity:()=>level.gravity??4,
-  onOpen(){if(mode==='running')togglePause();leaveNetwork();garageChanged=false;},
-  onChange(){garageChanged=true;saveProgress();},
-  onClose(){if(garageChanged)launchFromMenu(course,false);},
-  purchase:(kind,key)=>online.buy(kind,key),
+const garage=createGarage({profile,
+  async onOpen(){if(mode==='running')togglePause();startMenu.hide();clearInput();mode='garage';document.body.classList.add('at-menu','at-garage');await leaveNetwork();},
+  onChange(){saveProgress();updateShipChoices();},
+  onClose(){document.body.classList.remove('at-garage');openMenu();$('menu-garage').focus();},
+  onPreview(id,color,tuning){const source=fleet.get(id);if(source)garageScene.attach(id,source,color,tuning);canvas.dataset.garageShip=id;canvas.dataset.garagePaint=color||'original';canvas.dataset.garageRcs=String(tuning.rcs);},
+  purchase:(kind,key,ship)=>online.buy(kind,key,ship),
+  equip:ship=>online.equip(ship),
 });
 const startMenu=createStartMenu({profile,storage,levels:LEVELS,reducedMotion,
   onPlay:index=>launchFromMenu(index,true),
@@ -167,17 +182,22 @@ const startMenu=createStartMenu({profile,storage,levels:LEVELS,reducedMotion,
   onMotion:paused=>{menuControls.clear();menuScene.setPaused(paused);},
   onReset:()=>online.reset(),
 });
-function leaveNetwork(){networkRoom=null;online?.leave().catch(error=>$('network-status').textContent=error.message);}
+function leaveNetwork(){networkRoom=null;return online?.leave().catch(error=>$('network-status').textContent=error.message);}
+function updateShipChoices(){
+  for(const option of $('ship').options){const owned=profile.ownedShips.includes(option.value);option.disabled=!owned||!fleet.has(option.value);option.textContent=`${SHIPS[option.value].name}${owned?'':' · buy in garage'}`;}
+  $('ship').value=profile.ship;
+}
 function openMenu(){
   leaveNetwork();
   clearInput();mode='menu';$('message').hidden=true;startMenu.show();
   canvas.tabIndex=-1;canvas.setAttribute('aria-label','Rocket launch display. Choose Play or Missions to fly.');
-  const id=$('ship').value,source=fleet.get(id);
+  updateShipChoices();const id=$('ship').value,source=fleet.get(id);
   if(source){
     menuScene.attach(id,source,SKINS[profile.skin].color,flightTuning(profile));
     $('menu-craft-name').textContent=$('ship').selectedOptions[0].textContent;
   }
   startMenu.setReady(Boolean(source)&&levelModels.size===LEVELS.length);
+  $('menu-garage').disabled=!source;
 }
 async function launchFromMenu(index,play,roomId=null,joinedRoom=null){
   if(joining)return;joining=true;
@@ -201,6 +221,7 @@ function acceptNetworkRace(snapshot,playerId){
   if(snapshot.id!==networkRoom)return;
   const own=snapshot.racers.find(racer=>racer.id===playerId);if(!own)return;
   const ordered=[own,...snapshot.racers.filter(racer=>racer!==own)].map(racer=>({...racer,id:racer.id===playerId?'you':racer.id}));
+  flightPresentation.receive(ordered,performance.now()/1000);
   race={...snapshot,level,racers:ordered,finished:Boolean(own.result)};state=own.state;
   for(const racer of ordered.slice(1)){
     const previous=botVisuals.get(racer.id);if(previous&&previous.ship!==racer.ship)removeRemoteVisual(racer.id,previous);
@@ -225,12 +246,12 @@ function finishOnline(result){
 online=createOnline({storage,getShip:()=>$('ship').value,isReady:()=>fleet.size>0&&levelModels.size===LEVELS.length,
   onProfile(value){
     const loadoutChanged=profile.ship!==(value.ship??profile.ship)||profile.skin!==value.skin||Object.keys(profile.upgrades).some(key=>profile.upgrades[key]!==value.upgrades[key]);
-    Object.assign(profile,value);
+    Object.assign(profile,sanitizeProfile(value));updateShipChoices();
     if(mode==='menu'&&value.ship){
       $('ship').value=value.ship;const source=fleet.get(value.ship);
       if(source&&loadoutChanged){menuScene.attach(value.ship,source,SKINS[profile.skin].color,flightTuning(profile));$('menu-craft-name').textContent=$('ship').selectedOptions[0].textContent;}
     }
-    saveProgress();startMenu.refresh();
+    saveProgress();startMenu.refresh();if(garage.isOpen())garage.render();
   },
   onRace:acceptNetworkRace,
   onStatus(connected){if(!connected)clearInput();$('network-status').textContent=connected?'Live multiplayer · open room':'Reconnecting · controls released';},
@@ -262,6 +283,7 @@ function showBrief(){
   if(online)showScores();
 }
 function resetFlight(brief=false){
+  flightPresentation.reset();
   clearInput();lastEngine=false;elapsed=0;accumulator=0;shake=0;
   for(const item of fleet.values()){item.root.visible=false;item.system.reset();item.appearance.damage.reset();item.destroyed=false;item.damageRevision=0;item.leakClock=0;}
   selected=fleet.get($('ship').value);
@@ -303,7 +325,8 @@ function togglePause(){
   mode='paused';$('pause').firstChild.textContent='Resume ';
   setMessage('FLIGHT ON HOLD','Take a breather.',networkRoom?'Your controls are released. The shared race continues while you pause.':'Your position, fuel, and flight time are held.','Resume flight →');
 }
-function clearInput(){controls.clear();menuControls.clear();if(networkRoom)online?.sendInput({thrust:false,turn:0});if(audioGain)audioGain.gain.setTargetAtTime(0,context.currentTime,.03);for(const b of document.querySelectorAll('[data-control],[data-menu-control]'))b.classList.remove('active');}
+function clearInput(){controls.clear();menuControls.clear();if(networkRoom)online?.sendInput({thrust:false,turn:0});rocketAudio.update(0);for(const b of document.querySelectorAll('[data-control],[data-menu-control]'))b.classList.remove('active');}
+function sendCurrentInput(){if(networkRoom&&mode==='running')online.sendInput(controls.read(level.controls==='translation'));}
 function finish(){
   clearInput();mode='ended';$('pause').disabled=true;
   if(completed(state)){
@@ -318,11 +341,15 @@ function finish(){
     playCrash();
   }
 }
-function renderShip(){
-  selected.root.position.set(state.x,state.y,.4);selected.root.rotation.z=state.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,state.rcsTurn,state.damage,level.controls==='translation'?(state.status==='flying'?state.translation:null)||{x:0,y:0}:null);syncDamage(selected,state);
+function renderShip(dt=0){
+  const pose=networkRoom?flightPresentation.sample('you',performance.now()/1000,dt)||state:state;
+  selected.appearance.configure(state.tuning);
+  selected.root.position.set(pose.x,pose.y,.4);selected.root.rotation.z=pose.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,state.rcsTurn,state.damage,level.controls==='translation'?(state.status==='flying'?state.translation:null)||{x:0,y:0}:null);syncDamage(selected,state);
   for(const racer of race.racers.slice(1)){
     const model=botVisuals.get(racer.id);if(!model)continue;
-    model.root.position.set(racer.state.x,racer.state.y,.4);model.root.rotation.z=racer.state.angle;model.root.updateMatrixWorld(true);model.appearance.update(racer.state.tuning.rcs,racer.state.rcsTurn,racer.state.damage,level.controls==='translation'?(racer.state.status==='flying'?racer.state.translation:null)||{x:0,y:0}:null);syncDamage(model,racer.state);
+    const pose=networkRoom?flightPresentation.sample(racer.id,performance.now()/1000,dt)||racer.state:racer.state;
+    model.appearance.configure(racer.state.tuning);
+    model.root.position.set(pose.x,pose.y,.4);model.root.rotation.z=pose.angle;model.root.updateMatrixWorld(true);model.appearance.update(racer.state.tuning.rcs,racer.state.rcsTurn,racer.state.damage,level.controls==='translation'?(racer.state.status==='flying'?racer.state.translation:null)||{x:0,y:0}:null);syncDamage(model,racer.state);
   }
 }
 function syncDamage(model,flight){
@@ -384,13 +411,14 @@ function resize(){
   const viewHeight=aspect<1?25:Math.min(height,36),viewWidth=viewHeight*aspect;
   camera.left=-viewWidth/2;camera.right=viewWidth/2;camera.top=viewHeight/2;camera.bottom=-viewHeight/2;camera.updateProjectionMatrix();
   menuScene.resize(w,h);
+  garageScene.resize(w,h);
 }
 const projected=new THREE.Vector3();
 function updateCamera(dt){
   if(!state)return;
-  const half=camera.right,desired=level.objective==='orbit'||level.theme==='space'?state.x+state.vx*.4:half>=27?0:THREE.MathUtils.clamp(state.x+state.vx*.65,-26+half,26-half);
+  const visual=selected.root.position,half=camera.right,desired=level.objective==='orbit'||level.theme==='space'?visual.x+state.vx*.4:half>=27?0:THREE.MathUtils.clamp(visual.x+state.vx*.65,-26+half,26-half);
   cameraX=THREE.MathUtils.lerp(cameraX,desired,1-Math.exp(-dt*4));
-  const y=level.theme==='space'?state.y:level.objective==='orbit'?Math.max(innerWidth<680?-2.5:0,state.y-1):state.y>9?state.y-7:innerWidth<680?state.y*.38:0;
+  const y=level.theme==='space'?visual.y:level.objective==='orbit'?Math.max(innerWidth<680?-2.5:0,visual.y-1):visual.y>9?visual.y-7:innerWidth<680?visual.y*.38:0;
   camera.position.set(cameraX+(Math.random()-.5)*shake,y+1+(Math.random()-.5)*shake,50);camera.lookAt(cameraX,y+1,0);camera.updateMatrixWorld();shake=Math.max(0,shake-dt*.5);
   const target=level.objective==='rings'?level.rings[Math.min(state.gate,level.rings.length-1)]:level.pads[1];
   const labels=[level.pads[0],target];
@@ -402,38 +430,35 @@ function updateCamera(dt){
     el.hidden=Math.abs(projected.x)>1||Math.abs(projected.y)>1;
   }
   for(const [index,racer] of race.racers.slice(1).entries()){
-    const el=$(`rival-${racer.id}`);projected.set(racer.state.x,racer.state.y+1.4+index*.7,0).project(camera);
+    const el=$(`rival-${racer.id}`),position=botVisuals.get(racer.id).root.position;projected.set(position.x,position.y+1.4+index*.7,0).project(camera);
     el.style.left=`${(projected.x+1)*innerWidth/2}px`;el.style.top=`${(1-projected.y)*innerHeight/2}px`;el.hidden=racer.state.status==='crashed'||Math.abs(projected.x)>1||Math.abs(projected.y)>1;
   }
 }
 
-function ensureAudio(){
-  if(context)return;
-  context=new AudioContext();audioGain=context.createGain();audioGain.gain.value=0;
-  const filter=context.createBiquadFilter();filter.type='lowpass';filter.frequency.value=260;
-  audioOsc=context.createOscillator();audioOsc.type='sawtooth';audioOsc.frequency.value=48;audioOsc.connect(filter);filter.connect(audioGain);audioGain.connect(context.destination);audioOsc.start();
-}
 function playChime(){
   if(!soundEnabled)return;
   for(const [i,f] of [523,784].entries()){
-    const o=context.createOscillator(),g=context.createGain(),t=context.currentTime+i*.13;o.frequency.value=f;g.gain.setValueAtTime(.08,t);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.connect(g);g.connect(context.destination);o.start(t);o.stop(t+.5);
+    const o=context.createOscillator(),g=context.createGain(),t=context.currentTime+i*.13;o.frequency.value=f;g.gain.setValueAtTime(.035,t);g.gain.exponentialRampToValueAtTime(.001,t+.5);o.connect(g);g.connect(rocketAudio.output);o.start(t);o.stop(t+.5);
   }
 }
 function playCrash(){
   if(!soundEnabled)return;
   const length=context.sampleRate*.6,buffer=context.createBuffer(1,length,context.sampleRate),data=buffer.getChannelData(0);
-  for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/length,3)*.3;
-  const source=context.createBufferSource();source.buffer=buffer;source.connect(context.destination);source.start();
+  for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/length,3)*.06;
+  const source=context.createBufferSource();source.buffer=buffer;source.connect(rocketAudio.output);source.start();
 }
-$('sound').addEventListener('click',async()=>{
-  try{ensureAudio();await context.resume();soundEnabled=!soundEnabled;$('sound').setAttribute('aria-pressed',String(soundEnabled));$('sound').textContent=soundEnabled?'Sound on':'Sound off';}
-  catch{$('sound').textContent='Audio unavailable';$('sound').disabled=true;}
+for(const button of document.querySelectorAll('[data-sound-toggle]'))button.addEventListener('click',async()=>{
+  const buttons=document.querySelectorAll('[data-sound-toggle]');for(const item of buttons)item.disabled=true;
+  try{soundEnabled=await rocketAudio.toggle();context=rocketAudio.context;for(const item of buttons){item.setAttribute('aria-pressed',String(soundEnabled));item.textContent=soundEnabled?'Sound on':'Sound off';}}
+  catch{for(const item of buttons)item.textContent='Audio unavailable · retry';}
+  finally{for(const item of buttons)item.disabled=false;}
 });
 $('primary').addEventListener('click',begin);$('restart').addEventListener('click',()=>launchFromMenu(course,false));$('pause').addEventListener('click',togglePause);
 $('home').addEventListener('click',()=>{openMenu();$('menu-play').focus();});
 $('ship').addEventListener('change',()=>launchFromMenu(course,false));$('course').addEventListener('change',()=>launchFromMenu(Number($('course').value),false));
 window.addEventListener('resize',resize);
 window.addEventListener('keydown',e=>{
+  if(mode==='garage'&&e.code==='Escape'){e.preventDefault();garage.close();return;}
   if(garage.isOpen()||document.querySelector('dialog[open]')||e.target.closest('select,input,textarea'))return;
   if(e.target.closest('button,a')&&['Space','Enter'].includes(e.code))return;
   if(mode==='menu'){
@@ -442,19 +467,19 @@ window.addEventListener('keydown',e=>{
   }
   if(mode==='ended'&&['Enter','Space'].includes(e.code)){e.preventDefault();if(!e.repeat)begin();return;}
   const flightKeys=level.controls==='translation'?translationKeys:keyControls;
-  if(e.code in flightKeys){e.preventDefault();if(mode==='running'&&!e.repeat)controls.press(e.code,flightKeys[e.code]);}
+  if(e.code in flightKeys){e.preventDefault();if(mode==='running'&&!e.repeat){controls.press(e.code,flightKeys[e.code]);sendCurrentInput();}}
   if(e.repeat)return;
   if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();togglePause();}
   if(e.code==='KeyR'){e.preventDefault();launchFromMenu(course,false);}
 });
-window.addEventListener('keyup',e=>{controls.release(e.code);menuControls.release(e.code);});
+window.addEventListener('keyup',e=>{controls.release(e.code);menuControls.release(e.code);sendCurrentInput();});
 window.addEventListener('blur',()=>{clearInput();if(mode==='running')togglePause();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='running')togglePause();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){rocketAudio.update(0);if(mode==='running')togglePause();}});
 for(const button of document.querySelectorAll('[data-control]')){
   const control=button.dataset.control;
-  button.addEventListener('pointerdown',e=>{e.preventDefault();if(mode!=='running')return;button.setPointerCapture(e.pointerId);controls.press(`pointer:${e.pointerId}`,control);button.classList.add('active');});
+  button.addEventListener('pointerdown',e=>{e.preventDefault();if(mode!=='running')return;button.setPointerCapture(e.pointerId);controls.press(`pointer:${e.pointerId}`,control);button.classList.add('active');sendCurrentInput();});
   button.addEventListener('click',e=>{if(e.detail===0&&mode==='running'){controls.press('keyboard-button',control);controls.release('keyboard-button');}});
-  for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,e=>{controls.release(`pointer:${e.pointerId}`);button.classList.remove('active');});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,e=>{controls.release(`pointer:${e.pointerId}`);button.classList.remove('active');sendCurrentInput();});
 }
 for(const button of document.querySelectorAll('[data-menu-control]')){
   const control=button.dataset.menuControl;
@@ -468,25 +493,41 @@ for(const button of document.querySelectorAll('[data-menu-control]')){
 
 function frame(now){
   requestAnimationFrame(frame);const frameDelta=(now-last)/1000,dt=Math.min(frameDelta,.08);last=now;
+  if(document.hidden)return;
   frameSeconds+=frameDelta;frameCount++;
   if(frameSeconds>=1){canvas.dataset.fps=String(Math.round(frameCount/frameSeconds));canvas.dataset.drawCalls=String(renderer.info.render.calls);frameSeconds=0;frameCount=0;}
+  if(mode==='garage'){
+    rocketAudio.update(0);
+    if(!document.hidden){garageScene.update(frameDelta,renderer);renderScene(garageScene.scene,garageScene.camera);}
+    canvas.dataset.mode='garage';return;
+  }
   if(mode==='menu'){
     if(!document.hidden){
       const canSteer=!document.querySelector('dialog[open]');
-      startMenu.update(menuScene.update(frameDelta,renderer,seconds=>{const input=canSteer?menuControls.read():{};menuControls.advance(seconds);return input;}));
-      renderer.render(menuScene.scene,menuScene.camera);
+      const sample=menuScene.update(frameDelta,renderer,seconds=>{const input=canSteer?menuControls.read():{};menuControls.advance(seconds);return input;});startMenu.update(sample);rocketAudio.update(sample.paused?0:sample.throttle);
+      renderScene(menuScene.scene,menuScene.camera);
     }
     canvas.dataset.mode='menu';return;
   }
   if(selected&&state){
     if(networkRoom){
-      renderShip();
+      renderShip(dt);
     }else if(mode==='running'&&!online){
       accumulator+=dt;
       while(accumulator>=FIXED_STEP){stepRace(race,controls.read(level.controls==='translation'),FIXED_STEP);controls.advance(FIXED_STEP);accumulator-=FIXED_STEP;if(race.finished){finish();accumulator=0;break;}}
       renderShip();
     }
     const firing=mode==='running'&&state.thrust>0&&state.status==='flying';
+    rocketAudio.update(firing?state.thrust:0,{rcs:mode==='running'&&state.status==='flying'?Math.max(Math.abs(state.rcsTurn),Math.hypot(state.translation?.x||0,state.translation?.y||0)):0,submerged:level.theme==='water'});
+    predictionClock+=dt;
+    if(mode==='running'&&state.status==='flying'){
+      if(predictionClock>=.12){
+        predictionClock=0;const projected=glidepath.update(state,controls.read(level.controls==='translation'),level,selected.hull),warning=$('impact-warning');
+        warning.hidden=!projected.impact&&!projected.landing;
+        warning.dataset.severity=projected.impact?(projected.impact.time<.8?'critical':'caution'):'safe';
+        warning.textContent=projected.impact?`IMPACT ${projected.impact.kind}  T−${projected.impact.time.toFixed(2)}s`:projected.landing?`LANDING WINDOW  T−${projected.landing.time.toFixed(2)}s`:'';
+      }
+    }else{glidepath.hide();$('impact-warning').hidden=true;predictionClock=.12;}
     if(mode!=='paused'&&firing!==lastEngine){selected.system.playTrigger(firing?'Engine_start':'Engine_stop');lastEngine=firing;}
     if(mode!=='paused'){selected.system.update(dt);}
     engineLight.intensity=firing?(level.theme==='dark'?18:5):0;engineLight.distance=level.theme==='dark'?12:5;
@@ -499,14 +540,12 @@ function frame(now){
         const model=racer.id==='you'?selected:botVisuals.get(racer.id);
         const position=model.root.localToWorld(model.anchor.clone());
         const burning=mode==='running'&&racer.state.thrust>0&&racer.state.status==='flying';
-        const source={x:position.x,y:position.y,z:position.z,angle:racer.state.angle,vx:racer.state.vx,vy:racer.state.vy,density:environmentAt(racer.state,level).density,firing:burning,throttle:racer.state.thrust};
+        const source={x:position.x,y:position.y,z:position.z,angle:model.root.rotation.z,vx:racer.state.vx,vy:racer.state.vy,density:environmentAt(racer.state,level).density,firing:burning,throttle:racer.state.thrust};
         if(burning)plume.emit(racer.id,source,dt,plumeEnvironment);
         return source;
       });
       plume.update(dt,plumeEnvironment,camera,renderer,emitters);
     }
-    if(audioGain)audioGain.gain.setTargetAtTime(soundEnabled&&firing ? .065 : 0,context.currentTime,.06);
-    if(audioOsc)audioOsc.frequency.setTargetAtTime(48+Math.sin(now*.013)*4,context.currentTime,.04);
     if(mode!=='paused'){
       for(const racer of race.racers){
         const model=racer.id==='you'?selected:botVisuals.get(racer.id),damage=racer.state.damage;
@@ -525,7 +564,7 @@ function frame(now){
     }
     elapsed+=dt;if(elapsed>.08){updateHud();elapsed=0;}
   }
-  updateCamera(dt);renderer.render(scene,camera);
+  updateCamera(dt);renderScene(scene,camera);
 }
 buildCave();resize();requestAnimationFrame(frame);
 Promise.allSettled([...['tintin','futurama','comet','wraith','aster'].map(loadShip),...LEVELS.map(loadLevel)]).then(results=>{

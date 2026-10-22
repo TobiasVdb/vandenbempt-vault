@@ -1,23 +1,25 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { newProfile, buyUpgrade, buySkin, settleRace } from '../game/progression.js';
+import { newProfile, sanitizeProfile, buyUpgrade, buySkin, buyShip, equipShip, settleRace } from '../game/progression.js';
 
 const digest=token=>createHash('sha256').update(token).digest('hex');
 export function newPlayer(name){
   const token=randomBytes(32).toString('base64url');
   return {token,row:{id:randomUUID(),name,tokenHash:digest(token),profile:newProfile()}};
 }
-export const publicPlayer=row=>({id:row.id,name:row.name,profile:structuredClone(row.profile)});
-function purchase(row,kind,key){
-  const result=kind==='upgrade'?buyUpgrade(row.profile,key):kind==='skin'?buySkin(row.profile,key):{ok:false,reason:'Unknown purchase.'};
+export const publicPlayer=row=>({id:row.id,name:row.name,profile:sanitizeProfile(row.profile)});
+function purchase(row,kind,key,ship=row.profile.ship){
+  const result=kind==='upgrade'?buyUpgrade(row.profile,key,ship):kind==='skin'?buySkin(row.profile,key,ship):kind==='ship'?buyShip(row.profile,key):{ok:false,reason:'Unknown purchase.'};
   if(!result.ok)throw Object.assign(new Error(result.reason),{status:409});return publicPlayer(row);
 }
+function equip(row,ship){const result=equipShip(row.profile,ship);if(!result.ok)throw Object.assign(new Error(result.reason),{status:409});return publicPlayer(row);}
 
 /** Local development uses an atomic file. Production uses the host's PostgreSQL adapter. */
 export async function createLocalStore(file=null){
   let data={players:[],results:[]};
   if(file){try{data=JSON.parse(await fs.readFile(file,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}}
+  for(const row of data.players)row.profile=sanitizeProfile(row.profile);
   let pending=Promise.resolve();
   function mutate(action){
     const next=pending.then(async()=>{
@@ -29,8 +31,8 @@ export async function createLocalStore(file=null){
   return {
     async create(name){return mutate(()=>{const player=newPlayer(name);data.players.push(player.row);return {...publicPlayer(player.row),token:player.token};});},
     async authenticate(token){await pending;const row=data.players.find(row=>row.tokenHash===digest(token));return row?publicPlayer(row):null;},
-    async buy(id,kind,key){return mutate(()=>purchase(data.players.find(row=>row.id===id),kind,key));},
-    async equip(id,ship){return mutate(()=>{const row=data.players.find(row=>row.id===id);row.profile.ship=ship;return publicPlayer(row);});},
+    async buy(id,kind,key,ship){return mutate(()=>purchase(data.players.find(row=>row.id===id),kind,key,ship));},
+    async equip(id,ship){return mutate(()=>equip(data.players.find(row=>row.id===id),ship));},
     async reset(id){return mutate(()=>{const row=data.players.find(row=>row.id===id);row.profile=newProfile();data.results=data.results.filter(result=>result.playerId!==id);return publicPlayer(row);});},
     async record(id,result){return mutate(()=>{
       const row=data.players.find(row=>row.id===id);
@@ -49,7 +51,7 @@ export async function createPostgresStore(pool){
   await pool.query(`CREATE TABLE IF NOT EXISTS rocket_players (id UUID PRIMARY KEY, name TEXT NOT NULL, token_hash TEXT UNIQUE NOT NULL, profile JSONB NOT NULL);
     CREATE TABLE IF NOT EXISTS rocket_results (attempt_id UUID PRIMARY KEY, player_id UUID NOT NULL REFERENCES rocket_players(id) ON DELETE CASCADE, mission TEXT NOT NULL, seconds DOUBLE PRECISION NOT NULL, success BOOLEAN NOT NULL);
     CREATE INDEX IF NOT EXISTS rocket_results_mission_time ON rocket_results(mission,seconds) WHERE success=true;`);
-  const fromDb=row=>row?{id:row.id,name:row.name,profile:row.profile}:null;
+  const fromDb=row=>row?{id:row.id,name:row.name,profile:sanitizeProfile(row.profile)}:null;
   async function transaction(id,action){
     const client=await pool.connect();
     try{await client.query('BEGIN');const {rows}=await client.query('SELECT * FROM rocket_players WHERE id=$1 FOR UPDATE',[id]);
@@ -61,8 +63,8 @@ export async function createPostgresStore(pool){
   return {
     async create(name){const {row,token}=newPlayer(name);await pool.query('INSERT INTO rocket_players(id,name,token_hash,profile) VALUES($1,$2,$3,$4)',[row.id,row.name,row.tokenHash,JSON.stringify(row.profile)]);return {...publicPlayer(row),token};},
     async authenticate(token){return fromDb((await pool.query('SELECT id,name,profile FROM rocket_players WHERE token_hash=$1',[digest(token)])).rows[0]);},
-    buy:(id,kind,key)=>transaction(id,row=>purchase(row,kind,key)),
-    equip:(id,ship)=>transaction(id,row=>{row.profile.ship=ship;}),
+    buy:(id,kind,key,ship)=>transaction(id,row=>purchase(row,kind,key,ship)),
+    equip:(id,ship)=>transaction(id,row=>equip(row,ship)),
     reset:id=>transaction(id,async(row,client)=>{row.profile=newProfile();await client.query('DELETE FROM rocket_results WHERE player_id=$1',[id]);}),
     record:(id,result)=>transaction(id,async(row,client)=>{
       const insert=await client.query('INSERT INTO rocket_results(attempt_id,player_id,mission,seconds,success) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING attempt_id',[result.attemptId,id,result.missionId,result.time,result.success]);

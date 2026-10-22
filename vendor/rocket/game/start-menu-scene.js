@@ -8,7 +8,7 @@ import { createPlumeObstacles } from './plume-obstacles.js';
 import { createDestructionEffect } from './damage-effect.js';
 import { projectStructure, collideMenuTower } from './menu-contact.js';
 
-export function createStartMenuScene({environment,reducedMotion,random=Math.random}){
+export function createStartMenuScene({environment,reducedMotion,random=Math.random,parked=false}){
   const scene=new THREE.Scene();scene.background=new THREE.Color('#0b131b');scene.fog=new THREE.Fog('#0b131b',11,32);scene.environment=environment;scene.environmentIntensity=.65;
   const camera=new THREE.OrthographicCamera(-5,5,2.8,-2.8,.1,70);
   scene.add(new THREE.HemisphereLight('#b5cfdf','#283035',1.1));
@@ -98,7 +98,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
     verticalZoom+=(targetZoom-verticalZoom)*(1-Math.exp(-dt/.6));
     const portrait=viewWidth<680,span=(portrait?8.4+sample.flightBlend*.8:5.4+sample.flightBlend*1.2)+verticalZoom,wide=span*viewWidth/viewHeight;
     const ahead=portrait?0:THREE.MathUtils.clamp(sample.horizontalSpeed*.4,-.45,.45);
-    const x=sample.x-wide*(portrait?.12+.08*sample.flightBlend:.22)+ahead,y=1.8+sample.altitude;
+    const x=sample.x-wide*(portrait?.12+.08*sample.flightBlend:.22)+ahead,y=parked&&portrait?sample.y+.5-span*.24:1.8+sample.altitude;
     camera.left=-wide/2;camera.right=wide/2;camera.top=span/2;camera.bottom=-span/2;
     camera.position.set(x,y+1.3,12);camera.lookAt(x,y,0);camera.updateProjectionMatrix();
     key.position.set(sample.x-3,sample.y+6,6);key.target.position.set(sample.x,sample.y,0);
@@ -116,6 +116,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
       }
       for(const item of actors.values())item.root.visible=false;
       actor=actors.get(id);actor.root.visible=true;actor.appearance.paint(color);actor.appearance.update(tuning.rcs??0,0);
+      actor.appearance.configure(tuning);
       actor.rcs=tuning.rcs??0;flight=createLaunchSequence(source.hull,tuning);verticalZoom=0;visualTime=0;
       restoreScene();
       actor.system.setPaused(paused);
@@ -133,7 +134,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
       let sample=flight.sample();
       for(let step=0;step<steps;step++){
         const command=typeof input==='function'?input(dt):input;
-        sample=actor?flight.update(dt,command,collideStructures):flight.sample();
+        sample=actor&&!parked?flight.update(dt,command,collideStructures):flight.sample();
         if(actor&&sample.resets!==actor.resets)restoreScene();
         stations.forEach((item,index)=>{item.arm.rotation.y=-sample.arms[index]*Math.PI/2;item.structure.update();});
         follow(sample,dt);
@@ -154,7 +155,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
         destruction.update(dt,plumeLevel);
       }
       // Expose only presentation telemetry to the DOM; it never touches a campaign race.
-      return {...sample,loaded:Boolean(actor),width:viewWidth,height:viewHeight,plume:plume.statistics,debris:destruction.count,towersDestroyed:stations.filter(item=>item.destroyed).length};
+      return {...sample,paused,loaded:Boolean(actor),width:viewWidth,height:viewHeight,plume:plume.statistics,debris:destruction.count,towersDestroyed:stations.filter(item=>item.destroyed).length};
     },
   };
 }
