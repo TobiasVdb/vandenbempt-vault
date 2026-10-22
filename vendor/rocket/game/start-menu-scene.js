@@ -7,6 +7,7 @@ import { DEFAULT_HULL } from './physics.js';
 import { createPlumeObstacles } from './plume-obstacles.js';
 import { createDestructionEffect } from './damage-effect.js';
 import { projectStructure, collideMenuTower } from './menu-contact.js';
+import { createMenuBackdrop } from './menu-backdrop.js';
 
 export function createStartMenuScene({environment,reducedMotion,random=Math.random,parked=false}){
   const scene=new THREE.Scene();scene.background=new THREE.Color('#0b131b');scene.fog=new THREE.Fog('#0b131b',11,32);scene.environment=environment;scene.environmentIntensity=.65;
@@ -60,13 +61,16 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
     return {station,tower,arm,structure:createPlumeObstacles(tower),collision:body.boxes.map(projectStructure),destroyed:false};
   }
   const stations=STATION_POSITIONS.map(buildStation);
-  // A low distant ridge and quiet stars frame the pad without competing with the ship.
+  const backdrop=parked?null:createMenuBackdrop(scene);
+  // Keep the garage's existing parked backdrop; the menu gets stronger movement references.
+  if(parked){
   for(let i=0;i<20;i++){
     const hill=new THREE.Mesh(new THREE.ConeGeometry(1.3+(i%3)*.6,1+(i%4)*.38,4),new THREE.MeshStandardMaterial({color:'#182a32',roughness:1,flatShading:true}));hill.position.set(-14+i*2.6,-.15,-9-(i%3));hill.rotation.y=i*.7;scene.add(hill);
   }
   const stars=[];for(let i=0;i<650;i++)stars.push(Math.sin(i*17.3)*55,2+(i%139)*1.3,-15-(i%7));
   const starGeometry=new THREE.BufferGeometry();starGeometry.setAttribute('position',new THREE.Float32BufferAttribute(stars,3));
   scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({color:'#8da8b9',size:.012,transparent:true,opacity:.45,fog:false})));
+  }
   const plume=createPlumeEffect(scene,{capacity:600,reducedMotion,random});
   const destruction=createDestructionEffect(scene,{capacity:reducedMotion?72:144,reducedMotion,random,horizontalLimit:Infinity});
   const plumeLevel={theme:'sandstone',gravity:4,objective:'land',roof:[],floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],pads:STATION_POSITIONS.map(x=>({x,y:.16,width:2.1,radius:1.05})),obstacles:stations.flatMap(item=>item.structure.boxes)};
@@ -101,6 +105,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
     const x=sample.x-wide*(portrait?.12+.08*sample.flightBlend:.22)+ahead,y=parked&&portrait?sample.y+.5-span*.24:1.8+sample.altitude;
     camera.left=-wide/2;camera.right=wide/2;camera.top=span/2;camera.bottom=-span/2;
     camera.position.set(x,y+1.3,12);camera.lookAt(x,y,0);camera.updateProjectionMatrix();
+    backdrop?.update(camera);
     key.position.set(sample.x-3,sample.y+6,6);key.target.position.set(sample.x,sample.y,0);
     rim.position.set(sample.x+3,sample.y+2,-3);rim.target.position.set(sample.x,sample.y,0);
   }
