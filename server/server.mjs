@@ -17,12 +17,15 @@ import { createNycTripService, initializeNycTripDatabase } from './nyc-trip.mjs'
 
 const { Pool } = pg
 const app = express()
+const gamePresenceInstance = randomUUID()
 registerVectraUsage(app)
 registerDirectorate(app, { bobSnapshot: () => ({
   metrics: bobUsage?.summary?.() ?? null,
   active_rooms: bobCoop?.rooms.size ?? 0,
   websocket_players: bobCoop ? [...bobCoop.rooms.values()].reduce((total, room) => total + room.players.size, 0) : 0,
   host_uptime_seconds: Math.floor(process.uptime()),
+  rocket: rocketService?.presence?.() ?? null,
+  host_instance: gamePresenceInstance,
 }) })
 const port = Number(process.env.PORT || 8080)
 const distDir = path.resolve(process.cwd(), 'dist')

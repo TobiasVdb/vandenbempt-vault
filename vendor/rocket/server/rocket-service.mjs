@@ -18,7 +18,7 @@ const ROOM_CAPACITY=8;
 /** Authoritative rooms reuse gameplay physics; only inputs cross the client boundary. */
 export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
   const rooms=new Map(),members=new Map(),streams=new Map(),sessions=new Map(),limits=new Map(),pendingResults=new Map();
-  let accumulator=0,lastTick=now(),broadcastClock=0,lastLobby=0;
+  let accumulator=0,lastTick=now(),broadcastClock=0,lastLobby=0,onlineJoins=0;
   function limited(key,interval){const time=now();if((limits.get(key)??-Infinity)+interval>time)fail(429,'Please slow down.');limits.set(key,time);}
   function send(res,type,data){if(res.destroyed)return;if(res.writableLength>262144){res.end();return;}res.write(`data: ${JSON.stringify({type,...data})}\n\n`);}
   function to(id,type,data){for(const res of streams.get(id)||[])send(res,type,data);}
@@ -164,6 +164,7 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
       if(route==='/events'&&req.method==='GET'){
         const responses=streams.get(player.id)||new Set();if(responses.size>=3)fail(429,'Too many connections for this pilot.');
         res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform',Connection:'keep-alive','X-Accel-Buffering':'no'});res.flushHeaders?.();
+        if(!responses.size)onlineJoins++;
         responses.add(res);streams.set(player.id,responses);send(res,'connected',{player});lobby();
         const room=rooms.get(members.get(player.id));if(room)send(res,'race',{room:snapshot(room)});
         const heartbeat=setInterval(()=>res.write(': heartbeat\n\n'),15000);heartbeat.unref();
@@ -204,5 +205,5 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
       fail(404,'Unknown rocket API route.');
     }catch(error){if(!res.headersSent)json(res,error.status||500,{error:error.status?error.message:'Rocket service unavailable. Please retry.'});else res.end();}
   }
-  return {handle,tick,rooms,close(){clearInterval(timer);for(const responses of streams.values())for(const res of responses)res.end();}};
+  return {handle,tick,rooms,presence:()=>({online:streams.size,joins:onlineJoins}),close(){clearInterval(timer);for(const responses of streams.values())for(const res of responses)res.end();}};
 }
