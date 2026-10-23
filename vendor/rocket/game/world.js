@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createWindEffect } from './wind-effect.js';
+import { createWindEffect, createWindFlags } from './wind-effect.js';
 
 export const THEMES={
   sandstone:{sky:'#211d19',rocks:['#6e4b32','#7e583b','#896244','#60452f','#966b49','#755139'],back:'#302820'},
@@ -62,6 +62,7 @@ export function createWorldEffects(scene,group,level,{reducedMotion=false,levelM
   let weather=null,points=null;
   const water=level.theme==='water';
   const wind=level.wind?createWindEffect(group,level,{reducedMotion}):null;
+  const flags=level.wind?createWindFlags(levelModel,level,{reducedMotion}):null;
   if(water){
     points=new Float32Array(200*3);
     for(let i=0;i<points.length;i+=3){points[i]=(Math.random()-.5)*52;points[i+1]=-7+Math.random()*20;points[i+2]=-1-Math.random()*7;}
@@ -77,6 +78,7 @@ export function createWorldEffects(scene,group,level,{reducedMotion=false,levelM
       }
       if(!reducedMotion)for(const [i,fog] of wisps.entries())fog.position.x+=Math.sin(state.time*.3+i)*dt*.14;
       wind?.update(dt);
+      flags?.update(dt);
       if(weather&&!reducedMotion){
         for(let i=0;i<points.length;i+=3){points[i+1]+=dt*.7;if(points[i+1]>13)points[i+1]=-7;}
         weather.geometry.attributes.position.needsUpdate=true;

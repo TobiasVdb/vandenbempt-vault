@@ -13,6 +13,37 @@ export function windGustAt(x,y,seconds,wind){
   return Math.exp(-(((x-front+shear)/6.5)**2));
 }
 
+/** Lightweight cloth strips stay pinned to the existing GLB masts. */
+export function createWindFlags(model,level,{reducedMotion=false}={}){
+  const flags=[],segments=12;
+  model?.traverse(object=>{
+    if(!object.isMesh||!object.name.startsWith('wind_vane_'))return;
+    if(!object.userData.windFlagAnchor){
+      object.geometry.computeBoundingBox();const bounds=object.geometry.boundingBox;
+      object.userData.windFlagAnchor=[bounds.max.x,(bounds.min.y+bounds.max.y)/2,bounds.min.z];
+      const geometry=new THREE.PlaneGeometry(1,1,segments,1);geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+      object.geometry=geometry;object.frustumCulled=false;
+    }
+    flags.push({object,anchor:object.userData.windFlagAnchor});
+  });
+  let clock=0;
+  function update(seconds){
+    if(!reducedMotion)clock+=Math.max(0,seconds);
+    for(const [index,{object,anchor:[x,y,z]}] of flags.entries()){
+      const wind=environmentAt({x,y},level).wind,strength=Math.min(1,Math.abs(wind)/9),direction=Math.sign(wind)||-1;
+      const gust=windGustAt(x,y,clock,level.wind),positions=object.geometry.attributes.position;
+      for(let row=0;row<2;row++)for(let segment=0;segment<=segments;segment++){
+        const t=segment/segments,phase=t*8-clock*(5+strength*4)+index*.9;
+        const flutter=reducedMotion?0:Math.sin(phase)*t*(.025+strength*.045+gust*.035);
+        const height=.23*(1-t)+.025;
+        positions.setXYZ(row*(segments+1)+segment,x+direction*t*1.4*(.65+strength*.35),y+(row? -height:height)-t*t*(1-strength)*.25+flutter,z+(reducedMotion?0:Math.sin(phase+.7)*t*.09*strength));
+      }
+      positions.needsUpdate=true;object.geometry.computeVertexNormals();
+    }
+  }
+  update(0);return {update};
+}
+
 /** Soft world-space ribbons use one mesh and reuse their buffers for the whole mission. */
 export function createWindEffect(group,level,{reducedMotion=false}={}){
   const count=reducedMotion?28:72,segments=8,verticesPerRibbon=(segments+1)*2;

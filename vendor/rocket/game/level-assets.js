@@ -19,7 +19,7 @@ export function prepareLevelModel(scene,level){
   // references individually addressable for mission behaviour and inspection.
   const groups=new Map();scene.updateMatrixWorld(true);
   scene.traverse(object=>{
-    if(!object.isMesh||!object.visible||object.children.length||object.userData.role!=='decoration'||Array.isArray(object.material)||object.material.transparent)return;
+    if(!object.isMesh||!object.visible||object.children.length||object.name.startsWith('wind_vane_')||object.userData.role!=='decoration'||Array.isArray(object.material)||object.material.transparent)return;
     const key=object.parent.uuid+object.material.uuid+Object.keys(object.geometry.attributes).sort().join(',');
     if(!groups.has(key))groups.set(key,[]);groups.get(key).push(object);
   });
