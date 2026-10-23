@@ -25,8 +25,8 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
   function everyone(type,data){for(const responses of streams.values())for(const res of responses)send(res,type,data);}
   function roomList(){return [...rooms.values()].map(room=>({id:room.id,mission:room.level.id,name:room.level.name,players:room.players.size,capacity:ROOM_CAPACITY}));}
   function lobby(){lastLobby=now();everyone('lobby',{rooms:roomList(),players:[...sessions.values()].filter(player=>streams.has(player.id)).map(player=>({id:player.id,name:player.name,room:members.get(player.id)||null}))});}
-  function snapshot(room){return {id:room.id,mission:room.level.id,elapsed:room.race.elapsed,started:room.race.started,contacts:room.race.contacts,
-    racers:room.race.racers.map(racer=>({id:racer.id,name:racer.name,ship:racer.ship||'futurama',color:racer.color??null,state:racer.state,hull:racer.hull,finishTime:racer.finishTime,waiting:Boolean(racer.waiting),result:racer.result||null}))};}
+  function snapshot(room){return {id:room.id,mission:room.level.id,round:room.round,nextLevelIn:room.nextLevelAt===null?null:Math.max(0,room.nextLevelAt-room.race.elapsed),elapsed:room.race.elapsed,started:room.race.started,contacts:room.race.contacts,
+    racers:room.race.racers.map(racer=>({id:racer.id,attemptId:racer.attemptId,name:racer.name,ship:racer.ship||'futurama',color:racer.color??null,state:racer.state,hull:racer.hull,finishTime:racer.finishTime,waiting:Boolean(racer.waiting),result:racer.result||null}))};}
   function leave(id){const room=rooms.get(members.get(id));if(!room)return;
     room.players.delete(id);room.race.racers=room.race.racers.filter(racer=>racer.id!==id);members.delete(id);room.touched=now();to(id,'left',{});lobby();
   }
@@ -43,7 +43,28 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     const race=createRace(level,{hull:hulls.aster,bots:[{id:'ash',name:'Ash',hull:hulls.futurama,delay:2.2},{id:'vesper',name:'Vesper',hull:hulls.wraith,delay:3.5}]});
     race.racers.shift();race.multiplayer=true;
     race.racers[0].ship='futurama';race.racers[0].color='#79b4d4';race.racers[1].ship='wraith';race.racers[1].color='#bc8fba';
-    const room={id:randomUUID(),level,race,players:new Map(),finishTimes:new Map(),touched:now()};rooms.set(room.id,room);return room;
+    const room={id:randomUUID(),level,race,players:new Map(),finishTimes:new Map(),round:0,nextLevelAt:null,touched:now()};rooms.set(room.id,room);return room;
+  }
+  function humanRacer(room,player,ship){
+    const state=createFlight(room.level,hulls[ship],flightTuning(player.profile));state.hull=hulls[ship];
+    return {id:player.id,name:player.name,ship,color:SKINS[player.profile.skin].color,state,hull:hulls[ship],finishTime:null,
+      attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
+  }
+  function nextRound(room){
+    const pilots=[...room.players.values()];
+    // Capture unfinished attempts before replacing racer objects; delayed database writes
+    // must keep referring to the old round, never the fresh attempt.
+    for(const racer of pilots)if(!racer.settling&&!racer.waiting)settle(room,racer);
+    room.level=LEVELS[(LEVELS.indexOf(room.level)+1)%LEVELS.length];
+    room.race=createRace(room.level);room.race.racers=[];room.race.multiplayer=true;
+    room.finishTimes.clear();room.nextLevelAt=null;room.round++;
+    room.players.clear();
+    for(const previous of pilots){
+      const state=createFlight(room.level,previous.hull,previous.state.tuning);state.hull=previous.hull;
+      const racer={...previous,state,finishTime:null,result:null,attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
+      room.race.racers.push(racer);spawn(room,racer);room.players.set(racer.id,racer);
+    }
+    room.touched=now();lobby();
   }
   async function join(player,data){
     if(!Object.hasOwn(hulls,data.ship))fail(400,'Unknown spacecraft.');
@@ -52,19 +73,31 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     if(!room&&!data.create)room=[...rooms.values()].find(room=>room.level.id===data.mission&&room.players.size<ROOM_CAPACITY&&!room.finishTimes.size&&!room.players.has(player.id));
     if(room?.players.size>=ROOM_CAPACITY&&!room.players.has(player.id))fail(409,'Flight lane full. Other open games are available.');
     const existing=rooms.get(members.get(player.id));
+    if(data.restart){
+      if(!existing||data.room&&existing!==room)fail(409,'Your game has ended. Join a game to fly again.');
+      const previous=existing.players.get(player.id);
+      if(completed(previous.state)&&existing.nextLevelAt!==null)return {room:snapshot(existing)};
+      if(!previous.settling&&previous.startedAt!==null)settle(existing,previous);
+      const racer=humanRacer(existing,player,previous.ship);
+      existing.race.racers=existing.race.racers.map(item=>item===previous?racer:item);
+      existing.finishTimes.delete(player.id);existing.players.set(player.id,racer);spawn(existing,racer);
+      return {room:snapshot(existing)};
+    }
     if(existing===room&&room?.players.has(player.id)&&!data.restart)return {room:snapshot(room)};
     player=await store.equip(player.id,data.ship);to(player.id,'profile',{player});
     // Another join may have taken the last seat while this profile transaction awaited.
     if(room?.players.size>=ROOM_CAPACITY&&!room.players.has(player.id))fail(409,'Flight lane full. Other open games are available.');
     leave(player.id);room ||= createRoom(data.mission);
+    if(room.players.size){
+      for(const bot of room.race.racers.filter(racer=>racer.pilot))room.finishTimes.delete(bot.id);
+      room.race.racers=room.race.racers.filter(racer=>!racer.pilot);
+    }
     while(room.race.racers.length>=ROOM_CAPACITY){
       const bot=room.race.racers.find(racer=>racer.pilot);
       if(!bot)fail(409,'Flight lane full. Other open games are available.');
       room.race.racers=room.race.racers.filter(racer=>racer!==bot);room.finishTimes.delete(bot.id);
     }
-    const state=createFlight(room.level,hulls[data.ship],flightTuning(player.profile));state.hull=hulls[data.ship];
-    const racer={id:player.id,name:player.name,ship:data.ship,color:SKINS[player.profile.skin].color,state,hull:hulls[data.ship],finishTime:null,
-      attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
+    const racer=humanRacer(room,player,data.ship);
     room.race.racers.push(racer);spawn(room,racer);room.players.set(player.id,racer);members.set(player.id,room.id);room.touched=now();
     lobby();return {room:snapshot(room)};
   }
@@ -98,6 +131,8 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
         stepRace(room.race,{thrust:anyThrust},FIXED_STEP,inputs);
         for(const racer of room.race.racers)if(racer.finishTime!==null)room.finishTimes.set(racer.id,racer.finishTime);
         for(const racer of room.players.values())if(!racer.settling&&!racer.waiting&&(completed(racer.state)||racer.state.status==='crashed'))settle(room,racer);
+        if(room.players.size>=2&&room.nextLevelAt===null&&[...room.players.values()].some(racer=>completed(racer.state)))room.nextLevelAt=room.race.elapsed+4;
+        if(room.nextLevelAt!==null&&room.race.elapsed+1e-9>=room.nextLevelAt)nextRound(room);
       }accumulator=Math.max(0,accumulator-FIXED_STEP);broadcastClock+=FIXED_STEP;
     }
     if(broadcastClock>=.1){broadcastClock=0;for(const room of rooms.values())for(const id of room.players.keys())to(id,'race',{room:snapshot(room)});}

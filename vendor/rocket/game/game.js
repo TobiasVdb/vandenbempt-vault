@@ -222,7 +222,12 @@ $('save-status').textContent=persistent?'Progress saves in this browser.':'Brows
 
 function acceptNetworkRace(snapshot,playerId){
   if(snapshot.id!==networkRoom)return;
+  if(race?.id===snapshot.id&&(snapshot.round??0)<(race.round??0))return;
   const own=snapshot.racers.find(racer=>racer.id===playerId);if(!own)return;
+  const newAttempt=race?.id===snapshot.id&&own.attemptId&&race.racers[0]?.attemptId!==own.attemptId;
+  if(snapshot.mission!==level.id){
+    $('course').value=String(LEVELS.findIndex(mission=>mission.id===snapshot.mission));changeCourse();resetFlight();$('mission-scores').hidden=true;
+  }else if(newAttempt)resetFlight();
   const ordered=[own,...snapshot.racers.filter(racer=>racer!==own)].map(racer=>({...racer,id:racer.id===playerId?'you':racer.id}));
   flightPresentation.receive(ordered,performance.now()/1000);
   race={...snapshot,level,racers:ordered,finished:Boolean(own.result)};state=own.state;
@@ -238,8 +243,9 @@ function acceptNetworkRace(snapshot,playerId){
     if(id!=='ash'&&id!=='vesper')removeRemoteVisual(id,model);
     else{model.root.visible=false;const label=$(`rival-${id}`);if(label)label.hidden=true;}
   }
-  $('network-status').textContent=own.waiting?'Waiting for a clear launch position.':online.connected?'Live multiplayer · open room':'Reconnecting · controls released';
+  $('network-status').textContent=snapshot.nextLevelIn!==null&&snapshot.nextLevelIn!==undefined?`Next mission in ${Math.ceil(snapshot.nextLevelIn)}s · all pilots advance together`:own.waiting?'Waiting for a clear launch position.':online.connected?'Live multiplayer · open room':'Reconnecting · controls released';
   if(own.result&&mode!=='ended'&&mode!=='menu')finishOnline(own.result);
+  if(own.result?.success&&snapshot.nextLevelIn!==null&&snapshot.nextLevelIn!==undefined){$('primary').textContent=`Next mission in ${Math.ceil(snapshot.nextLevelIn)}s`;$('primary').disabled=true;}
 }
 function finishOnline(result){
   clearInput();mode='ended';$('pause').disabled=true;
@@ -313,12 +319,23 @@ function begin(){
   if(!selected)return;
   if(online){
     if(mode==='briefing'&&networkRoom||mode==='paused'&&networkRoom){mode='running';$('message').hidden=true;$('mission-scores').hidden=true;$('pause').disabled=false;$('pause').firstChild.textContent='Pause ';canvas.focus({preventScroll:true});return;}
+    if(networkRoom&&!completed(state)){restartFlight();return;}
+    if(networkRoom&&race.nextLevelIn!==null&&race.nextLevelIn!==undefined)return;
     const next=completed(state)&&course<LEVELS.length-1?course+1:course;
     networkRoom=null;launchFromMenu(next,false);return;
   }
   if(mode==='paused'){mode='running';$('message').hidden=true;$('pause').firstChild.textContent='Pause ';canvas.focus({preventScroll:true});return;}
   if(completed(state)&&course<LEVELS.length-1){$('course').value=String(course+1);changeCourse();}
   resetFlight();
+}
+async function restartFlight(){
+  if(!networkRoom)return launchFromMenu(course,false);
+  if(joining)return;joining=true;
+  try{
+    clearInput();const snapshot=await online.join({room:networkRoom,restart:true});
+    acceptNetworkRace(snapshot,online.player.id);
+  }catch(error){$('network-status').textContent=error.message;}
+  finally{joining=false;}
 }
 function togglePause(){
   if(!selected||!['running','paused'].includes(mode))return;
@@ -455,7 +472,7 @@ for(const button of document.querySelectorAll('[data-sound-toggle]'))button.addE
   catch{for(const item of buttons)item.textContent='Audio unavailable · retry';}
   finally{for(const item of buttons)item.disabled=false;}
 });
-$('primary').addEventListener('click',begin);$('restart').addEventListener('click',()=>launchFromMenu(course,false));$('pause').addEventListener('click',togglePause);
+$('primary').addEventListener('click',begin);$('restart').addEventListener('click',restartFlight);$('pause').addEventListener('click',togglePause);
 $('home').addEventListener('click',()=>{openMenu();$('menu-play').focus();});
 $('ship').addEventListener('change',()=>launchFromMenu(course,false));$('course').addEventListener('change',()=>launchFromMenu(Number($('course').value),false));
 window.addEventListener('resize',resize);
@@ -472,7 +489,7 @@ window.addEventListener('keydown',e=>{
   if(e.code in flightKeys){e.preventDefault();if(mode==='running'&&!e.repeat){controls.press(e.code,flightKeys[e.code]);sendCurrentInput();}}
   if(e.repeat)return;
   if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();togglePause();}
-  if(e.code==='KeyR'){e.preventDefault();launchFromMenu(course,false);}
+  if(e.code==='KeyR'){e.preventDefault();restartFlight();}
 });
 window.addEventListener('keyup',e=>{controls.release(e.code);menuControls.release(e.code);sendCurrentInput();});
 window.addEventListener('blur',()=>{clearInput();if(mode==='running')togglePause();});
