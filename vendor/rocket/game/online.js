@@ -4,7 +4,7 @@ export const PLAYER_KEY='hollow-player-v1';
 
 export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,getMission,isReady}){
   const $=id=>document.getElementById(id),identityDialog=$('pilot-dialog'),status=$('lobby-status');
-  let identity=null,player=null,room=null,connected=false,stream=null,stopped=false,retryTimer=null,joinBusy=false,inputBusy=false,pendingInput=null,inputTimer=null,lastInputAt=-Infinity;
+  let identity=null,player=null,room=null,connected=false,stream=null,stopped=false,retryTimer=null,joinBusy=false,inputBusy=false,inputTimer=null,lastInputAt=-Infinity;
   let resolveReady;const ready=new Promise(resolve=>resolveReady=resolve);
   let lobby=null,busy=false,invitation=null;
   const inputCommands=createInputCommands();
@@ -15,10 +15,10 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
     const value=await response.json();if(!response.ok)throw Object.assign(new Error(value.error||'Connection failed.'),{status:response.status});return value;
   }
   function flushInput(){
-    if(inputBusy||!connected||!room||!pendingInput)return;
+    if(inputBusy||!connected||!room||!inputCommands.pending)return;
     const delay=40-(performance.now()-lastInputAt);
     if(delay>0){clearTimeout(inputTimer);inputTimer=setTimeout(flushInput,delay);return;}
-    const input=pendingInput;pendingInput=null;inputBusy=true;lastInputAt=performance.now();
+    const input=inputCommands.take();inputBusy=true;lastInputAt=performance.now();
     request('input',input).catch(error=>{if(error.status!==429)status.textContent=error.message;}).finally(()=>{inputBusy=false;flushInput();});
   }
   function applyPlayer(value){player=value;onProfile(value.profile);}
@@ -109,19 +109,19 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
   async function join(data){
     if(joinBusy)throw new Error('Joining a game…');if(!isReady())throw new Error('The fleet is still loading.');
     await ready;if(!connected)throw new Error('Reconnect to the lobby before joining.');joinBusy=true;
-    try{const result=await request('join',{ship:getShip(),...data});room=result.room;acknowledgeRoom(room);return room;}finally{joinBusy=false;}
+    try{const result=await request('join',{ship:getShip(),...data});if(data.restart||result.room.id!==room?.id)inputCommands.clear();room=result.room;acknowledgeRoom(room);return room;}finally{joinBusy=false;}
   }
   queueMicrotask(restore);
   return {
     ready,join,refreshLobby(){renderLobby();renderInvitation();},
     get player(){return player;},get connected(){return connected;},get room(){return room;},
-    async leave(){room=null;if(identity)await request('leave',{});},
+    async leave(){room=null;inputCommands.clear();if(identity)await request('leave',{});},
     async buy(kind,key,ship){const value=await request('buy',{kind,key,ship});applyPlayer(value.player);return {ok:true};},
     async equip(ship){const value=await request('equip',{ship});applyPlayer(value.player);return {ok:true};},
     async reset(){const value=await request('reset',{});applyPlayer(value.player);return true;},
     async scores(mission){return (await request(`scores/${mission}`)).scores;},
     sendInput(input){
-      const command=inputCommands.next(input);pendingInput=command;flushInput();return command.inputSequence;
+      const command=inputCommands.next(input);flushInput();return command.inputSequence;
     },
     close(){stopped=true;clearTimeout(retryTimer);clearTimeout(inputTimer);stream?.abort();},
   };

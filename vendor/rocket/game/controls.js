@@ -18,13 +18,19 @@ export const hasFlightInput=input=>Boolean(input.thrust||input.translateX||input
 
 /** A repeated heartbeat keeps its identity; a changed control gets a newer command. */
 export function createInputCommands(){
-  let sequence=0,last=null;
+  let sequence=0,last=null,sent=null;const pending=[];
   return {
-    acknowledge(value){if(Number.isSafeInteger(value)&&value>sequence){sequence=value;last=null;}},
+    acknowledge(value){if(Number.isSafeInteger(value)&&value>sequence){sequence=value;last=null;pending.length=0;}},
     next(input){
       const command={thrust:input.thrust,turn:input.turn,translateX:input.translateX||0,translateY:input.translateY||0};
-      if(!last||Object.keys(command).some(key=>command[key]!==last[key])){sequence++;last=command;}
-      return {...command,inputSequence:sequence};
+      const changed=!last||Object.keys(command).some(key=>command[key]!==last[key]);
+      if(changed){sequence++;last=command;if(pending[0]?.inputSequence===sent)pending.shift();}
+      const value={...command,inputSequence:sequence};
+      if(changed||!pending.length)pending.push(value);
+      return value;
     },
+    take(){const value=pending.shift();if(value)sent=value.inputSequence;return value;},
+    clear(){pending.length=0;last=null;},
+    get pending(){return pending.length;},
   };
 }
