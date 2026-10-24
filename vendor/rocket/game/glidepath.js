@@ -7,6 +7,7 @@ export function predictGlidepath(state,input,level,hull,{seconds=3.2,solids=terr
   const ghost={...state,damage:{...state.damage},translation:state.translation?{...state.translation}:undefined},points=[[state.x,state.y]];
   if(state.status!=='flying')return {points,impact:null,landing:null};
   for(let frame=1;frame<=Math.ceil(seconds/FIXED_STEP);frame++){
+    if(ghost.worldTime!==undefined)ghost.worldTime+=FIXED_STEP;
     stepFlight(ghost,input,level,hull,FIXED_STEP,solids);
     if(frame%6===0)points.push([ghost.x,ghost.y]);
     if(!['ready','landed','finished','orbiting','crashed'].includes(ghost.status))continue;

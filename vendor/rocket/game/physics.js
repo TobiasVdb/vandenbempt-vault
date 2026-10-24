@@ -1,5 +1,7 @@
-import { terrainSolids } from './levels.js';
-import { createDamageState, applyImpact, destroyShip } from './damage.js';
+import { terrainSolids, meteorPolygon, meteorMotion } from './levels.js';
+import { createDamageState, applyImpact, applyDamage, destroyShip } from './damage.js';
+
+import { flightHull, missionTuning } from './pod.js';
 
 export const FIXED_STEP = 1/120;
 export const LANDING_LIMITS = Object.freeze({vertical:2.2, horizontal:1.7, angle:12*Math.PI/180});
@@ -77,16 +79,18 @@ export function resolveShipCollision(a,b,hullA=DEFAULT_HULL,hullB=DEFAULT_HULL){
 /** Recheck solid contact after another ship has displaced a racer. */
 export function checkTerrainCollision(state,level,hull=DEFAULT_HULL,solids=terrainSolids(level)){
   if(!['ready','flying'].includes(state.status))return;
+  if(level.controls==='translation'){resolveMeteorContacts(state,level,flightHull(level,hull));return;}
   const body=worldHull(state,hull);
   const pads=level.pads.map(p=>[[p.x-p.width/2,p.y-.38],[p.x+p.width/2,p.y-.38],[p.x+p.width/2,p.y],[p.x-p.width/2,p.y]]);
   if([...solids,...pads].some(p=>polygonsOverlap(body,p)))crash(state,level.theme==='space'?'Collision with a meteor.':'Contact with the terrain.');
 }
 
 export function createFlight(level, hull=DEFAULT_HULL, tuning={}) {
+  hull=flightHull(level,hull);tuning=missionTuning(level,tuning);
   const pad=level.pads[0];
   return {x:level.spawn?.x??pad.x,y:level.spawn?.y??pad.y-Math.min(...hull.map(p=>p[1]))+.015,vx:0,vy:0,angle:0,omega:0,
-    fuel:tuning.capacity??100,time:0,status:'ready',thrust:0,reason:'',pad:0,gate:0,orbitHold:0,rcsTurn:0,damage:createDamageState(),
-    tuning:{thrust:10,turnPower:2.9,capacity:100,rcs:0,...tuning}};
+    fuel:tuning.capacity??100,time:0,status:'ready',thrust:0,reason:'',pad:0,gate:0,dockHold:0,orbitHold:0,rcsTurn:0,damage:createDamageState(),
+    tuning:{thrust:10,turnPower:level.objective==='land'?(100/60)/.396:2.9,capacity:100,rcs:0,...tuning}};
 }
 
 export function environmentAt(state,level){
@@ -109,6 +113,12 @@ export function orbitalTarget(state,level){
 export const completed = state => ['landed','finished','orbiting'].includes(state.status);
 
 function checkObjective(state,previous,level,hull,dt){
+  if(level.objective==='dock'){
+    const dock=level.dock;
+    const inside=worldHull(state,hull).every(([x,y])=>Math.hypot(x-dock.x,y-dock.y)<=dock.radius);
+    state.dockHold=inside&&Math.hypot(state.vx,state.vy)<=dock.maxSpeed?state.dockHold+dt:0;
+    if(state.dockHold+1e-9>=dock.hold){state.status='finished';state.translation={x:0,y:0};}
+  }
   if(level.objective==='rings'){
     const ring=level.rings[state.gate];if(!ring)return;
     if(previous.x<ring.x&&state.x>=ring.x&&state.vx>0){
@@ -131,7 +141,8 @@ function checkObjective(state,previous,level,hull,dt){
 /** Fixed-step, deterministic planar flight. Collision uses the GLB's projected convex hull. */
 export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,solids=terrainSolids(level)) {
   if (!['ready','flying'].includes(state.status))return;
-  const tuning=state.tuning||{thrust:10,turnPower:2.9,capacity:100,rcs:0};
+  hull=flightHull(level,hull);
+  const tuning=state.tuning||{thrust:10,turnPower:(100/60)/.396,capacity:100,rcs:0};
   const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y};
   const turn=clamp(input.turn||0,-1,1),engine=state.damage.engine/100,steering=state.damage[turn>0?'right':'left']/100;
   const translation=level.controls==='translation';
@@ -140,20 +151,31 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   let tx=translation?clamp(input.translateX||0,-1,1):0,ty=translation?clamp(input.translateY||0,-1,1):0;
   const magnitude=Math.max(1,Math.hypot(tx,ty));tx/=magnitude;ty/=magnitude;
   if(state.fuel<=0||engine<=0){tx=0;ty=0;}
-  if (state.status==='ready' && !thrust&&!(translation&&(tx||ty||turn))) {if(!translation)state.fuel=Math.min(tuning.capacity,state.fuel+dt*12);return;}
+  if (state.status==='ready' && !thrust&&!(translation&&(tx||ty||turn||state.worldTime>0))) {if(!translation)state.fuel=Math.min(tuning.capacity,state.fuel+dt*12);return;}
   state.status='flying';state.time+=dt;
   state.rcsTurn=(translation||tuning.rcs>0)&&state.fuel>0&&steering>0?turn:0;
-  const turnPower=(tuning.rcs>0&&(state.fuel<=0||steering===0)?2.9:tuning.turnPower)*(.35+.65*steering);
-  state.omega+=(translation?state.rcsTurn*turnPower:turn*turnPower-state.omega*4.4)*dt;
+  const jetsAvailable=tuning.rcs>0&&state.fuel>0&&steering>0;
+  const turnPower=(tuning.rcs>0&&!jetsAvailable?(100/60)/.396:tuning.turnPower)*(.35+.65*steering);
+  // Godot applies torque, then damping. Upper jets improve response and braking
+  // together instead of multiplying the sustained turning speed.
+  if(level.objective==='land'){
+    state.omega+=turn*turnPower*dt;
+    state.omega*=Math.max(0,1-3.1*(jetsAvailable?1+tuning.rcs*.6:1)*dt);
+  }else state.omega+=(translation?state.rcsTurn*turnPower:turn*turnPower-state.omega*4.4)*dt;
   state.angle=(state.angle+state.omega*dt+Math.PI*3)%(Math.PI*2)-Math.PI;
   const force=thrust?tuning.thrust*env.engineScale*engine:0;
   state.vx+=(-Math.sin(state.angle)*force-(state.vx-env.wind)*env.drag)*dt;
   state.vy+=(Math.cos(state.angle)*force-env.downward-state.vy*env.verticalDrag)*dt;
+  if(level.objective==='land'){
+    // Stronger engines also get stronger damping to keep taps manageable.
+    const damping=Math.max(0,1-1.1*(tuning.thrust/10)*dt);
+    state.vx*=damping;state.vy*=damping;
+  }
   if(translation){
-    const acceleration=level.translationForce*(tuning.thrust/10)*engine;
+    const acceleration=level.translationForce*engine;
     state.vx+=tx*acceleration*dt;state.vy+=ty*acceleration*dt;state.translation={x:tx,y:ty};
   }
-  state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15:0)+Math.hypot(tx,ty)*.8+Math.abs(state.rcsTurn)*.12));
+  state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15:0)+Math.hypot(tx,ty)*(translation?.12:.8)+Math.abs(state.rcsTurn)*.12));
   const previous=worldHull(state,hull),oldBottom=Math.min(...previous.map(p=>p[1]));
   state.x+=state.vx*dt;state.y+=state.vy*dt;
   const body=worldHull(state,hull),bottom=Math.min(...body.map(p=>p[1])),left=Math.min(...body.map(p=>p[0])),right=Math.max(...body.map(p=>p[0]));
@@ -173,6 +195,32 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   // Pads have solid sides as well as a landing surface.
   checkTerrainCollision(state,level,hull,solids);
   if(state.status==='flying')checkObjective(state,previousPosition,level,hull,dt);
+}
+
+/** Resolve convex contacts against the moving meteor in its own frame. */
+export function resolveMeteorContacts(state,level,hull){
+  for(const meteor of level.meteors||[]){
+    const motion=meteorMotion(meteor,state.worldTime??state.time);
+    if(Math.hypot(state.x-meteor.x-motion.x,state.y-meteor.y-motion.y)>Math.max(meteor.rx,meteor.ry)+.5)continue;
+    const rock=meteorPolygon(meteor).map(([x,y])=>[x+motion.x,y+motion.y]),body=worldHull(state,hull);
+    let depth=Infinity,nx=0,ny=0,separated=false;
+    for(const polygon of [body,rock])for(let i=0;i<polygon.length;i++){
+      const p=polygon[i],q=polygon[(i+1)%polygon.length],length=Math.hypot(q[0]-p[0],q[1]-p[1]);
+      const x=(p[1]-q[1])/length,y=(q[0]-p[0])/length;
+      const a=body.map(p=>p[0]*x+p[1]*y),b=rock.map(p=>p[0]*x+p[1]*y);
+      const forward=Math.max(...a)-Math.min(...b),backward=Math.max(...b)-Math.min(...a);
+      if(forward<=0||backward<=0){separated=true;break;}
+      if(Math.min(forward,backward)<depth){depth=Math.min(forward,backward);const sign=forward<backward?-1:1;nx=x*sign;ny=y*sign;}
+    }
+    if(separated)continue;
+    state.x+=nx*(depth+.0001);state.y+=ny*(depth+.0001);
+    const closing=(state.vx-motion.vx)*nx+(state.vy-motion.vy)*ny;
+    if(closing>=0)continue;
+    state.vx-=1.15*closing*nx;state.vy-=1.15*closing*ny;
+    const c=Math.cos(state.angle),s=Math.sin(state.angle);
+    applyDamage(state,Math.max(0,-closing-.8)**2*25,{x:(-nx*c-ny*s)*.34,y:(nx*s-ny*c)*.34},'High-speed impact with a meteor.');
+    state.notice=-closing<=.8?'Gentle bump. Use opposite thrust to slow down.':'Meteor impact. Slow down before the next gap.';
+  }
 }
 
 function crash(state,reason){destroyShip(state,reason);}

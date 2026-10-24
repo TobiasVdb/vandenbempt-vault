@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { createFlightCamera } from './flight-camera.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createFlightSystems } from '../flight-systems.js';
-import { LEVELS, surfaceAt, missionBrief } from './levels.js';
+import { LEVELS as ALL_LEVELS, PLAYABLE_LEVELS as LEVELS, surfaceAt, missionBrief } from './levels.js';
 import { FIXED_STEP, convexHull, worldHull, completed, environmentAt, orbitalTarget } from './physics.js';
 import { createControls, translationKeys } from './controls.js';
 import { createRace, stepRace, standings, raceResult } from './race.js';
@@ -61,8 +62,9 @@ const plume=createPlumeEffect(scene,{reducedMotion});
 const destruction=createDestructionEffect(scene,{capacity:reducedMotion?32:96,reducedMotion});
 const rocketAudio=createRocketAudio();
 const flightPresentation=createFlightPresentation();
+const flightCamera=createFlightCamera();
 let selected=null,course=0,level=LEVELS[0],plumeEnvironment=level,state=null;
-let mode='menu',elapsed=0,accumulator=0,last=performance.now(),lastEngine=false,cameraX=0,shake=0;
+let mode='menu',elapsed=0,accumulator=0,last=performance.now(),lastEngine=false,shake=0;
 let context=null,soundEnabled=false;
 let lastStandings='',frameSeconds=0,frameCount=0;
 let online=null,networkRoom=null,joining=false;
@@ -87,11 +89,11 @@ function buildCave(){
   const structures=createPlumeObstacles(model,o=>o.name.includes('_post_')||o.name.startsWith('wind_mast_'));
   plumeEnvironment={...level,obstacles:structures.boxes};
   worldEffects=createWorldEffects(scene,scenery,level,{reducedMotion,levelModel:model});
-  canvas.dataset.levelAsset=levelAssetFile(level,course);
+  canvas.dataset.levelAsset=levelAssetFile(level,ALL_LEVELS.indexOf(level));
 }
 
-async function loadLevel(mission,index){
-  const gltf=await loader.loadAsync(`../levels/${levelAssetFile(mission,index)}`);
+async function loadLevel(mission){
+  const gltf=await loader.loadAsync(`../levels/${levelAssetFile(mission,ALL_LEVELS.indexOf(mission))}`);
   levelModels.set(mission.id,prepareLevelModel(gltf.scene,mission));
 }
 
@@ -282,16 +284,21 @@ async function showScores(){
 }
 
 function setMessage(eyebrow,title,body,button){
+  $('brief-details').hidden=true;$('brief-reward').hidden=true;
   $('message').hidden=false;$('message-eyebrow').textContent=eyebrow;$('message-title').textContent=title;
   $('message-body').textContent=body;$('primary').textContent=button;$('primary').disabled=false;
 }
 function showBrief(){
   mode='briefing';$('pause').disabled=true;$('pause').firstChild.textContent='Pause ';
   setMessage(`RACE BRIEF / ${String(course+1).padStart(2,'0')} · ${level.reward} COINS`,level.name,missionBrief(level),'Race →');
+  $('message-eyebrow').textContent='RACE BRIEF / '+String(course+1).padStart(2,'0');
+  $('brief-reward').hidden=false;$('brief-reward-value').textContent=level.reward+' coins';
+  $('brief-details').hidden=false;$('landing-requirements').hidden=level.objective!=='land';
+  $('brief-controls').textContent=level.controls==='translation'?'WASD / arrows: gentle jets. Opposite thrust brakes. Q / E: rotate.':'W / Space: thrust. A / D: rotate. P: pause. R: restart.';
   if(online)showScores();
 }
 function resetFlight(brief=false){
-  flightPresentation.reset();
+  flightPresentation.reset();flightCamera.reset();
   clearInput();lastEngine=false;elapsed=0;accumulator=0;shake=0;
   for(const item of fleet.values()){item.root.visible=false;item.system.reset();item.appearance.damage.reset();item.destroyed=false;item.damageRevision=0;item.leakClock=0;}
   selected=fleet.get($('ship').value);
@@ -305,11 +312,12 @@ function resetFlight(brief=false){
   engineLight.intensity=0;renderShip();
   $('flight-hint').hidden=true;
   if(brief)showBrief();else{mode='running';$('message').hidden=true;$('pause').disabled=false;$('pause').firstChild.textContent='Pause ';canvas.focus({preventScroll:true});}
-  updateHud();resize();cameraX=camera.right>=26?0:THREE.MathUtils.clamp(state.x,-26+camera.right,26-camera.right);
+  updateHud();resize();updateCamera(0);
 }
 function changeCourse(){
   course=Number($('course').value);level=LEVELS[course];buildCave();
   const space=level.controls==='translation';document.body.classList.toggle('space-flight',space);
+  $('ship').hidden=space;$('pod-equipment').hidden=!space;document.querySelector('label[for=ship]').textContent=space?'MISSION EQUIPMENT':'YOUR SPACECRAFT';
   canvas.setAttribute('aria-label',space?'Flight area. WASD or arrows thrust in four directions. Q and E rotate. P pauses, R restarts.':flightCanvasLabel);
   $('control-legend').textContent=space?'WASD / ARROWS: MOVE · Q / E: ROTATE · OPPOSITE THRUST: BRAKE':'W / SPACE: THRUST · A / D: ROTATE';
   $('course-number').textContent=level.difficulty;$('course-name').textContent=level.name;$('course-description').textContent=level.subtitle;
@@ -373,14 +381,14 @@ function renderShip(dt=0){
 }
 function syncDamage(model,flight){
   const detached=model.appearance.damage.update(flight.damage);
-  if(detached.length)destruction.shed(detached,flight);
+  if(detached.length&&!flight.tuning.pod)destruction.shed(detached,flight);
   if(flight.damage.revision!==(model.damageRevision||0)){
     model.damageRevision=flight.damage.revision;
     const hit=flight.damage.lastHit,position=model.root.localToWorld(new THREE.Vector3(hit.x,hit.y,.1));
     for(let i=0;i<(reducedMotion?4:18);i++)emit(position.x,position.y,flight.vx*.3,flight.vy*.3,true);
   }
   if(flight.status==='crashed'&&!model.destroyed){
-    destruction.destroy(model.root,flight);model.destroyed=true;
+    destruction.destroy(flight.tuning.pod?model.root.getObjectByName('navigation_pod'):model.root,flight);model.destroyed=true;
     for(let i=0;i<(reducedMotion?12:70);i++)emit(flight.x,flight.y,(Math.random()-.5)*7,(Math.random()-.5)*7,true);
   }
   model.root.visible=flight.status!=='crashed';
@@ -404,15 +412,15 @@ function updateHud(){
   const order=standings(race),signature=order.map(r=>`${r.id}:${r.finishTime}:${r.state.status}:${Math.ceil(r.state.damage.hull)}:${race.started}`).join('|');
   if(signature!==lastStandings){lastStandings=signature;$('race-order').replaceChildren(...order.map((racer,index)=>{
     const row=document.createElement('li');row.className=racer.id==='you'?'is-you':'';
-    row.textContent=`${index+1}. ${racer.name}`;const status=document.createElement('span');status.textContent=racer.finishTime!==null?formatTime(racer.finishTime):racer.state.status==='crashed'?'DNF':race.started?`Racing${racer.state.damage.hull<100?` · ${Math.ceil(racer.state.damage.hull)}%`:''}`:'Ready';row.append(status);return row;
+    row.textContent=`${index+1}. ${racer.name}`;const status=document.createElement('span');status.className='racer-state';status.dataset.state=racer.state.status;status.textContent=racer.finishTime!==null?formatTime(racer.finishTime):racer.state.status==='crashed'?'DNF':race.started?`Racing${racer.state.damage.hull<100?` · ${Math.ceil(racer.state.damage.hull)}%`:''}`:'Ready';row.append(status);return row;
   }));}
   $('environment-readout').textContent+=space?' · VACUUM · MAIN ENGINE OFF':` · T/W ${(state.tuning.thrust*env.engineScale*(state.damage.engine/100)/env.gravity).toFixed(2)}`;
-  document.querySelector('.landing-rule').textContent=level.objective==='land'?'LAND UPRIGHT · BELOW 2.2 m/s':level.objective==='rings'?'FLY THROUGH THE GATES · NO LANDING':'CLIMB INTO THIN AIR · BUILD ORBITAL SPEED';
-  $('objective-readout').textContent=level.objective==='orbit'?`Air ${Math.round(env.density*100)}% · Speed ${state.vx.toFixed(1)}/${orbitalTarget(state,level).toFixed(1)} m/s · Hold ${state.orbitHold.toFixed(1)}/3 s`:level.objective==='rings'?`Gates ${state.gate}/${level.rings.length} · ${level.reward} coins for first`:`First to land wins · ${level.reward} coins`;
+  document.querySelector('.landing-rule').textContent=level.dock?'POD / GENTLE BUMPS BELOW 0.8 m/s':level.objective==='land'?'LAND UPRIGHT · BELOW 2.2 m/s':level.objective==='rings'?'FLY THROUGH THE GATES · NO LANDING':'CLIMB INTO THIN AIR · BUILD ORBITAL SPEED';
+  $('objective-readout').textContent=level.dock?`Dock below 0.35 m/s / Hold ${(state.dockHold||0).toFixed(1)}/1.5 s`:level.objective==='orbit'?`Air ${Math.round(env.density*100)}% · Speed ${state.vx.toFixed(1)}/${orbitalTarget(state,level).toFixed(1)} m/s · Hold ${state.orbitHold.toFixed(1)}/3 s`:level.objective==='rings'?`Gates ${state.gate}/${level.rings.length} · ${level.reward} coins for first`:`First to land wins · ${level.reward} coins`;
   $('vertical').style.color=state.vy < -2.2?'#f0a377':'';
   const hint=$('flight-hint');hint.hidden=mode!=='running';
-  if(mode==='running')hint.textContent=state.fuel<=0?'Propellant depleted. Coast carefully.':state.status==='ready'?'W / Space to start the race. A / D to rotate.':state.notice?state.notice:level.objective==='orbit'?(env.altitude<55?'Climb to 55–100 m. Thin air gives stronger acceleration.':`Turn right into orbit. Aim for ${orbitalTarget(state,level).toFixed(1)} m/s sideways; keep vertical speed below 1.8.`):level.objective==='rings'?(level.id==='rings'?'Climb, pitch nose-right, then fly horizontally through the ring.':`Fly through gate ${state.gate+1} from the left. Cloud banks slow you down.`):Math.abs(state.x-level.pads[1].x)<5?'Slow down. Straighten up. Set down gently.':level.theme==='dark'?'Follow the green beacons. Your engine lights the nearby rock.':'Lean right to cross. Lean left to slow down.';
-  if(mode==='running'&&space)hint.textContent=state.fuel<=0?'Propellant depleted. Momentum continues.':`WASD / arrows thrust · Q/E rotate · Opposite thrust brakes · Gate ${Math.min(state.gate+1,level.rings.length)}/${level.rings.length}`;
+  if(mode==='running')hint.textContent=level.dock?(state.notice||'WASD: gentle jets / opposite thrust to brake / aim below 0.8 m/s.'):state.fuel<=0?'Propellant depleted. Coast carefully.':state.status==='ready'?'W / Space to start the race. A / D to rotate.':state.notice?state.notice:level.objective==='orbit'?(env.altitude<55?'Climb to 55–100 m. Thin air gives stronger acceleration.':`Turn right into orbit. Aim for ${orbitalTarget(state,level).toFixed(1)} m/s sideways; keep vertical speed below 1.8.`):level.objective==='rings'?(level.id==='rings'?'Climb, pitch nose-right, then fly horizontally through the ring.':`Fly through gate ${state.gate+1} from the left. Cloud banks slow you down.`):Math.abs(state.x-level.pads[1].x)<5?'Slow down. Straighten up. Set down gently.':level.theme==='dark'?'Follow the green beacons. Your engine lights the nearby rock.':'Lean right to cross. Lean left to slow down.';
+  if(mode==='running'&&space&&!level.dock)hint.textContent=state.fuel<=0?'Propellant depleted. Momentum continues.':`WASD / arrows thrust · Q/E rotate · Opposite thrust brakes · Gate ${Math.min(state.gate+1,level.rings.length)}/${level.rings.length}`;
   // DOM telemetry is also useful for accessibility and repeatable runtime inspection.
   canvas.dataset.flightState=state.status;canvas.dataset.mode=mode;
   canvas.dataset.x=state.x.toFixed(2);canvas.dataset.y=state.y.toFixed(2);canvas.dataset.angle=state.angle.toFixed(3);
@@ -425,23 +433,21 @@ function updateHud(){
 
 function resize(){
   const w=innerWidth,h=innerHeight;renderer.setPixelRatio(renderBudget.resize(w,h,devicePixelRatio));renderer.setSize(w,h);
-  const aspect=w/h,height=Math.max(24,54/aspect);
-  // Portrait follows the craft rather than shrinking the whole course into a tiny strip.
-  const viewHeight=aspect<1?25:Math.min(height,36),viewWidth=viewHeight*aspect;
-  camera.left=-viewWidth/2;camera.right=viewWidth/2;camera.top=viewHeight/2;camera.bottom=-viewHeight/2;camera.updateProjectionMatrix();
+  if(state)updateCamera(0);
   menuScene.resize(w,h);
   garageScene.resize(w,h);
 }
 const projected=new THREE.Vector3();
 function updateCamera(dt){
   if(!state)return;
-  const visual=selected.root.position,half=camera.right,desired=level.objective==='orbit'||level.theme==='space'?visual.x+state.vx*.4:half>=27?0:THREE.MathUtils.clamp(visual.x+state.vx*.65,-26+half,26-half);
-  cameraX=THREE.MathUtils.lerp(cameraX,desired,1-Math.exp(-dt*4));
-  const y=level.theme==='space'?visual.y:level.objective==='orbit'?Math.max(innerWidth<680?-2.5:0,visual.y-1):visual.y>9?visual.y-7:innerWidth<680?visual.y*.38:0;
-  camera.position.set(cameraX+(Math.random()-.5)*shake,y+1+(Math.random()-.5)*shake,50);camera.lookAt(cameraX,y+1,0);camera.updateMatrixWorld();shake=Math.max(0,shake-dt*.5);
-  const target=level.objective==='rings'?level.rings[Math.min(state.gate,level.rings.length-1)]:level.pads[1];
+  const visual=selected.root.position;
+  const view=flightCamera.update({x:visual.x,y:visual.y,vx:state.vx,vy:state.vy},{aspect:innerWidth/innerHeight,pod:level.controls==='translation',overview:mode==='briefing',openSpace:level.theme==='space'||level.objective==='orbit',dt:mode==='paused'?0:dt});
+  camera.left=-view.width/2;camera.right=view.width/2;camera.top=view.height/2;camera.bottom=-view.height/2;camera.updateProjectionMatrix();
+  camera.position.set(view.x+(Math.random()-.5)*shake,view.y+(Math.random()-.5)*shake,50);camera.lookAt(view.x,view.y,0);camera.updateMatrixWorld();shake=Math.max(0,shake-dt*.5);
+  canvas.dataset.cameraHeight=view.height.toFixed(3);canvas.dataset.cameraX=view.x.toFixed(3);canvas.dataset.cameraY=view.y.toFixed(3);
+  const target=level.dock|| (level.objective==='rings'?level.rings[Math.min(state.gate,level.rings.length-1)]:level.pads[1]);
   const labels=[level.pads[0],target];
-  $('goal-label').querySelector('b').textContent=level.objective==='rings'?'FLY THROUGH':'LAND HERE';
+  $('goal-label').querySelector('b').textContent=level.dock?'DOCK SLOWLY':level.objective==='rings'?'FLY THROUGH':'LAND HERE';
   for(const [index,pad] of labels.entries()){
     const el=index===0?$('launch-label'):$('goal-label');if(!pad){el.hidden=true;continue;}
     projected.set(pad.x,pad.y+2,1).project(camera);

@@ -8,7 +8,7 @@
       "name": "Amber Hollow",
       "file": "01-amber.glb",
       "bytes": 81396,
-      "triangles": 521,
+      "triangles": 846,
       "roles": {
         "level": 1,
         "decoration": 41,
@@ -27,7 +27,7 @@
       "name": "The Narrows",
       "file": "02-narrows.glb",
       "bytes": 82700,
-      "triangles": 529,
+      "triangles": 854,
       "roles": {
         "level": 1,
         "decoration": 41,
@@ -46,7 +46,7 @@
       "name": "Cinder Passage",
       "file": "03-cinder.glb",
       "bytes": 83852,
-      "triangles": 537,
+      "triangles": 862,
       "roles": {
         "level": 1,
         "decoration": 41,
@@ -65,7 +65,7 @@
       "name": "Knife-edge Sprint",
       "file": "04-rings.glb",
       "bytes": 170888,
-      "triangles": 2961,
+      "triangles": 3186,
       "roles": {
         "level": 1,
         "decoration": 35,
@@ -86,7 +86,7 @@
       "name": "Silver Sea",
       "file": "05-moon.glb",
       "bytes": 123208,
-      "triangles": 2021,
+      "triangles": 2346,
       "roles": {
         "level": 1,
         "decoration": 43,
@@ -105,7 +105,7 @@
       "name": "Ironfall",
       "file": "06-heavy.glb",
       "bytes": 80812,
-      "triangles": 585,
+      "triangles": 1054,
       "roles": {
         "level": 1,
         "decoration": 53,
@@ -124,7 +124,7 @@
       "name": "Pelagic Run",
       "file": "07-water.glb",
       "bytes": 276964,
-      "triangles": 2001,
+      "triangles": 3886,
       "roles": {
         "level": 1,
         "decoration": 119,
@@ -143,7 +143,7 @@
       "name": "Milkglass Banks",
       "file": "08-clouds.glb",
       "bytes": 498072,
-      "triangles": 6069,
+      "triangles": 6294,
       "roles": {
         "level": 1,
         "decoration": 65,
@@ -165,7 +165,7 @@
       "name": "Against the Gale",
       "file": "09-wind.glb",
       "bytes": 75480,
-      "triangles": 506,
+      "triangles": 891,
       "roles": {
         "level": 1,
         "decoration": 51,
@@ -184,7 +184,7 @@
       "name": "The Unlit",
       "file": "10-dark.glb",
       "bytes": 127052,
-      "triangles": 873,
+      "triangles": 1198,
       "roles": {
         "level": 1,
         "decoration": 41,
@@ -204,7 +204,7 @@
       "name": "Above the Air",
       "file": "11-orbit.glb",
       "bytes": 77004,
-      "triangles": 1712,
+      "triangles": 1812,
       "roles": {
         "level": 1,
         "collision": 1,
@@ -222,15 +222,12 @@
       "id": "drift",
       "name": "Driftfield",
       "file": "12-drift.glb",
-      "bytes": 881240,
-      "triangles": 28136,
+      "bytes": 706408,
+      "triangles": 25416,
       "roles": {
         "level": 1,
         "collision": 10,
         "decoration": 32,
-        "gate": 3,
-        "gate_lamp": 6,
-        "gate_rim": 3,
         "meteor": 10,
         "spawn": 1,
         "spawn_slot": 3

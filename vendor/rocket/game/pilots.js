@@ -7,11 +7,11 @@ export function createPilot({speed=2.4,delay=0}={}){return {waypoint:0,pwm:0,spe
 export function pilotInput(pilot,state,level,elapsed){
   if(elapsed<pilot.delay||!['ready','flying'].includes(state.status))return {};
   if(level.controls==='translation'){
-    const route=[...level.route,[level.rings.at(-1).x+2,level.rings.at(-1).y]];
+    const route=[...level.route,level.dock?[level.dock.x,level.dock.y]:[level.rings.at(-1).x+2,level.rings.at(-1).y]];
     let target=route[Math.min(pilot.waypoint,route.length-1)];
     if(Math.hypot(target[0]-state.x,target[1]-state.y)<.5&&pilot.waypoint<route.length-1)target=route[++pilot.waypoint];
-    const speed=pilot.speed,acceleration=level.translationForce*state.tuning.thrust/10;
-    const axis=(position,velocity,goal)=>clamp((clamp((goal-position)*1.3,-speed,speed)-velocity)*2/acceleration,-1,1);
+    const speed=.65,acceleration=level.translationForce;
+    const axis=(position,velocity,goal)=>{const error=goal-position,desired=Math.sign(error)*Math.min(speed,Math.abs(error)*.6,Math.sqrt(2*acceleration*Math.abs(error))*.65);return clamp((desired-velocity)*2/acceleration,-1,1);};
     return {thrust:false,turn:clamp(-state.angle*4-state.omega*3,-1,1),translateX:axis(state.x,state.vx,target[0]),translateY:axis(state.y,state.vy,target[1])};
   }
   const env=environmentAt(state,level);
@@ -50,8 +50,9 @@ export function pilotInput(pilot,state,level,elapsed){
     }
   }
   const compensate=level.drag!==undefined||env.cloud>0||level.objective==='orbit';
-  const forceX=ax+(compensate?(state.vx-env.wind)*env.drag:0);
-  const forceY=Math.max(.12,ay+env.downward+(compensate?state.vy*env.verticalDrag:0));
+  const flightDrag=level.objective==='land'?1.1*(state.tuning.thrust/10):0;
+  const forceX=ax+state.vx*flightDrag+(compensate?(state.vx-env.wind)*env.drag:0);
+  const forceY=Math.max(.12,ay+env.downward+state.vy*flightDrag+(compensate?state.vy*env.verticalDrag:0));
   desiredAngle=Math.atan2(-forceX,forceY);
   const angleError=Math.atan2(Math.sin(desiredAngle-state.angle),Math.cos(desiredAngle-state.angle));
   const available=state.tuning.thrust*env.engineScale*(state.damage.engine/100);

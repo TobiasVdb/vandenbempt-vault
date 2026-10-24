@@ -16,8 +16,8 @@ const apronSolids=()=>[[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0],[LAUNCH_RANGE,-LAUNCH
 /** The cinematic pilot issues inputs; gameplay physics alone moves, turns and lands the ship. */
 export function createLaunchSequence(hull,tuning={}){
   let leg=0,station=0,level=legLevel(0),state=createFlight(level,hull,tuning),solids=apronSolids();
-  // Slower stock steering needs a higher arc to complete the unpowered flip safely.
-  const rest=state.y,apogee=Math.max(45,160*(2.9/state.tuning.turnPower)**2);let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
+  // Godot damping arrests the coast quickly, so a compact arc leaves room for the flip.
+  const rest=state.y,apogee=24;let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
   let approachHeight=rest+8;
   let manual=false,idle=0,recovering=false,recoveryHeight=0,crashAge=0,resets=0;
   function phase(next){stage=next;phaseTime=0;pwm=0;}
@@ -36,7 +36,7 @@ export function createLaunchSequence(hull,tuning={}){
   }
   function recoveryCommand(){
     const targetVx=clamp((level.pads[1].x-state.x)*.6,-3,3),targetVy=clamp((recoveryHeight-state.y)*.7,-4,6);
-    const fx=clamp((targetVx-state.vx)*1.5,-5,5)+state.vx*.055,fy=Math.max(.5,4+(targetVy-state.vy)*2+state.vy*.035);
+    const fx=clamp((targetVx-state.vx)*1.5,-5,5)+state.vx*(.055+1.1*state.tuning.thrust/10),fy=Math.max(.5,4+(targetVy-state.vy)*2+state.vy*(.035+1.1*state.tuning.thrust/10));
     const tilt=state.y-rest<4?.25:.65,angle=clamp(Math.atan2(-fx,fy),-tilt,tilt);
     const error=Math.atan2(Math.sin(angle-state.angle),Math.cos(angle-state.angle));
     return {turn:rotate(angle),duty:Math.cos(state.angle)>.5&&Math.abs(error)<.6?clamp(Math.hypot(fx,fy)/state.tuning.thrust,0,1):0};

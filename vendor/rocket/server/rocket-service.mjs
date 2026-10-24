@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { LEVELS } from '../game/levels.js';
+import { flightHull } from '../game/pod.js';
+import { LEVELS as ALL_LEVELS, PLAYABLE_LEVELS as LEVELS } from '../game/levels.js';
 import { createRace, stepRace } from '../game/race.js';
 import { createFlight, completed, FIXED_STEP, worldHull, polygonsOverlap } from '../game/physics.js';
 import { flightTuning, SKINS } from '../game/progression.js';
@@ -46,8 +47,8 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     const room={id:randomUUID(),level,race,players:new Map(),finishTimes:new Map(),round:0,nextLevelAt:null,touched:now()};rooms.set(room.id,room);return room;
   }
   function humanRacer(room,player,ship){
-    const state=createFlight(room.level,hulls[ship],flightTuning(player.profile));state.hull=hulls[ship];
-    return {id:player.id,name:player.name,ship,color:SKINS[player.profile.skin].color,state,hull:hulls[ship],finishTime:null,
+    const state=createFlight(room.level,flightHull(room.level,hulls[ship]),flightTuning(player.profile));state.hull=flightHull(room.level,hulls[ship]);
+    return {id:player.id,name:player.name,ship,color:SKINS[player.profile.skin].color,state,hull:state.hull,finishTime:null,
       attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
   }
   function nextRound(room){
@@ -60,8 +61,8 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
     room.finishTimes.clear();room.nextLevelAt=null;room.round++;
     room.players.clear();
     for(const previous of pilots){
-      const state=createFlight(room.level,previous.hull,previous.state.tuning);state.hull=previous.hull;
-      const racer={...previous,state,finishTime:null,result:null,attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
+      const state=createFlight(room.level,hulls[previous.ship],flightTuning(sessions.get(previous.id).profile));state.hull=flightHull(room.level,hulls[previous.ship]);
+      const racer={...previous,state,hull:state.hull,finishTime:null,result:null,attemptId:randomUUID(),startedAt:null,input:{},inputAt:now(),waiting:false,settling:false};
       room.race.racers.push(racer);spawn(room,racer);room.players.set(racer.id,racer);
     }
     room.touched=now();lobby();
@@ -154,7 +155,7 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
         return json(res,201,await store.create(name));
       }
       if(route.startsWith('/scores/')&&req.method==='GET'){
-        const mission=route.slice(8);if(!LEVELS.some(level=>level.id===mission))fail(404,'Unknown mission.');
+        const mission=route.slice(8);if(!ALL_LEVELS.some(level=>level.id===mission))fail(404,'Unknown mission.');
         return json(res,200,{scores:await store.scores(mission)});
       }
       const token=req.headers.authorization?.match(/^Bearer ([\w-]{43})$/)?.[1];if(!token)fail(401,'Reconnect your pilot profile.');

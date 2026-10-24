@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { meteorMotion } from './levels.js';
 import { createWindEffect, createWindFlags } from './wind-effect.js';
 
 export const THEMES={
@@ -59,6 +60,13 @@ export function createWorldEffects(scene,group,level,{reducedMotion=false,levelM
       const fog=new THREE.Mesh(fogGeometry,fogMaterial);fog.position.set(-24+i*2.5,-5+(i%5)*2.3,-1-(i%3)*.3);fog.scale.set(3.5,.45,.6);group.add(fog);wisps.push(fog);
     }
   }
+  const meteors=(level.meteors||[]).map((meteor,i)=>({meteor,mesh:levelModel?.getObjectByName('meteor_'+String(i+1).padStart(2,'0')),rest:null}));
+  for(const item of meteors)if(item.mesh)item.rest=item.mesh.position.clone();
+  if(level.dock){
+    const beacon=new THREE.Mesh(new THREE.TorusGeometry(level.dock.radius,.045,6,48),new THREE.MeshBasicMaterial({color:'#83cdb3',toneMapped:false}));
+    beacon.position.set(level.dock.x,level.dock.y,.1);group.add(beacon);
+    const cross=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-.2,0,0),new THREE.Vector3(.2,0,0),new THREE.Vector3(0,-.2,0),new THREE.Vector3(0,.2,0)]),new THREE.LineBasicMaterial({color:'#83cdb3'}));cross.position.copy(beacon.position);group.add(cross);
+  }
   let weather=null,points=null;
   const water=level.theme==='water';
   const wind=level.wind?createWindEffect(group,level,{reducedMotion}):null;
@@ -72,6 +80,7 @@ export function createWorldEffects(scene,group,level,{reducedMotion=false,levelM
   const thinAir=new THREE.Color('#030715'),atmosphere=new THREE.Color(theme.sky);
   return {
     update(state,dt){
+      for(const {meteor,mesh,rest} of meteors)if(mesh){const motion=meteorMotion(meteor,state.worldTime??state.time);mesh.position.set(rest.x+motion.x,rest.y+motion.y,rest.z);}
       for(const [i,ring] of rings.entries()){
         const passed=i<(state.gate||0),color=passed?'#73c68a':'#f4ca81';
         ring.material.color.set(color);ring.material.emissive?.set(color);ring.material.opacity=passed?.25:.9;

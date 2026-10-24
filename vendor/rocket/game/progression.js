@@ -2,7 +2,7 @@ export const SAVE_KEY='hollow-campaign-v1';
 export const UPGRADES={
   engine:{name:'High-flow engine',description:'+18% thrust per tier.',costs:[80,150,240]},
   frame:{name:'Lightweight frame',description:'−8% mass per tier. More acceleration from the same engine.',costs:[70,140,220]},
-  rcs:{name:'Upper rotation jets',description:'Top-mounted thrusters. +60% turning torque per tier.',costs:[60,120,200]},
+  rcs:{name:'Upper rotation jets',description:'Top-mounted thrusters. Faster steering response and stronger spin braking per tier.',costs:[60,120,200]},
   tank:{name:'Extended fuel tank',description:'+25 fuel capacity per tier.',costs:[60,110,180]},
 };
 export const SKINS={
@@ -37,7 +37,7 @@ export function sanitizeProfile(value){
 }
 export function flightTuning(profile=newProfile(),ship=profile.ship){
   const u=profile.loadouts?.[ship]?.upgrades||profile.upgrades,mass=1-u.frame*.08;
-  return {thrust:10*(1+u.engine*.18)/mass,turnPower:2.9*(1+u.rcs*.6),capacity:100+u.tank*25,rcs:u.rcs,mass,engineTier:u.engine,frameTier:u.frame,tankTier:u.tank};
+  return {thrust:10*(1+u.engine*.18)/mass,turnPower:((100/60)/.396)*(1+u.rcs*.6),capacity:100+u.tank*25,rcs:u.rcs,mass,engineTier:u.engine,frameTier:u.frame,tankTier:u.tank};
 }
 export function equipShip(profile,ship){
   if(!profile.ownedShips.includes(ship))return {ok:false,reason:'Buy this spacecraft in the garage first.'};

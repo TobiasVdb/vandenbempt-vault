@@ -1,9 +1,19 @@
 import * as THREE from 'three';
+import { POD_HULL } from './pod.js';
 import { convexHull } from './physics.js';
 import { createCraftDamage } from './damage-effect.js';
 
 const paintNames=new Set(['Ceramic ivory','Vermilion enamel','Sage green alloy','Oxblood fins','Pearl titanium armor','Aster porcelain alloy']);
 export function decorateCraft(root){
+  const originalChildren=root.children.map(object=>({object,visible:object.visible}));
+  const pod=new THREE.Group();pod.name='navigation_pod';pod.visible=false;root.add(pod);
+  const shell=new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape(POD_HULL.map(([x,y])=>new THREE.Vector2(x,y))),{depth:.28,bevelEnabled:false}),new THREE.MeshStandardMaterial({color:'#d7d8cb',metalness:.35,roughness:.6}));
+  shell.position.z=-.14;shell.name='Pod pressure hull';pod.add(shell);
+  const bumper=new THREE.Mesh(new THREE.TorusGeometry(.3,.035,4,8),new THREE.MeshStandardMaterial({color:'#59666b',roughness:.9}));bumper.position.z=.12;pod.add(bumper);
+  const window=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.025,12),new THREE.MeshStandardMaterial({color:'#294b60',emissive:'#1b3f52',emissiveIntensity:.5,metalness:.3,roughness:.25}));
+  window.rotation.x=Math.PI/2;window.position.z=.16;pod.add(window);
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(.1,.045,.02),new THREE.MeshStandardMaterial({color:'#e6ad57',roughness:.65}));stripe.position.set(0,-.235,.16);pod.add(stripe);
+  let podActive=false;
   const materials=new Map(),jets=[],translationJets=[],fittings=[],navigationLamps=[];
   const jetHeight=.57,attachments=[];let front=.17;
   const collision=root.getObjectByName('collision');
@@ -62,6 +72,12 @@ export function decorateCraft(root){
   return {
     damage:createCraftDamage(root),
     configure(tuning,navigationLighting=true){
+      if(Boolean(tuning.pod)!==podActive){
+        podActive=Boolean(tuning.pod);pod.visible=podActive;
+        for(const {object,visible} of originalChildren)object.visible=podActive?false:visible;
+        for(const jet of translationJets)jet.group.position.set(podActive?jet.dx*.34:jet.dx*.18,podActive?jet.dy*.34:jet.dy*.38+(jet.dx!==0?.05:0),podActive?.16:front);
+      }
+      if(podActive){for(const fitting of fittings)fitting.mesh.visible=false;for(const lamp of navigationLamps)lamp.visible=false;return;}
       for(const fitting of fittings)fitting.mesh.visible=(tuning[`${fitting.kind}Tier`]||0)>=fitting.tier;
       // Emissive navigation lenses remain visible in daylight; only night needs cast light.
       for(const lamp of navigationLamps)lamp.visible=navigationLighting;
@@ -73,7 +89,7 @@ export function decorateCraft(root){
       }
     },
     update(tier,turn,damage,translation=null){
-      for(const jet of jets){jet.group.visible=(tier>0||translation!==null)&&(damage?.[jet.side>0?'right':'left']??100)>0;jet.flare.visible=turn*jet.side>.05;}
+      for(const jet of jets){jet.group.visible=!podActive&&(tier>0||translation!==null)&&(damage?.[jet.side>0?'right':'left']??100)>0;jet.flare.visible=turn*jet.side>.05;}
       const c=Math.cos(root.rotation.z),s=Math.sin(root.rotation.z),x=translation?translation.x*c+translation.y*s:0,y=translation?-translation.x*s+translation.y*c:0;
       for(const jet of translationJets){jet.group.visible=translation!==null;const force=Math.max(0,-x*jet.dx-y*jet.dy);jet.flare.visible=force>.02;jet.flare.scale.y=.4+force*.6;}
     },

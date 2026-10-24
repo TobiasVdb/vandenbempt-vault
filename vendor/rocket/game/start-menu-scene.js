@@ -25,7 +25,15 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
   function block(parent,size,position,material){
     const mesh=new THREE.Mesh(new THREE.BoxGeometry(...size),material);mesh.position.set(...position);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
   }
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(LAUNCH_RANGE*2,LAUNCH_RANGE*2),concrete);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+  const groundMaterial=parked?concrete:concrete.clone();
+  if(!parked){
+    groundMaterial.transparent=true;groundMaterial.depthWrite=false;
+    groundMaterial.onBeforeCompile=shader=>{
+      shader.vertexShader='varying float apronDepth;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\napronDepth=position.y;');
+      shader.fragmentShader='varying float apronDepth;\n'+shader.fragmentShader.replace('#include <opaque_fragment>','diffuseColor.a*=1.0-smoothstep(1.5,5.0,abs(apronDepth));\n#include <opaque_fragment>');
+    };
+  }
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(LAUNCH_RANGE*2,parked?LAUNCH_RANGE*2:10),groundMaterial);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
   function buildStation(x,index){
     const station=new THREE.Group();station.name=`showcase_station_${index+1}`;station.position.x=x;scene.add(station);
     const pad=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.16,.16,64),new THREE.MeshStandardMaterial({color:'#34444c',metalness:.35,roughness:.7}));pad.position.y=.08;pad.receiveShadow=true;station.add(pad);
@@ -61,7 +69,12 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
     return {station,tower,arm,structure:createPlumeObstacles(tower),collision:body.boxes.map(projectStructure),destroyed:false};
   }
   const stations=STATION_POSITIONS.map(buildStation);
-  const backdrop=parked?null:createMenuBackdrop(scene);
+  let landscape=null;
+  if(!parked&&typeof document!=='undefined'){
+    landscape=new THREE.TextureLoader().load(new URL('../assets/menu-mountains-v1.png',import.meta.url).href);
+    landscape.colorSpace=THREE.SRGBColorSpace;landscape.minFilter=THREE.LinearFilter;landscape.generateMipmaps=false;
+  }
+  const backdrop=parked?null:createMenuBackdrop(scene,{texture:landscape});
   // Keep the garage's existing parked backdrop; the menu gets stronger movement references.
   if(parked){
   for(let i=0;i<20;i++){

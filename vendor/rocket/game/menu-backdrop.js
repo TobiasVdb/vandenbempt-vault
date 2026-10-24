@@ -4,10 +4,10 @@ const fraction=value=>value-Math.floor(value);
 const noise=seed=>fraction(Math.sin(seed*127.1+311.7)*43758.5453);
 
 /** Distant visual references only: four draw calls, no lights, shadows or collision. */
-export function createMenuBackdrop(scene){
+export function createMenuBackdrop(scene,{texture=null}={}){
   const root=new THREE.Group();root.name='menu_movement_backdrop';scene.add(root);
   const stars=[];
-  for(const [name,count,size,opacity,depth] of [['distant_stars',1700,1.6,.65,48],['near_stars',220,2.3,.75,44]]){
+  for(const [name,count,size,opacity,depth] of [['distant_stars',240,1.2,.25,48],['near_stars',48,1.7,.3,44]]){
     const positions=[],colors=[];
     for(let i=0;i<count;i++){
       positions.push((noise(i+1)-.5)*64,(noise(i+5001)-.5)*64,0);
@@ -18,25 +18,19 @@ export function createMenuBackdrop(scene){
     const points=new THREE.Points(geometry,new THREE.PointsMaterial({size,sizeAttenuation:false,vertexColors:true,transparent:true,opacity,fog:false,depthWrite:false,toneMapped:false}));
     points.name=name;root.add(points);stars.push({points,depth});
   }
-  const ridges=[];
-  for(const [name,color,height,parallax,z] of [['far_horizon','#193443',.6,.96,-26],['near_horizon','#25434c',1,.9,-21]]){
-    const positions=[],indices=[];
-    for(let i=0;i<=256;i++){
-      const x=i-128,y=height*(.75+.3*Math.sin(x*.27)+.18*Math.sin(x*.73+2)+.08*Math.sin(x*1.91));
-      positions.push(x,y,0,x,-80,0);
-      if(i<256){const a=i*2;indices.push(a,a+1,a+2,a+2,a+1,a+3);}
-    }
-    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);
-    const ridge=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color,fog:false,toneMapped:false}));ridge.name=name;ridge.position.z=z;root.add(ridge);ridges.push({ridge,parallax});
-  }
+  // Camera-facing artwork supplies real faceted detail without adding scene lights.
+  const horizon=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({map:texture,color:texture?'#ffffff':'#0b1823',fog:false,depthTest:false,depthWrite:false,toneMapped:false}));
+  horizon.name='far_horizon';horizon.renderOrder=-100;root.add(horizon);
+  const shade=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({
+    transparent:true,depthTest:false,depthWrite:false,
+    vertexShader:'varying vec2 screenUv; void main(){screenUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:'varying vec2 screenUv; void main(){float edge=pow(abs(screenUv.x-.5)*2.0,3.0);float top=smoothstep(.45,1.0,screenUv.y);gl_FragColor=vec4(.018,.035,.05,edge*.15+top*.08);}',
+  }));shade.name='near_horizon';shade.renderOrder=-99;root.add(shade);
   const direction=new THREE.Vector3();
   return {
     update(camera){
       camera.getWorldDirection(direction);
       const span=camera.top-camera.bottom;
-      // Keep a remote horizon in view during high climbs, while local ground stays physical.
-      const atHorizon=camera.position.y+(-24-camera.position.z)*direction.y/direction.z;
-      const base=Math.max(0,atHorizon-span*.27);
       // Stars are effectively at infinity: translation and follow-camera zoom must not
       // make them slide or expand. Keep their screen positions fixed behind the terrain.
       for(const {points,depth} of stars){
@@ -44,7 +38,15 @@ export function createMenuBackdrop(scene){
         points.quaternion.copy(camera.quaternion);
         points.scale.set((camera.right-camera.left)/(12*camera.zoom),span/(12*camera.zoom),1);
       }
-      for(const {ridge,parallax} of ridges){ridge.position.x=camera.position.x*parallax;ridge.position.y=base;}
+      for(const [plane,depth] of [[horizon,60],[shade,59]]){
+        plane.position.copy(camera.position).addScaledVector(direction,depth);plane.quaternion.copy(camera.quaternion);
+        plane.scale.set((camera.right-camera.left)/(2*camera.zoom),span/(2*camera.zoom),1);
+      }
+      if(texture){
+        const aspect=(camera.right-camera.left)/span,imageAspect=texture.image?texture.image.width/texture.image.height:1672/941;
+        const x=Math.min(1,aspect/imageAspect),y=Math.min(1,imageAspect/aspect);
+        texture.repeat.set(x,y);texture.offset.set((1-x)*.64,(1-y)*.5);
+      }
     },
   };
 }

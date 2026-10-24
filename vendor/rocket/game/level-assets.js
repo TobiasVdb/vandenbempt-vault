@@ -12,7 +12,7 @@ export function prepareLevelModel(scene,level){
   if(JSON.stringify(embedded)!==JSON.stringify(level))throw new Error(`${level.id}: level model is out of date. Rebuild the level assets.`);
   scene.traverse(object=>{
     if(object.userData.role==='collision')object.visible=false;
-    if(object.userData.role==='fog')object.userData.restPosition=object.position.toArray();
+    if(['fog','meteor'].includes(object.userData.role))object.userData.restPosition=object.position.toArray();
     if(object.userData.role==='pad_light')object.add(new THREE.PointLight(object.userData.color,3,7,2));
   });
   // Static opaque decorations can share a draw. Keep gates, fog, lights and collision
@@ -36,5 +36,5 @@ export function prepareLevelModel(scene,level){
 }
 
 export function resetLevelModel(scene){
-  scene.traverse(object=>{if(object.userData.role==='fog')object.position.fromArray(object.userData.restPosition);});
+  scene.traverse(object=>{if(['fog','meteor'].includes(object.userData.role))object.position.fromArray(object.userData.restPosition);});
 }

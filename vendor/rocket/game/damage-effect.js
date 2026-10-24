@@ -3,7 +3,7 @@ import { plumeSurface } from './plume.js';
 import { environmentAt } from './physics.js';
 import { surfaceAt } from './levels.js';
 
-const hullNames=new Set(['Checkerboard pressure hull','Planet Express pressure hull','Racing fuselage','Faceted stealth monocoque','Aster blade monocoque']);
+const hullNames=new Set(['Checkerboard pressure hull','Planet Express pressure hull','Racing fuselage','Faceted stealth monocoque','Aster blade monocoque','Pod pressure hull']);
 const nameOf=object=>(object?.name??'').replaceAll('_',' ');
 const isHull=object=>hullNames.has(nameOf(object))||hullNames.has(nameOf(object.parent));
 const isPart=object=>/fin|wing|armor cheek|shoe|fairing|bell|collar|cooling ring|reinforced lip|upper rotation nozzle/i.test(nameOf(object));
@@ -120,7 +120,7 @@ export function createDestructionEffect(scene,{capacity=96,reducedMotion=false,r
     shed(objects,state){for(const object of objects)emit(object.geometry.clone(),object.material,object.matrixWorld,state,1.5);},
     destroy(root,state){
       root.updateWorldMatrix(true,true);const parts=[];
-      root.traverse(object=>{
+      root.traverseVisible(object=>{
         if(!object.isMesh||!object.visible||object.name==='collision')return;
         if(isHull(object)){for(const shard of fractureHull(object,root))emit(shard,object.material,object.matrixWorld,state,3.5);}
         else if(isPart(object)&&parts.length<18)parts.push(object);
