@@ -235,7 +235,7 @@ function acceptNetworkRace(snapshot,playerId){
   }else if(newAttempt)resetFlight();
   const ordered=[own,...snapshot.racers.filter(racer=>racer!==own)].map(racer=>({...racer,id:racer.id===playerId?'you':racer.id}));
   flightPresentation.receive(ordered,performance.now()/1000);
-  flightPrediction.receive(own.state,own.waiting?null:own.inputSequence,performance.now()/1000,level,own.hull);
+  flightPrediction.receive(own.state,own.waiting?null:own.inputSequence,performance.now()/1000,level,own.hull,snapshot.elapsed);
   race={...snapshot,level,racers:ordered,finished:Boolean(own.result)};state=own.state;
   for(const racer of ordered.slice(1)){
     const previous=botVisuals.get(racer.id);if(previous&&previous.ship!==racer.ship)removeRemoteVisual(racer.id,previous);

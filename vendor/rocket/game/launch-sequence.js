@@ -18,7 +18,7 @@ const apronSolids=()=>[[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0],[LAUNCH_RANGE,-LAUNCH
 export function createLaunchSequence(hull,tuning={}){
   let leg=0,station=0,level=legLevel(0),state=createFlight(level,hull,tuning),solids=apronSolids();
   // Leave enough altitude for the unpowered flip under baseline gravity.
-  const rest=state.y,apogee=60;let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
+  const rest=state.y,apogee=180;let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
   let approachHeight=rest+8;
   let manual=false,idle=0,recovering=false,recoveryHeight=0,crashAge=0,resets=0;
   function phase(next){stage=next;phaseTime=0;pwm=0;}
@@ -37,7 +37,7 @@ export function createLaunchSequence(hull,tuning={}){
   }
   function recoveryCommand(){
     const targetVx=clamp((level.pads[1].x-state.x)*.6,-3,3),targetVy=clamp((recoveryHeight-state.y)*.7,-4,6);
-    const fx=clamp((targetVx-state.vx)*1.5,-5,5)+state.vx*(.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST),fy=Math.max(.5,BASE_GRAVITY+(targetVy-state.vy)*2+state.vy*(.035+LINEAR_DAMPING));
+    const fx=clamp((targetVx-state.vx)*1.5,-5,5)+state.vx*(.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST),fy=Math.max(.5,BASE_GRAVITY+(targetVy-state.vy)*2+state.vy*.035);
     const tilt=state.y-rest<4?.25:.65,angle=clamp(Math.atan2(-fx,fy),-tilt,tilt);
     const error=Math.atan2(Math.sin(angle-state.angle),Math.cos(angle-state.angle));
     return {turn:rotate(angle),duty:Math.cos(state.angle)>.5&&Math.abs(error)<.6?clamp(Math.hypot(fx,fy)/state.tuning.thrust,0,1):0};
@@ -50,7 +50,7 @@ export function createLaunchSequence(hull,tuning={}){
     const desiredVy=clamp((y-state.y)*.7,landing?-3.2:-4,6);
     const desiredVx=clamp((x-state.x)*.6,-3,3);
     const ax=clamp((desiredVx-state.vx)*1.2,-2,2),ay=clamp((desiredVy-state.vy)*1.8,-3,4);
-    const fx=ax+state.vx*(.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST),fy=Math.max(.2,ay+BASE_GRAVITY+state.vy*(.035+LINEAR_DAMPING)),angle=Math.atan2(-fx,fy);
+    const fx=ax+state.vx*(.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST),fy=Math.max(.2,ay+BASE_GRAVITY+state.vy*.035),angle=Math.atan2(-fx,fy);
     const duty=Math.cos(state.angle)>.35&&Math.abs(angle-state.angle)<1.1?clamp(Math.hypot(fx,fy)/state.tuning.thrust,0,1):0;
     return {turn:rotate(angle),duty};
   }
@@ -92,7 +92,7 @@ export function createLaunchSequence(hull,tuning={}){
     if(stage>=9)dockTime+=FIXED_STEP;
     if(stage===0&&phaseTime>=1.5)phase(1);
     else if(stage===1&&phaseTime>=2.5)phase(2);
-    else if(stage===2&&state.y-rest+Math.max(0,state.vy)**2/8>=apogee&&state.vy>0)phase(3);
+    else if(stage===2&&state.y-rest+Math.max(0,state.vy)**2/(2*BASE_GRAVITY)>=apogee&&state.vy>0)phase(3);
     else if(stage===3&&Math.abs(state.angle+(station===0?1:-1)*Math.PI/2)<.06&&Math.abs(state.omega)<.2)phase(4);
     else if(stage===4&&phaseTime>=.7&&(state.vx*(station===0?1:-1)>=3.2||phaseTime>=1.2))phase(5);
     else if(stage===5&&Math.abs(state.angle-(station===0?1:-1)*Math.PI/2)<.06&&Math.abs(state.omega)<.2)phase(6);

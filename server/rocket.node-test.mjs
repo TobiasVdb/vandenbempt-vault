@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import {createFlightPrediction} from '../vendor/rocket/game/flight-prediction.js'
 import path from 'node:path'
 import express from 'express'
 import { createRocketHttp } from '../vendor/rocket/server/rocket-http.mjs'
@@ -53,6 +54,17 @@ test('baseline matches native gravity and thrust with bounded upgrade authority'
   assert.ok(tuning(3,3).thrust/BASE_GRAVITY<2.35);
 });
 
+test('vertical flight follows a ballistic arc with continuous velocity at the apex',()=>{
+  const vacuum={...amber,verticalDrag:0,floor:[],roof:[],pads:[],spawn:{x:0,y:100}};
+  const state=airborne(vacuum,tuning(0,0));state.vy=9.8;
+  step(state,vacuum,1);
+  assert.ok(Math.abs(state.vy)<1e-10,'One second of gravity cancels 9.8 m/s upward velocity.');
+  assert.ok(Math.abs(state.y-104.9)<.05);
+  step(state,vacuum,1);
+  assert.ok(Math.abs(state.vy+9.8)<1e-10);
+  assert.ok(Math.abs(state.y-100)<.1,'The arc returns to launch height without artificial vertical braking.');
+});
+
 test('all engine/frame tiers have identical engine-off vertical trajectories and stronger lateral braking',()=>{
   const reference=airborne(amber,tuning(0,0));step(reference,amber,2);
   for(let engine=0;engine<=3;engine++)for(let frame=0;frame<=3;frame++){
@@ -69,7 +81,8 @@ test('landing accepts just below each threshold and rejects just above it',()=>{
   for(const [key,limit]of [['vy',LANDING_LIMITS.vertical],['vx',LANDING_LIMITS.horizontal],['angle',LANDING_LIMITS.angle]]){
     for(const safe of [true,false]){
       const state=createFlight(amber),value=limit*(safe?.98:1.02);
-      Object.assign(state,{status:'flying',x:pad.x,angle:key==='angle'?value:0,vx:key==='vx'?value:0,vy:key==='vy'?-value:-1});
+      // Target contact speed, allowing for gravity during the final physics tick.
+      Object.assign(state,{status:'flying',x:pad.x,angle:key==='angle'?value:0,vx:key==='vx'?value:0,vy:key==='vy'?-value+BASE_GRAVITY*FIXED_STEP:-1});
       const bottom=Math.min(...DEFAULT_HULL.map(([x,y])=>x*Math.sin(state.angle)+y*Math.cos(state.angle)));
       state.y=pad.y-bottom+.0001;
       stepFlight(state,{},amber,DEFAULT_HULL,FIXED_STEP,[]);
@@ -105,4 +118,26 @@ test('Driftfield preserves zero gravity, momentum and fixed pod power at every u
 test('rebalance retains purchased upgrade tiers and profile balances',()=>{
   const profile=newProfile();profile.coins=123;Object.assign(profile.upgrades,{engine:3,frame:3});
   assert.deepEqual(sanitizeProfile(profile),profile);
+});
+
+const mission={...amber,floor:[],roof:[],pads:[],spawn:{x:0,y:0}};
+test('ballistic ascent and descent retain continuous acceleration through jittered snapshots',()=>{
+  const level={...mission,verticalDrag:0,spawn:{x:0,y:1000}};
+  for(const fps of [60,90,144]){
+    const server={...createFlight(level),status:'flying',vy:9.8};
+    const prediction=createFlightPrediction(),packets=[];let tick=0,previous=server.y,previousSpeed=null,maxAcceleration=0;
+    prediction.receive(server,0,0,level,DEFAULT_HULL,0);
+    for(let frame=1;frame<=fps*4;frame++){
+      const now=frame/fps;
+      while((tick+1)*FIXED_STEP<=now+1e-10){
+        stepFlight(server,{},level,DEFAULT_HULL,FIXED_STEP,[]);tick++;
+        if(tick%12===0)packets.push({at:tick*FIXED_STEP+.05+.02*Math.sin(tick),time:tick*FIXED_STEP,state:structuredClone(server)});
+      }
+      while(packets[0]?.at<=now){const packet=packets.shift();prediction.receive(packet.state,0,now,level,DEFAULT_HULL,packet.time);}
+      const pose=prediction.update({},now,1/fps),speed=(pose.y-previous)*fps;
+      if(previousSpeed!==null&&now>.5)maxAcceleration=Math.max(maxAcceleration,Math.abs(speed-previousSpeed)*fps);
+      previous=pose.y;previousSpeed=speed;
+    }
+    assert.ok(maxAcceleration<12,`${fps} Hz: snapshot timing introduced ${maxAcceleration.toFixed(2)} m/s² acceleration`);
+  }
 });

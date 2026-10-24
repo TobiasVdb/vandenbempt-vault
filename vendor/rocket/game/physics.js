@@ -114,7 +114,9 @@ export function orbitalTarget(state,level){
 export const completed = state => ['landed','finished','orbiting'].includes(state.status);
 
 export function flightDamping(level,tuning){
-  return level.objective==='land'?{horizontal:LINEAR_DAMPING*tuning.thrust/BASE_THRUST,vertical:LINEAR_DAMPING}:{horizontal:0,vertical:0};
+  // Vertical motion uses gravity and the environment's actual drag, without an
+  // extra velocity brake that flattens the ascent and descent into terminal speed.
+  return level.objective==='land'?{horizontal:LINEAR_DAMPING*tuning.thrust/BASE_THRUST,vertical:0}:{horizontal:0,vertical:0};
 }
 
 function checkObjective(state,previous,level,hull,dt){
@@ -148,7 +150,7 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   if (!['ready','flying'].includes(state.status))return;
   hull=flightHull(level,hull);
   const tuning=state.tuning||{thrust:BASE_THRUST,turnPower:(100/60)/.396,capacity:100,rcs:0};
-  const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y};
+  const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y},previousVy=state.vy;
   const turn=clamp(input.turn||0,-1,1),engine=state.damage.engine/100,steering=state.damage[turn>0?'right':'left']/100;
   const translation=level.controls==='translation';
   const thrust=!translation&&Boolean(input.thrust)&&state.fuel>0&&engine>0;
@@ -182,7 +184,7 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   }
   state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15:0)+Math.hypot(tx,ty)*(translation?.12:.8)+Math.abs(state.rcsTurn)*.12));
   const previous=worldHull(state,hull),oldBottom=Math.min(...previous.map(p=>p[1]));
-  state.x+=state.vx*dt;state.y+=state.vy*dt;
+  state.x+=state.vx*dt;state.y+=(previousVy+state.vy)*dt/2;
   const body=worldHull(state,hull),bottom=Math.min(...body.map(p=>p[1])),left=Math.min(...body.map(p=>p[0])),right=Math.max(...body.map(p=>p[0]));
   for(const [index,pad] of level.pads.entries()) {
     const crossing=oldBottom>=pad.y-.025 && bottom<=pad.y && state.vy<=0;
