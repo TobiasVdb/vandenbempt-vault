@@ -20,3 +20,5 @@ dialog{width:min(650px,calc(100% - 28px));max-height:calc(100dvh - 40px);backgro
 @media(max-height:540px) and (min-width:681px){.race-panel{top:128px;padding:8px 12px}.race-panel ol{margin:3px 0}.message{top:51%;max-height:calc(100dvh - 130px);overflow:auto}.course-heading{top:62px}.message h2{font-size:25px}.message p{font-size:11px}}
 
 @media(max-width:680px){.telemetry{gap:12px}.telemetry .fuel{width:88px}.telemetry .hull-status{width:64px}.telemetry .fuel>div{display:block;margin-bottom:5px}.telemetry .fuel>div>span{margin-bottom:7px}}
+
+.wordmark .brand-mark{width:30px;height:36px;object-fit:contain;flex:none}

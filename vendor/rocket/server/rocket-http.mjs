@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.glb':'model/gltf-binary','.blend':'application/octet-stream','.png':'image/png','.ttf':'font/ttf','.woff2':'font/woff2','.mp3':'audio/mpeg','.md':'text/markdown'};
+const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.glb':'model/gltf-binary','.blend':'application/octet-stream','.png':'image/png','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.mp3':'audio/mpeg','.md':'text/markdown'};
 
 /** A bounded mount: unknown Rocket paths never fall through into the host SPA. */
 export function createRocketHttp({root,getService,landingHandler=null,ships=path.join(root,'ships'),levels=path.join(root,'levels'),three=path.join(root,'vendor/three')}){
