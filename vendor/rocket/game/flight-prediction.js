@@ -7,12 +7,17 @@ const terminal=state=>['crashed','landed','finished','orbiting'].includes(state.
 /** Local visual preview only. Authoritative state, damage and results remain untouched. */
 export function createFlightPrediction(){
   let predicted=null,output=null,level=null,hull=null,received=0,accumulator=0,ack=-1,latest=-1;
-  let commands=[],solids=[],offset={x:0,y:0,angle:0};
+  let commands=[],solids=[],offset={x:0,y:0,angle:0},offsetVelocity={x:0,y:0};
+  function sample(){
+    const fraction=terminal(predicted)?0:accumulator;
+    return {...predicted,x:predicted.x+predicted.vx*fraction+offset.x,y:predicted.y+predicted.vy*fraction+offset.y,angle:predicted.angle+predicted.omega*fraction+offset.angle,
+      vx:predicted.vx+offsetVelocity.x,vy:predicted.vy+offsetVelocity.y};
+  }
   function advance(input,seconds){
     while(seconds>1e-8){const dt=Math.min(seconds,FIXED_STEP);predicted.worldTime=(predicted.worldTime||0)+dt;stepFlight(predicted,input,level,hull,dt,solids);seconds-=dt;}
   }
   return {
-    reset(){predicted=output=null;commands=[];offset={x:0,y:0,angle:0};accumulator=0;ack=latest=-1;},
+    reset(){predicted=output=null;commands=[];offset={x:0,y:0,angle:0};offsetVelocity={x:0,y:0};accumulator=0;ack=latest=-1;},
     command(sequence,input,now){
       if(sequence<=latest)return;latest=sequence;commands.push({sequence,input:{...input},at:now});
       commands=commands.slice(-32);
@@ -29,7 +34,8 @@ export function createFlightPrediction(){
       }
       const snap=!output||terminal(state)||Math.hypot(output.x-predicted.x,output.y-predicted.y)>3;
       offset=snap?{x:0,y:0,angle:0}:{x:output.x-predicted.x,y:output.y-predicted.y,angle:angleDifference(output.angle,predicted.angle)};
-      output={...predicted,x:predicted.x+offset.x,y:predicted.y+offset.y,angle:predicted.angle+offset.angle};
+      offsetVelocity=snap?{x:0,y:0}:{x:output.vx-predicted.vx,y:output.vy-predicted.vy};
+      output=sample();
     },
     update(input,now,dt){
       if(!predicted)return null;
@@ -38,8 +44,16 @@ export function createFlightPrediction(){
         accumulator+=Math.min(Math.max(0,dt),.08);
         while(accumulator>=FIXED_STEP){advance(input,FIXED_STEP);accumulator-=FIXED_STEP;}
       }else if(now-received>.25){predicted.thrust=0;predicted.rcsTurn=0;predicted.translation={x:0,y:0};}
-      const decay=Math.exp(-Math.max(0,dt)/.06);offset.x*=decay;offset.y*=decay;offset.angle*=decay;
-      output={...predicted,x:predicted.x+offset.x,y:predicted.y+offset.y,angle:predicted.angle+offset.angle};
+      // Preserve translation velocity across snapshots, then settle the correction with
+      // a critically damped spring. An exponential position reset changes speed abruptly.
+      const seconds=Math.max(0,dt),frequency=18,decay=Math.exp(-frequency*seconds);
+      for(const axis of ['x','y']){
+        const motion=offsetVelocity[axis]+frequency*offset[axis];
+        offset[axis]=(offset[axis]+motion*seconds)*decay;
+        offsetVelocity[axis]=(offsetVelocity[axis]-frequency*motion*seconds)*decay;
+      }
+      offset.angle*=Math.exp(-seconds/.06);
+      output=sample();
       return output;
     },
     get state(){return output;},
