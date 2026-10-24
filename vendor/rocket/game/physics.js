@@ -2,9 +2,10 @@ import { terrainSolids, meteorPolygon, meteorMotion } from './levels.js';
 import { createDamageState, applyImpact, applyDamage, destroyShip } from './damage.js';
 
 import { flightHull, missionTuning } from './pod.js';
+import {BASE_GRAVITY,BASE_THRUST,LINEAR_DAMPING,LANDING_LIMITS} from './flight-balance.js';
+export {LANDING_LIMITS} from './flight-balance.js';
 
 export const FIXED_STEP = 1/120;
-export const LANDING_LIMITS = Object.freeze({vertical:2.2, horizontal:1.7, angle:12*Math.PI/180});
 export const DEFAULT_HULL = [[-.38,-1],[.38,-1],[.49,-.75],[.27,.55],[0,1],[-.27,.55],[-.49,-.75]];
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 
@@ -90,13 +91,13 @@ export function createFlight(level, hull=DEFAULT_HULL, tuning={}) {
   const pad=level.pads[0];
   return {x:level.spawn?.x??pad.x,y:level.spawn?.y??pad.y-Math.min(...hull.map(p=>p[1]))+.015,vx:0,vy:0,angle:0,omega:0,
     fuel:tuning.capacity??100,time:0,status:'ready',thrust:0,reason:'',pad:0,gate:0,dockHold:0,orbitHold:0,rcsTurn:0,damage:createDamageState(),
-    tuning:{thrust:10,turnPower:level.objective==='land'?(100/60)/.396:2.9,capacity:100,rcs:0,...tuning}};
+    tuning:{thrust:BASE_THRUST,turnPower:level.objective==='land'?(100/60)/.396:2.9,capacity:100,rcs:0,...tuning}};
 }
 
 export function environmentAt(state,level){
   const altitude=Math.max(0,state.y+8),orbital=level.objective==='orbit';
   const density=level.theme==='space'?0:orbital?Math.exp(-altitude/(level.scaleHeight||13)):1;
-  const gravity=orbital?level.gravity/(1+altitude/level.planetRadius)**2:(level.gravity??4);
+  const gravity=orbital?level.gravity/(1+altitude/level.planetRadius)**2:(level.gravity??BASE_GRAVITY);
   let drag=level.drag??.055,verticalDrag=level.verticalDrag??.035,cloud=0;
   for(const volume of level.clouds||[])if(((state.x-volume.x)/volume.rx)**2+((state.y-volume.y)/volume.ry)**2<=1)cloud+=volume.drag;
   drag+=cloud;verticalDrag+=cloud;
@@ -111,6 +112,10 @@ export function orbitalTarget(state,level){
   return Math.sqrt(level.gravity*level.planetRadius**2/(level.planetRadius+altitude));
 }
 export const completed = state => ['landed','finished','orbiting'].includes(state.status);
+
+export function flightDamping(level,tuning){
+  return level.objective==='land'?{horizontal:LINEAR_DAMPING*tuning.thrust/BASE_THRUST,vertical:LINEAR_DAMPING}:{horizontal:0,vertical:0};
+}
 
 function checkObjective(state,previous,level,hull,dt){
   if(level.objective==='dock'){
@@ -142,7 +147,7 @@ function checkObjective(state,previous,level,hull,dt){
 export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,solids=terrainSolids(level)) {
   if (!['ready','flying'].includes(state.status))return;
   hull=flightHull(level,hull);
-  const tuning=state.tuning||{thrust:10,turnPower:(100/60)/.396,capacity:100,rcs:0};
+  const tuning=state.tuning||{thrust:BASE_THRUST,turnPower:(100/60)/.396,capacity:100,rcs:0};
   const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y};
   const turn=clamp(input.turn||0,-1,1),engine=state.damage.engine/100,steering=state.damage[turn>0?'right':'left']/100;
   const translation=level.controls==='translation';
@@ -167,9 +172,9 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   state.vx+=(-Math.sin(state.angle)*force-(state.vx-env.wind)*env.drag)*dt;
   state.vy+=(Math.cos(state.angle)*force-env.downward-state.vy*env.verticalDrag)*dt;
   if(level.objective==='land'){
-    // Stronger engines also get stronger damping to keep taps manageable.
-    const damping=Math.max(0,1-1.1*(tuning.thrust/10)*dt);
-    state.vx*=damping;state.vy*=damping;
+    // Upgrades improve sideways braking without slowing gravity-driven descent.
+    const damping=flightDamping(level,tuning);
+    state.vx*=Math.max(0,1-damping.horizontal*dt);state.vy*=Math.max(0,1-damping.vertical*dt);
   }
   if(translation){
     const acceleration=level.translationForce*engine;

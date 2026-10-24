@@ -1,4 +1,5 @@
-import { environmentAt, orbitalTarget } from './physics.js';
+import { environmentAt, orbitalTarget, flightDamping } from './physics.js';
+import {BASE_GRAVITY} from './flight-balance.js';
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function createPilot({speed=2.4,delay=0}={}){return {waypoint:0,pwm:0,speed,delay};}
@@ -35,8 +36,8 @@ export function pilotInput(pilot,state,level,elapsed){
     ax=clamp((target[0]-state.x)*.8-state.vx*1.6,-2,2);
     ay=clamp((target[1]-state.y)*1.2-state.vy*1.8,-Math.min(3,env.downward*.75),4);
     if(level.wind&&pilot.waypoint===route.length-1)ay=(clamp((target[1]-state.y)*.7,-.85,.85)-state.vy)*1.8;
-    if(env.gravity<2){
-      const speed=pilot.speed*Math.sqrt(env.gravity/4);
+    if(env.gravity<BASE_GRAVITY*.5){
+      const speed=pilot.speed*Math.sqrt(env.gravity/BASE_GRAVITY);
       const vx=clamp((target[0]-state.x)*.6,-speed,speed);
       ax=clamp((vx-state.vx)*.9,-env.gravity*.6,env.gravity*.6);
       const error=target[1]-state.y;
@@ -50,9 +51,9 @@ export function pilotInput(pilot,state,level,elapsed){
     }
   }
   const compensate=level.drag!==undefined||env.cloud>0||level.objective==='orbit';
-  const flightDrag=level.objective==='land'?1.1*(state.tuning.thrust/10):0;
-  const forceX=ax+state.vx*flightDrag+(compensate?(state.vx-env.wind)*env.drag:0);
-  const forceY=Math.max(.12,ay+env.downward+state.vy*flightDrag+(compensate?state.vy*env.verticalDrag:0));
+  const flightDrag=flightDamping(level,state.tuning);
+  const forceX=ax+state.vx*flightDrag.horizontal+(compensate?(state.vx-env.wind)*env.drag:0);
+  const forceY=Math.max(.12,ay+env.downward+state.vy*flightDrag.vertical+(compensate?state.vy*env.verticalDrag:0));
   desiredAngle=Math.atan2(-forceX,forceY);
   const angleError=Math.atan2(Math.sin(desiredAngle-state.angle),Math.cos(desiredAngle-state.angle));
   const available=state.tuning.thrust*env.engineScale*(state.damage.engine/100);

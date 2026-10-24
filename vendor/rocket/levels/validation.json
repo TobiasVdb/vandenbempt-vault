@@ -26,7 +26,7 @@
       "id": "narrows",
       "name": "The Narrows",
       "file": "02-narrows.glb",
-      "bytes": 82700,
+      "bytes": 82704,
       "triangles": 854,
       "roles": {
         "level": 1,
@@ -45,7 +45,7 @@
       "id": "cinder",
       "name": "Cinder Passage",
       "file": "03-cinder.glb",
-      "bytes": 83852,
+      "bytes": 83856,
       "triangles": 862,
       "roles": {
         "level": 1,
@@ -85,7 +85,7 @@
       "id": "moon",
       "name": "Silver Sea",
       "file": "05-moon.glb",
-      "bytes": 123208,
+      "bytes": 123224,
       "triangles": 2346,
       "roles": {
         "level": 1,
@@ -104,7 +104,7 @@
       "id": "heavy",
       "name": "Ironfall",
       "file": "06-heavy.glb",
-      "bytes": 80812,
+      "bytes": 80816,
       "triangles": 1054,
       "roles": {
         "level": 1,
@@ -123,7 +123,7 @@
       "id": "water",
       "name": "Pelagic Run",
       "file": "07-water.glb",
-      "bytes": 276964,
+      "bytes": 276980,
       "triangles": 3886,
       "roles": {
         "level": 1,
@@ -164,7 +164,7 @@
       "id": "wind",
       "name": "Against the Gale",
       "file": "09-wind.glb",
-      "bytes": 75480,
+      "bytes": 75484,
       "triangles": 891,
       "roles": {
         "level": 1,
@@ -183,7 +183,7 @@
       "id": "dark",
       "name": "The Unlit",
       "file": "10-dark.glb",
-      "bytes": 127052,
+      "bytes": 127068,
       "triangles": 1198,
       "roles": {
         "level": 1,

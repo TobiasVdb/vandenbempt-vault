@@ -1,3 +1,4 @@
+import { BASE_GRAVITY } from './flight-balance.js';
 import { nextMissionIndex } from './launch-sequence.js';
 import { deleteProfile } from './progression.js';
 
@@ -17,7 +18,7 @@ export function createStartMenu({profile,storage,levels,onPlay,onMission,onDelet
       const button=document.createElement('button');button.className='mission-row';
       const number=document.createElement('span');number.className='mission-number';number.textContent=String(index+1).padStart(2,'0');
       const body=document.createElement('span'),title=document.createElement('strong'),detail=document.createElement('small');
-      title.textContent=level.name;detail.id=`mission-detail-${index}`;detail.textContent=`${level.planet} · ${(level.gravity/4).toFixed(2)}× gravity · ${level.objective==='dock'?'Pod navigation':level.objective==='land'?'Landing race':level.objective==='orbit'?'Orbital insertion':'Ring race'}`;body.append(title,detail);
+      title.textContent=level.name;detail.id=`mission-detail-${index}`;detail.textContent=`${level.planet} · ${(level.gravity/BASE_GRAVITY).toFixed(2)}× gravity · ${level.objective==='dock'?'Pod navigation':level.objective==='land'?'Landing race':level.objective==='orbit'?'Orbital insertion':'Ring race'}`;body.append(title,detail);
       const reward=document.createElement('span');reward.className='mission-reward';reward.textContent=`${level.reward} coins`;
       const result=document.createElement('small');result.textContent=profile.wins[level.id]?'Won':'Ready';reward.append(result);
       button.append(number,body,reward);button.setAttribute('aria-label',`Mission ${index+1}: ${level.name}`);button.setAttribute('aria-describedby',detail.id);

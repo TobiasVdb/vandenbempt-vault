@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BASE_GRAVITY } from './flight-balance.js';
 import { createFlightSystems } from '../flight-systems.js';
 import { decorateCraft } from './craft.js';
 import { createPlumeEffect } from './plume-effect.js';
@@ -86,7 +87,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
   }
   const plume=createPlumeEffect(scene,{capacity:600,reducedMotion,random});
   const destruction=createDestructionEffect(scene,{capacity:reducedMotion?72:144,reducedMotion,random,horizontalLimit:Infinity});
-  const plumeLevel={theme:'sandstone',gravity:4,objective:'land',roof:[],floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],pads:STATION_POSITIONS.map(x=>({x,y:.16,width:2.1,radius:1.05})),obstacles:stations.flatMap(item=>item.structure.boxes)};
+  const plumeLevel={theme:'sandstone',gravity:BASE_GRAVITY,objective:'land',roof:[],floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],pads:STATION_POSITIONS.map(x=>({x,y:.16,width:2.1,radius:1.05})),obstacles:stations.flatMap(item=>item.structure.boxes)};
   const actors=new Map();let actor=null,flight=createLaunchSequence(DEFAULT_HULL),viewWidth=1,viewHeight=1,paused=reducedMotion,verticalZoom=0,visualTime=0,previousPose=null;
   const anchor=new THREE.Vector3();
   function restoreScene(){

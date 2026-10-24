@@ -1,3 +1,4 @@
+import { BASE_GRAVITY, BASE_THRUST, LINEAR_DAMPING } from './flight-balance.js';
 import { createFlight, stepFlight, FIXED_STEP, LANDING_LIMITS } from './physics.js';
 
 export const STATION_POSITIONS=[-19,20];
@@ -7,7 +8,7 @@ const smooth=t=>t*t*t*(t*(t*6-15)+10);
 const phases=['Standby','Starting engines','Takeoff','Pitch-over','Horizontal flight','Flip to brake','Retrograde braking','Landing alignment','Landing approach','Engine shutdown','Cooldown'];
 
 function legLevel(departure){
-  return {id:'showcase',theme:'sandstone',objective:'land',gravity:4,floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],roof:[],
+  return {id:'showcase',theme:'sandstone',objective:'land',gravity:BASE_GRAVITY,floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],roof:[],
     pads:[departure,1-departure].map((station,index)=>({x:STATION_POSITIONS[station],y:.16,width:2.1,type:index?'goal':'launch'}))};
 }
 // The open launch apron has continuous ground, rather than a cave's finite end walls.
@@ -16,8 +17,8 @@ const apronSolids=()=>[[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0],[LAUNCH_RANGE,-LAUNCH
 /** The cinematic pilot issues inputs; gameplay physics alone moves, turns and lands the ship. */
 export function createLaunchSequence(hull,tuning={}){
   let leg=0,station=0,level=legLevel(0),state=createFlight(level,hull,tuning),solids=apronSolids();
-  // Godot damping arrests the coast quickly, so a compact arc leaves room for the flip.
-  const rest=state.y,apogee=24;let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
+  // Leave enough altitude for the unpowered flip under baseline gravity.
+  const rest=state.y,apogee=60;let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
   let approachHeight=rest+8;
   let manual=false,idle=0,recovering=false,recoveryHeight=0,crashAge=0,resets=0;
   function phase(next){stage=next;phaseTime=0;pwm=0;}
@@ -36,7 +37,7 @@ export function createLaunchSequence(hull,tuning={}){
   }
   function recoveryCommand(){
     const targetVx=clamp((level.pads[1].x-state.x)*.6,-3,3),targetVy=clamp((recoveryHeight-state.y)*.7,-4,6);
-    const fx=clamp((targetVx-state.vx)*1.5,-5,5)+state.vx*(.055+1.1*state.tuning.thrust/10),fy=Math.max(.5,4+(targetVy-state.vy)*2+state.vy*(.035+1.1*state.tuning.thrust/10));
+    const fx=clamp((targetVx-state.vx)*1.5,-5,5)+state.vx*(.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST),fy=Math.max(.5,BASE_GRAVITY+(targetVy-state.vy)*2+state.vy*(.035+LINEAR_DAMPING));
     const tilt=state.y-rest<4?.25:.65,angle=clamp(Math.atan2(-fx,fy),-tilt,tilt);
     const error=Math.atan2(Math.sin(angle-state.angle),Math.cos(angle-state.angle));
     return {turn:rotate(angle),duty:Math.cos(state.angle)>.5&&Math.abs(error)<.6?clamp(Math.hypot(fx,fy)/state.tuning.thrust,0,1):0};
@@ -49,7 +50,7 @@ export function createLaunchSequence(hull,tuning={}){
     const desiredVy=clamp((y-state.y)*.7,landing?-3.2:-4,6);
     const desiredVx=clamp((x-state.x)*.6,-3,3);
     const ax=clamp((desiredVx-state.vx)*1.2,-2,2),ay=clamp((desiredVy-state.vy)*1.8,-3,4);
-    const fx=ax+state.vx*.055,fy=Math.max(.2,ay+4+state.vy*.035),angle=Math.atan2(-fx,fy);
+    const fx=ax+state.vx*(.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST),fy=Math.max(.2,ay+BASE_GRAVITY+state.vy*(.035+LINEAR_DAMPING)),angle=Math.atan2(-fx,fy);
     const duty=Math.cos(state.angle)>.35&&Math.abs(angle-state.angle)<1.1?clamp(Math.hypot(fx,fy)/state.tuning.thrust,0,1):0;
     return {turn:rotate(angle),duty};
   }
@@ -58,7 +59,7 @@ export function createLaunchSequence(hull,tuning={}){
     if(stage<2||stage>=9)return {turn:0,duty:0};
     if(stage===2)return {turn:rotate(0),duty:1};
     if(stage===3){
-      const cosine=Math.cos(state.angle),duty=cosine>.35&&state.vx*direction<3.2?clamp((4-state.vy*1.5)/(state.tuning.thrust*cosine),0,1):0;
+      const cosine=Math.cos(state.angle),duty=cosine>.35&&state.vx*direction<3.2?clamp((BASE_GRAVITY-state.vy*1.5)/(state.tuning.thrust*cosine),0,1):0;
       return {turn:rotate(-direction*Math.PI/2),duty};
     }
     if(stage===4)return {turn:rotate(-direction*Math.PI/2),duty:state.vx*direction<3.6?.45:0};

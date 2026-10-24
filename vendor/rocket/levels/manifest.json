@@ -101,7 +101,7 @@
         ],
         "id": "amber",
         "planet": "Aurelia",
-        "gravity": 4,
+        "gravity": 9.8,
         "reward": 80,
         "objective": "land",
         "route": [
@@ -553,7 +553,7 @@
         ],
         "id": "narrows",
         "planet": "Aurelia",
-        "gravity": 4,
+        "gravity": 9.8,
         "reward": 100,
         "objective": "land",
         "route": [
@@ -1031,7 +1031,7 @@
         ],
         "id": "cinder",
         "planet": "Aurelia",
-        "gravity": 4,
+        "gravity": 9.8,
         "reward": 120,
         "objective": "land",
         "route": [
@@ -1655,7 +1655,7 @@
         "difficulty": "05 / LOW GRAVITY",
         "subtitle": "Long coasts over a quiet moon.",
         "theme": "moon",
-        "gravity": 1.6,
+        "gravity": 3.9200000000000004,
         "reward": 110,
         "objective": "land",
         "floor": [
@@ -1874,7 +1874,7 @@
         "difficulty": "06 / HEAVY GRAVITY",
         "subtitle": "A heavy world. Every burn matters.",
         "theme": "volcanic",
-        "gravity": 7,
+        "gravity": 13.72,
         "reward": 140,
         "objective": "land",
         "floor": [
@@ -1940,7 +1940,7 @@
             0
           ]
         ],
-        "brief": "Gravity is 1.75× Aurelia. You need longer burns to stay up. Engine and lightweight-frame upgrades improve thrust to weight.",
+        "brief": "Gravity is 1.40× Aurelia. You need longer burns to stay up. Engine and lightweight-frame upgrades improve thrust to weight.",
         "openSky": true
       },
       "theme": {
@@ -2093,8 +2093,8 @@
         "difficulty": "07 / SUBMERGED",
         "subtitle": "Buoyancy, water resistance, and a bubble trail.",
         "theme": "water",
-        "gravity": 4,
-        "buoyancy": 2.7,
+        "gravity": 9.8,
+        "buoyancy": 6.615000000000001,
         "drag": 0.65,
         "verticalDrag": 0.65,
         "engineScale": 0.78,
@@ -2566,7 +2566,7 @@
         "difficulty": "09 / SEVERE HEADWIND",
         "subtitle": "A relentless 9 m/s wind from the finish.",
         "theme": "storm",
-        "gravity": 4,
+        "gravity": 9.8,
         "wind": -9,
         "drag": 0.28,
         "verticalDrag": 0.09,
@@ -2788,7 +2788,7 @@
         "difficulty": "10 / BLACKOUT",
         "subtitle": "Fog, engine glow, and distant navigation beacons.",
         "theme": "dark",
-        "gravity": 3.2,
+        "gravity": 7.840000000000001,
         "reward": 160,
         "objective": "land",
         "floor": [

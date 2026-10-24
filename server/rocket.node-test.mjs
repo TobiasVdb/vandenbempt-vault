@@ -4,6 +4,12 @@ import http from 'node:http'
 import path from 'node:path'
 import express from 'express'
 import { createRocketHttp } from '../vendor/rocket/server/rocket-http.mjs'
+import { BASE_GRAVITY, BASE_THRUST, LANDING_LIMITS } from '../vendor/rocket/game/flight-balance.js';
+import { PLAYABLE_LEVELS } from '../vendor/rocket/game/levels.js';
+import { createFlight, stepFlight, FIXED_STEP, DEFAULT_HULL, environmentAt } from '../vendor/rocket/game/physics.js';
+import { newProfile, flightTuning, sanitizeProfile } from '../vendor/rocket/game/progression.js';
+import { POD_TUNING } from '../vendor/rocket/game/pod.js';
+import { createPilot, pilotInput } from '../vendor/rocket/game/pilots.js';
 
 test('Rocket owns its prefix, redirects only the bare path and leaves other host routes intact', async (t) => {
   const app = express()
@@ -34,3 +40,69 @@ test('Rocket owns its prefix, redirects only the bare path and leaves other host
   assert.match(await (await fetch(url + '/')).text(), /Existing host SPA/)
   assert.match(await (await fetch(url + '/rockets')).text(), /Existing host SPA/)
 })
+
+
+const amber=PLAYABLE_LEVELS.find(level=>level.id==='amber');
+function tuning(engine,frame){const profile=newProfile();Object.assign(profile.upgrades,{engine,frame});return flightTuning(profile);}
+function airborne(level,loadout){return Object.assign(createFlight(level,DEFAULT_HULL,loadout),{status:'flying',x:0,y:100,vx:4,vy:0});}
+function step(state,level,seconds,input={}){for(let i=0;i<Math.round(seconds/FIXED_STEP);i++)stepFlight(state,input,level,DEFAULT_HULL,FIXED_STEP,[]);}
+
+test('baseline matches native gravity and thrust with bounded upgrade authority',()=>{
+  assert.equal(amber.gravity,9.8);assert.equal(tuning(0,0).thrust,1000/60);
+  assert.ok(Math.abs(BASE_THRUST/BASE_GRAVITY-1.7)<.001);
+  assert.ok(tuning(3,3).thrust/BASE_GRAVITY<2.35);
+});
+
+test('all engine/frame tiers have identical engine-off vertical trajectories and stronger lateral braking',()=>{
+  const reference=airborne(amber,tuning(0,0));step(reference,amber,2);
+  for(let engine=0;engine<=3;engine++)for(let frame=0;frame<=3;frame++){
+    const state=airborne(amber,tuning(engine,frame));step(state,amber,2);
+    assert.equal(state.vy,reference.vy);assert.equal(state.y,reference.y);
+    if(engine||frame)assert.ok(state.vx<reference.vx);
+  }
+  const terminal=airborne(amber,tuning(3,3));step(terminal,amber,10);
+  assert.ok(-terminal.vy>LANDING_LIMITS.vertical*2,'Unpowered descent must still require landing control.');
+});
+
+test('landing accepts just below each threshold and rejects just above it',()=>{
+  const pad=amber.pads[1];
+  for(const [key,limit]of [['vy',LANDING_LIMITS.vertical],['vx',LANDING_LIMITS.horizontal],['angle',LANDING_LIMITS.angle]]){
+    for(const safe of [true,false]){
+      const state=createFlight(amber),value=limit*(safe?.98:1.02);
+      Object.assign(state,{status:'flying',x:pad.x,angle:key==='angle'?value:0,vx:key==='vx'?value:0,vy:key==='vy'?-value:-1});
+      const bottom=Math.min(...DEFAULT_HULL.map(([x,y])=>x*Math.sin(state.angle)+y*Math.cos(state.angle)));
+      state.y=pad.y-bottom+.0001;
+      stepFlight(state,{},amber,DEFAULT_HULL,FIXED_STEP,[]);
+      assert.equal(state.status,safe?'landed':'crashed',`${key} ${value}`);
+    }
+  }
+});
+
+test('every playable landing mission remains completable across all engine/frame tier pairs',()=>{
+  for(const level of PLAYABLE_LEVELS.filter(level=>level.objective==='land')){
+    for(let engine=0;engine<=3;engine++)for(let frame=0;frame<=3;frame++){
+      const state=createFlight(level,DEFAULT_HULL,tuning(engine,frame)),pilot=createPilot();state.hull=DEFAULT_HULL;
+      for(let i=0;i<130/FIXED_STEP&&['ready','flying'].includes(state.status);i++){
+        stepFlight(state,pilotInput(pilot,state,level,i*FIXED_STEP),level,DEFAULT_HULL);
+      }
+      assert.equal(state.status,'landed',`${level.id}, engine ${engine}, frame ${frame}: ${state.reason}`);
+      assert.ok(state.fuel>0);
+    }
+  }
+});
+
+test('Driftfield preserves zero gravity, momentum and fixed pod power at every upgrade tier',()=>{
+  const level=PLAYABLE_LEVELS.find(level=>level.id==='drift');
+  for(let engine=0;engine<=3;engine++)for(let frame=0;frame<=3;frame++){
+    const state=airborne(level,tuning(engine,frame));state.vx=.2;state.vy=.1;
+    assert.equal(environmentAt(state,level).gravity,0);assert.deepEqual(state.tuning,POD_TUNING);
+    step(state,level,2);assert.equal(state.vy,.1);assert.equal(state.vx,.2);
+    const burn=airborne(level,tuning(engine,frame));burn.vx=0;step(burn,level,1,{translateX:1});
+    assert.ok(Math.abs(burn.vx-.32)<1e-12);
+  }
+});
+
+test('rebalance retains purchased upgrade tiers and profile balances',()=>{
+  const profile=newProfile();profile.coins=123;Object.assign(profile.upgrades,{engine:3,frame:3});
+  assert.deepEqual(sanitizeProfile(profile),profile);
+});

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BASE_GRAVITY, LANDING_LIMITS } from './flight-balance.js';
 import { createFlightCamera } from './flight-camera.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -292,6 +293,9 @@ function setMessage(eyebrow,title,body,button){
   $('message-body').textContent=body;$('primary').textContent=button;$('primary').disabled=false;
 }
 function showBrief(){
+  $('landing-angle-value').textContent=`Within ${Math.round(LANDING_LIMITS.angle*180/Math.PI)}°`;
+  $('landing-vertical-value').textContent=`≤ ${LANDING_LIMITS.vertical.toFixed(1)} m/s`;
+  $('landing-horizontal-value').textContent=`≤ ${LANDING_LIMITS.horizontal.toFixed(1)} m/s`;
   mode='briefing';$('pause').disabled=true;$('pause').firstChild.textContent='Pause ';
   setMessage(`RACE BRIEF / ${String(course+1).padStart(2,'0')} · ${level.reward} COINS`,level.name,missionBrief(level),'Race →');
   $('message-eyebrow').textContent='RACE BRIEF / '+String(course+1).padStart(2,'0');
@@ -413,16 +417,16 @@ function updateHud(){
   $('altitude-label').textContent=space?'SPEED':level.objective==='orbit'?'ALTITUDE':'CLEARANCE';
   $('altitude').innerHTML=`${(space?Math.hypot(state.vx,state.vy):level.objective==='orbit'?env.altitude:Math.max(0,bottom-floor)).toFixed(1)} <small>${space?'m/s':'m'}</small>`;
   $('timer').textContent=formatTime(race.elapsed);
-  $('environment-readout').textContent=`${level.planet} · Gravity ${(env.gravity/4).toFixed(2)}×${level.wind?` · Headwind ${Math.abs(env.wind).toFixed(1)} m/s`:env.cloud?' · Inside cloud':level.theme==='water'?' · Submerged':''}`;
+  $('environment-readout').textContent=`${level.planet} · Gravity ${(env.gravity/BASE_GRAVITY).toFixed(2)}×${level.wind?` · Headwind ${Math.abs(env.wind).toFixed(1)} m/s`:env.cloud?' · Inside cloud':level.theme==='water'?' · Submerged':''}`;
   const order=standings(race),signature=order.map(r=>`${r.id}:${r.finishTime}:${r.state.status}:${Math.ceil(r.state.damage.hull)}:${race.started}`).join('|');
   if(signature!==lastStandings){lastStandings=signature;$('race-order').replaceChildren(...order.map((racer,index)=>{
     const row=document.createElement('li');row.className=racer.id==='you'?'is-you':'';
     row.textContent=`${index+1}. ${racer.name}`;const status=document.createElement('span');status.className='racer-state';status.dataset.state=racer.state.status;status.textContent=racer.finishTime!==null?formatTime(racer.finishTime):racer.state.status==='crashed'?'DNF':race.started?`Racing${racer.state.damage.hull<100?` · ${Math.ceil(racer.state.damage.hull)}%`:''}`:'Ready';row.append(status);return row;
   }));}
   $('environment-readout').textContent+=space?' · VACUUM · MAIN ENGINE OFF':` · T/W ${(state.tuning.thrust*env.engineScale*(state.damage.engine/100)/env.gravity).toFixed(2)}`;
-  document.querySelector('.landing-rule').textContent=level.dock?'POD / GENTLE BUMPS BELOW 0.8 m/s':level.objective==='land'?'LAND UPRIGHT · BELOW 2.2 m/s':level.objective==='rings'?'FLY THROUGH THE GATES · NO LANDING':'CLIMB INTO THIN AIR · BUILD ORBITAL SPEED';
+  document.querySelector('.landing-rule').textContent=level.dock?'POD / GENTLE BUMPS BELOW 0.8 m/s':level.objective==='land'?`LAND UPRIGHT · BELOW ${LANDING_LIMITS.vertical.toFixed(1)} m/s`:level.objective==='rings'?'FLY THROUGH THE GATES · NO LANDING':'CLIMB INTO THIN AIR · BUILD ORBITAL SPEED';
   $('objective-readout').textContent=level.dock?`Dock below 0.35 m/s / Hold ${(state.dockHold||0).toFixed(1)}/1.5 s`:level.objective==='orbit'?`Air ${Math.round(env.density*100)}% · Speed ${state.vx.toFixed(1)}/${orbitalTarget(state,level).toFixed(1)} m/s · Hold ${state.orbitHold.toFixed(1)}/3 s`:level.objective==='rings'?`Gates ${state.gate}/${level.rings.length} · ${level.reward} coins for first`:`First to land wins · ${level.reward} coins`;
-  $('vertical').style.color=state.vy < -2.2?'#f0a377':'';
+  $('vertical').style.color=state.vy < -LANDING_LIMITS.vertical?'#f0a377':'';
   const hint=$('flight-hint');hint.hidden=mode!=='running';
   if(mode==='running')hint.textContent=level.dock?(state.notice||'WASD: gentle jets / opposite thrust to brake / aim below 0.8 m/s.'):state.fuel<=0?'Propellant depleted. Coast carefully.':state.status==='ready'?'W / Space to start the race. A / D to rotate.':state.notice?state.notice:level.objective==='orbit'?(env.altitude<55?'Climb to 55–100 m. Thin air gives stronger acceleration.':`Turn right into orbit. Aim for ${orbitalTarget(state,level).toFixed(1)} m/s sideways; keep vertical speed below 1.8.`):level.objective==='rings'?(level.id==='rings'?'Climb, pitch nose-right, then fly horizontally through the ring.':`Fly through gate ${state.gate+1} from the left. Cloud banks slow you down.`):Math.abs(state.x-level.pads[1].x)<5?'Slow down. Straighten up. Set down gently.':level.theme==='dark'?'Follow the green beacons. Your engine lights the nearby rock.':'Lean right to cross. Lean left to slow down.';
   if(mode==='running'&&space&&!level.dock)hint.textContent=state.fuel<=0?'Propellant depleted. Momentum continues.':`WASD / arrows thrust · Q/E rotate · Opposite thrust brakes · Gate ${Math.min(state.gate+1,level.rings.length)}/${level.rings.length}`;
