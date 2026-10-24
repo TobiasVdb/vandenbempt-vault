@@ -293,3 +293,79 @@ test('a solo retry resets the bots, timer and result order while retaining the r
   assert.notEqual(room.players.get(f.a.id).attemptId,previous.attemptId);
   assert.equal((await f.call('/me',undefined,f.a.token)).value.player.profile.coins,0);
 });
+
+import {crewTransfer,BOARDING_DURATION,ARRIVAL_DURATION,CREW_COUNT} from '../vendor/rocket/game/crew-transfer.js';
+import {crewReactions} from '../vendor/rocket/game/ride.js';
+import {createMenuCamera} from '../vendor/rocket/game/menu-camera.js';
+import {createMenuTelemetry} from '../vendor/rocket/game/menu-telemetry.js';
+test('boarding waits for the walkers, then lifts, crosses the bridge and closes the hatch',()=>{
+  const walking=crewTransfer(2,{boarding:true});assert.equal(walking.elevator,0);assert.equal(walking.door,0);
+  const lift=crewTransfer(5,{boarding:true});assert.ok(lift.elevator>0&&lift.elevator<1);assert.ok(lift.people.every(person=>person.progress===0));
+  const crossing=crewTransfer(6.5,{boarding:true});assert.equal(crossing.elevator,1);assert.equal(crossing.door,1);assert.ok(crossing.people.every(person=>person.path==='bridge'));
+  assert.ok(crewTransfer(5.8,{boarding:true}).people[0].progress<crewTransfer(7.5,{boarding:true}).people[0].progress,'Board from the tower toward the ship, never in reverse.');
+  const boarded=crewTransfer(BOARDING_DURATION,{boarding:true});assert.equal(boarded.complete,true);assert.equal(boarded.door,0);assert.ok(boarded.people.every(person=>!person.visible));
+});
+
+
+test('arrival raises the tower before bridge connection; everyone reaches the lift before it descends',()=>{
+  const rising=crewTransfer(.5,{rising:true});assert.ok(rising.rise>0&&rising.rise<1);assert.equal(rising.bridge,0);assert.ok(rising.people.every(person=>!person.visible));
+  const crossing=crewTransfer(3,{rising:true});assert.equal(crossing.rise,1);assert.equal(crossing.bridge,1);assert.equal(crossing.elevator,1);
+  const riding=crewTransfer(5.5,{rising:true});assert.ok(riding.elevator>0&&riding.elevator<1);assert.ok(riding.people.every(person=>person.path==='ground'&&person.progress===0));
+  const complete=crewTransfer(ARRIVAL_DURATION,{rising:true});assert.equal(complete.complete,true);assert.equal(complete.elevator,0);assert.ok(complete.people.every(person=>!person.visible));
+});
+
+
+test('ride reactions distinguish gentle flight, sustained high G and severe landing shocks',()=>{
+  assert.ok(crewReactions({peakG:1.7,roughSeconds:0,impacts:0}).includes('☺'));
+  assert.ok(crewReactions({peakG:2.3,roughSeconds:2,impacts:0}).includes('Damn!'));
+  assert.ok(crewReactions({peakG:5}).includes('🤢'));
+});
+
+
+test('continuous throttle produces proportional acceleration and fuel burn',()=>{
+  const level={objective:'land',gravity:0,verticalDrag:0,floor:[],roof:[],pads:[],spawn:{x:0,y:100}};
+  const flights=[.25,.75,1].map(throttle=>{
+    const state={...createFlight(level),status:'flying'};
+    for(let i=0;i<120;i++)stepFlight(state,{thrust:true,throttle},level,undefined,FIXED_STEP,[]);
+    assert.ok(Math.abs(state.vy-BASE_THRUST*throttle)<1e-10);assert.ok(Math.abs(state.fuel-(100-2.15*throttle))<1e-9);return state;
+  });
+  assert.ok(flights[1].y>flights[0].y);assert.ok(flights[2].y>flights[1].y);
+});
+
+
+test('menu instruments reject frame-rate flicker while showing intermediate engine percentages',()=>{
+  const display=createMenuTelemetry(),readings=[];
+  for(let i=0;i<240;i++){
+    const value=display.update({clock:i/60,throttle:.6+.05*Math.sin(i*3),horizontalSpeed:3+.4*Math.sin(i*3),verticalSpeed:0});
+    if(i>60)readings.push(value);
+  }
+  assert.ok(Math.max(...readings.map(v=>v.throttle))-Math.min(...readings.map(v=>v.throttle))<.02);
+  assert.ok(readings.every(v=>v.throttle>.55&&v.throttle<.65));
+  assert.ok(Math.max(...readings.map(v=>v.airspeed))-Math.min(...readings.map(v=>v.airspeed))<.1);
+});
+
+
+test('menu arrival camera includes the rocket and destination tower, then tightens as they converge',()=>{
+  const camera=createMenuCamera(),tower={x:21.12,y:0};let view;
+  for(let i=0;i<180;i++)view=camera.update({x:-10,y:120,altitude:119,verticalSpeed:-20,horizontalSpeed:0,flightBlend:0,stage:6,tripProgress:.84,pilot:'autopilot'},{width:1440,height:900,tower,dt:1/60});
+  assert.ok(view.span<30,'Pad framing must wait until the final 15 percent of the trip.');
+  for(let i=0;i<180;i++)view=camera.update({x:-10,y:120,altitude:119,verticalSpeed:-20,horizontalSpeed:0,flightBlend:0,stage:6,tripProgress:.85,pilot:'autopilot'},{width:1440,height:900,tower,dt:1/60});
+  assert.ok(Math.abs((tower.y-view.y)/(view.span/2))<.95);assert.ok(Math.abs((120-view.y)/(view.span/2))<.95);
+  const wide=view.span;
+  for(let i=0;i<600;i++)view=camera.update({x:20,y:1.15,altitude:0,verticalSpeed:0,horizontalSpeed:0,flightBlend:0,stage:10,tripProgress:1,pilot:'autopilot'},{width:1440,height:900,tower,dt:1/60});
+  assert.ok(view.span<6&&view.span<wide/10);assert.ok(Math.abs((tower.x-view.x)/(view.width/2))<.95);
+});
+
+test('a later human landing extends the shared deadline for that crew to disembark',async t=>{
+  const f=await fixture(t),joined=await f.call('/join',{mission:'moon',ship:'aster'},f.a.token),id=joined.value.room.id;
+  await f.call('/join',{room:id,ship:'aster'},f.b.token);
+  const room=f.service.rooms.get(id),first=room.players.get(f.a.id),second=room.players.get(f.b.id);
+  room.race.started=true;room.race.elapsed=10;first.startedAt=0;first.state.status='landed';first.finishTime=10;
+  f.advance(FIXED_STEP);const original=room.nextLevelAt;
+  for(let i=0;i<30;i++)f.advance(.1);
+  second.startedAt=0;second.state.status='landed';second.finishTime=room.race.elapsed;
+  f.advance(FIXED_STEP);assert.ok(room.nextLevelAt>original+2.9);
+  assert.ok(room.nextLevelAt-room.race.elapsed>ARRIVAL_DURATION+.9);
+  while(room.race.elapsed<original+.2)f.advance(.1);
+  assert.equal(room.round,0,'The second crew must not be interrupted by the first deadline.');
+});

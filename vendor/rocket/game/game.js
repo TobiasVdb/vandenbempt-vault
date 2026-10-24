@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BASE_GRAVITY, LANDING_LIMITS } from './flight-balance.js';
 import { createFlightCamera } from './flight-camera.js';
 import { createCrashReplay } from './crash-replay.js';
+import { createCrewScene, createCrewHatch } from './crew-scene.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createFlightSystems } from '../flight-systems.js';
@@ -68,7 +69,9 @@ const flightPresentation=createFlightPresentation();
 const flightPrediction=createFlightPrediction();
 const flightCamera=createFlightCamera();
 const crashReplay=createCrashReplay();
+const arrival=createCrewScene(scene,{reducedMotion});
 let deferredCrashRace=null;
+let deferredArrivalRace=null;
 let selected=null,course=0,level=LEVELS[0],plumeEnvironment=level,state=null;
 let mode='menu',elapsed=0,accumulator=0,last=performance.now(),lastEngine=false,shake=0;
 let context=null,soundEnabled=false;
@@ -175,7 +178,7 @@ function saveProgress(){
   $('save-status').textContent=online?.player?'Coins, upgrades and paint save to your pilot on the server.':persistent?'Progress saves in this browser.':'Browser storage is unavailable. Progress lasts for this session only.';
 }
 const garage=createGarage({profile,
-  async onOpen(){clearCrashReplay();if(mode==='running')togglePause();startMenu.hide();clearInput();mode='garage';document.body.classList.add('at-menu','at-garage');await leaveNetwork();},
+  async onOpen(){clearCrashReplay();clearArrival();if(mode==='running')togglePause();startMenu.hide();clearInput();mode='garage';document.body.classList.add('at-menu','at-garage');await leaveNetwork();},
   onChange(){saveProgress();updateShipChoices();},
   onClose(){document.body.classList.remove('at-garage');openMenu();$('menu-garage').focus();},
   onPreview(id,color,tuning){const source=fleet.get(id);if(source)garageScene.attach(id,source,color,tuning);canvas.dataset.garageShip=id;canvas.dataset.garagePaint=color||'original';canvas.dataset.garageRcs=String(tuning.rcs);},
@@ -199,6 +202,7 @@ function updateShipChoices(){
 }
 function openMenu(){
   clearCrashReplay();
+  clearArrival();
   leaveNetwork();
   clearInput();mode='menu';$('message').hidden=true;startMenu.show();
   canvas.tabIndex=-1;canvas.setAttribute('aria-label','Rocket launch display. Choose Play or Missions to fly.');
@@ -235,6 +239,7 @@ function acceptNetworkRace(snapshot,playerId){
   const own=snapshot.racers.find(racer=>racer.id===playerId);if(!own)return;
   const newAttempt=race?.id===snapshot.id&&own.attemptId&&race.racers[0]?.attemptId!==own.attemptId;
   if(crashReplay.active&&(newAttempt||snapshot.mission!==level.id)){deferredCrashRace={snapshot,playerId};return;}
+  if(arrival.active&&!arrival.sample?.complete&&(newAttempt||snapshot.mission!==level.id)){deferredArrivalRace={snapshot,playerId};return;}
   if(snapshot.mission!==level.id){
     $('course').value=String(LEVELS.findIndex(mission=>mission.id===snapshot.mission));changeCourse();resetFlight();$('mission-scores').hidden=true;
   }else if(newAttempt)resetFlight();
@@ -260,7 +265,7 @@ function acceptNetworkRace(snapshot,playerId){
 }
 function finishOnline(result){
   clearInput();mode='ended';$('pause').disabled=true;
-  if(result.success){setMessage(result.rank===1?'RACE WON':`FINISHED #${result.rank}`,result.coins?`Victory. +${result.coins} coins.`:'Flight complete.',`${level.name} · ${formatTime(result.time)} · Result saved to your pilot.`,course===LEVELS.length-1?'Race again →':'Next mission →');playChime();}
+  if(result.success){showArrival(result);playChime();}
   else{showCrashReplay();playCrash();}
 }
 online=createOnline({storage,getShip:()=>$('ship').value,getMission:()=>level,isReady:()=>fleet.size>0&&levelModels.size===LEVELS.length,
@@ -311,6 +316,7 @@ function showBrief(){
 }
 function resetFlight(brief=false){
   clearCrashReplay();
+  clearArrival();
   flightPresentation.reset();flightPrediction.reset();flightCamera.reset();
   clearInput();lastEngine=false;elapsed=0;accumulator=0;shake=0;
   for(const item of fleet.values()){item.root.visible=false;item.system.reset();item.appearance.damage.reset();item.destroyed=false;item.damageRevision=0;item.leakClock=0;}
@@ -351,6 +357,7 @@ function begin(){
 }
 async function restartFlight(){
   clearCrashReplay();
+  clearArrival();
   if(!networkRoom)return launchFromMenu(course,false);
   if(joining)return;joining=true;
   try{
@@ -373,8 +380,7 @@ function finish(){
   clearInput();mode='ended';$('pause').disabled=true;
   if(completed(state)){
     const result=raceResult(race),coins=settleRace(profile,{attemptId,missionId:level.id,...result,reward:level.reward});saveProgress();
-    const allDone=course===LEVELS.length-1;
-    setMessage(result.rank===1?'RACE WON':`FINISHED ${result.rank===2?'SECOND':'THIRD'}`,result.rank===1?`Victory. +${coins} coins.`:'The rivals got there first.',`${level.name} · ${formatTime(race.elapsed)} · ${Math.ceil(state.fuel)} fuel left. ${result.rank===1?'Spend your winnings in the garage.':'Finish first to earn coins. Try upgrades or a cleaner racing line.'}`,allDone?'Race again →':'Next mission →');
+    showArrival({...result,coins});
     playChime();
   }else{
     settleRace(profile,{attemptId,missionId:level.id,success:false,rank:3,reward:level.reward});saveProgress();
@@ -383,6 +389,15 @@ function finish(){
   }
 }
 function clearCrashReplay(){crashReplay.cancel();deferredCrashRace=null;$('crash-overlay').hidden=true;}
+function clearArrival(){arrival.reset();deferredArrivalRace=null;$('arrival-overlay').hidden=true;}
+function showArrival(result){
+  clearCrashReplay();$('message').hidden=true;$('flight-hint').hidden=true;renderShip(0);
+  const pod=Boolean(state.tuning.pod),ship=pod?selected.root.getObjectByName('navigation_pod'):selected.root;
+  const hatch=createCrewHatch(ship,{pod,hull:pod?[]:selected.hull}),pad=level.pads[state.pad];
+  arrival.start({boarding:false,rising:true,hatch,tower:{x:state.x+1.12,y:pad?.y??state.y-.34,z:.15},ride:state.ride});
+  $('arrival-reward').textContent=result.rank===1?`Race won${result.coins?` · +${result.coins} coins`:''}`:`Flight complete · #${result.rank}`;
+  $('arrival-phase').textContent='Tower rising';$('arrival-next').disabled=true;$('arrival-overlay').hidden=false;
+}
 function showCrashReplay(){
   $('message').hidden=true;$('flight-hint').hidden=true;
   $('crash-reason').textContent=state.reason;
@@ -465,7 +480,7 @@ function updateCamera(dt){
   if(!state)return;
   const visual=selected.root.position;
   const velocity=mode==='running'&&flightPrediction.state||state;
-  const view=flightCamera.update({x:visual.x,y:visual.y,vx:velocity.vx,vy:velocity.vy},{aspect:innerWidth/innerHeight,pod:level.controls==='translation',overview:mode==='briefing',openSpace:level.theme==='space'||level.objective==='orbit',dt:mode==='paused'?0:dt});
+  const view=flightCamera.update({x:visual.x,y:visual.y,vx:velocity.vx,vy:velocity.vy},{aspect:innerWidth/innerHeight,pod:level.controls==='translation',overview:mode==='briefing',openSpace:level.theme==='space'||level.objective==='orbit',cinematic:arrival.active,dt:mode==='paused'?0:dt});
   camera.left=-view.width/2;camera.right=view.width/2;camera.top=view.height/2;camera.bottom=-view.height/2;camera.updateProjectionMatrix();
   camera.position.set(view.x+(Math.random()-.5)*shake,view.y+(Math.random()-.5)*shake,50);camera.lookAt(view.x,view.y,0);camera.updateMatrixWorld();shake=Math.max(0,shake-dt*.5);
   canvas.dataset.cameraHeight=view.height.toFixed(3);canvas.dataset.cameraX=view.x.toFixed(3);canvas.dataset.cameraY=view.y.toFixed(3);
@@ -503,6 +518,7 @@ for(const button of document.querySelectorAll('[data-sound-toggle]'))button.addE
   finally{for(const item of buttons)item.disabled=false;}
 });
 $('primary').addEventListener('click',begin);$('restart').addEventListener('click',restartFlight);$('pause').addEventListener('click',togglePause);
+$('arrival-next').addEventListener('click',begin);
 $('home').addEventListener('click',()=>{openMenu();$('menu-play').focus();});
 $('ship').addEventListener('change',()=>launchFromMenu(course,false));$('course').addEventListener('change',()=>launchFromMenu(Number($('course').value),false));
 window.addEventListener('resize',resize);
@@ -612,7 +628,15 @@ function frame(now){
     }
     elapsed+=dt;if(elapsed>.08){updateHud();elapsed=0;}
   }
-  updateCamera(dt);renderScene(scene,camera);
+  updateCamera(dt);
+  if(arrival.active&&mode==='ended'){
+    const transfer=arrival.update(dt,camera,plumeEnvironment),shared=race.nextLevelIn!==null&&race.nextLevelIn!==undefined;
+    $('arrival-phase').textContent=transfer.complete?'Crew ashore':transfer.phase;
+    $('arrival-next').disabled=!transfer.complete||shared;
+    $('arrival-next').textContent=shared?`Next mission in ${Math.ceil(race.nextLevelIn)}s`:course===LEVELS.length-1?'Race again →':'Next mission →';
+  }
+  renderScene(scene,camera);
+  if(arrival.sample?.complete&&deferredArrivalRace){const pending=deferredArrivalRace;clearArrival();acceptNetworkRace(pending.snapshot,pending.playerId);}
   if(mode==='ended'&&crashReplay.active){
     const remaining=crashReplay.update(dt);$('crash-countdown').textContent=`Restarting in ${remaining.toFixed(1)}s`;
     if(remaining===0&&deferredCrashRace){const pending=deferredCrashRace;clearCrashReplay();acceptNetworkRace(pending.snapshot,pending.playerId);}

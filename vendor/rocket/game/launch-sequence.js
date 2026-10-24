@@ -1,4 +1,5 @@
 import { BASE_GRAVITY, BASE_THRUST, LINEAR_DAMPING } from './flight-balance.js';
+import { createRideState } from './ride.js';
 import { createFlight, stepFlight, FIXED_STEP, LANDING_LIMITS } from './physics.js';
 
 export const STATION_POSITIONS=[-19,20];
@@ -15,16 +16,16 @@ function legLevel(departure){
 const apronSolids=()=>[[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0],[LAUNCH_RANGE,-LAUNCH_RANGE],[-LAUNCH_RANGE,-LAUNCH_RANGE]]];
 
 /** The cinematic pilot issues inputs; gameplay physics alone moves, turns and lands the ship. */
-export function createLaunchSequence(hull,tuning={}){
+export function createLaunchSequence(hull,tuning={},{boardingDuration=1.5,disembarkDuration=6}={}){
   let leg=0,station=0,level=legLevel(0),state=createFlight(level,hull,tuning),solids=apronSolids();
   // Leave enough altitude for the unpowered flip under baseline gravity.
-  const rest=state.y,apogee=180;let stage=0,phaseTime=0,clock=0,accumulator=0,pwm=0,heat=0,throttle=0,dockTime=0,lastInput={};
+  const rest=state.y,apogee=180;let stage=0,phaseTime=0,clock=0,accumulator=0,heat=0,throttle=0,mainThrottle=0,dockTime=0,legDistance=0,lastInput={};
   let approachHeight=rest+8;
   let manual=false,idle=0,recovering=false,recoveryHeight=0,crashAge=0,resets=0;
-  function phase(next){stage=next;phaseTime=0;pwm=0;}
+  function phase(next){stage=next;phaseTime=0;}
   function rotate(target){const error=Math.atan2(Math.sin(target-state.angle),Math.cos(target-state.angle));return clamp(error*8-state.omega*1.7,-1,1);}
   function recover(){
-    manual=false;idle=0;pwm=0;
+    manual=false;idle=0;
     if(state.status==='ready'){
       station=Math.abs(state.x-STATION_POSITIONS[0])<Math.abs(state.x-STATION_POSITIONS[1])?0:1;
       level=legLevel(station);state.pad=0;recovering=false;phase(0);return;
@@ -44,7 +45,7 @@ export function createLaunchSequence(hull,tuning={}){
   }
   function reset(){
     leg=0;station=0;level=legLevel(0);state=createFlight(level,hull,tuning);solids=apronSolids();
-    stage=0;phaseTime=0;pwm=0;heat=0;throttle=0;dockTime=0;manual=false;idle=0;recovering=false;crashAge=0;lastInput={};resets++;
+    stage=0;phaseTime=0;heat=0;throttle=mainThrottle=0;dockTime=0;legDistance=0;manual=false;idle=0;recovering=false;crashAge=0;lastInput={};resets++;
   }
   function hold(x,y,landing=false){
     const desiredVy=clamp((y-state.y)*.7,landing?-3.2:-4,6);
@@ -62,7 +63,10 @@ export function createLaunchSequence(hull,tuning={}){
       const cosine=Math.cos(state.angle),duty=cosine>.35&&state.vx*direction<3.2?clamp((BASE_GRAVITY-state.vy*1.5)/(state.tuning.thrust*cosine),0,1):0;
       return {turn:rotate(-direction*Math.PI/2),duty};
     }
-    if(stage===4)return {turn:rotate(-direction*Math.PI/2),duty:state.vx*direction<3.6?.45:0};
+    if(stage===4){
+      const speed=state.vx*direction,drag=.055+LINEAR_DAMPING*state.tuning.thrust/BASE_THRUST;
+      return {turn:rotate(-direction*Math.PI/2),duty:clamp(((3.6-speed)*1.5+speed*drag)/state.tuning.thrust,0,1)};
+    }
     if(stage===5)return {turn:rotate(direction*Math.PI/2),duty:0};
     if(stage===6)return {turn:rotate(direction*Math.PI/2),duty:state.vx*direction>.3?1:0};
     return hold(goal,stage===7?approachHeight:rest-.05,stage===8);
@@ -75,12 +79,15 @@ export function createLaunchSequence(hull,tuning={}){
     }
     if(input.thrust||input.turn){manual=true;recovering=false;idle=0;}
     else if(manual){idle+=FIXED_STEP;if(idle+1e-10>=2)recover();}
-    // Gameplay accepts an on/off main engine, so holding altitude uses real thrust pulses.
     const desired=manual?{turn:clamp(input.turn||0,-1,1),duty:input.thrust?1:0}:state.ground&&!state.ground.resting?{turn:0,duty:0}:recovering?recoveryCommand():command();
-    pwm+=desired.duty;const thrust=pwm>=1;if(thrust)pwm--;
-    lastInput={turn:desired.turn,thrust};stepFlight(state,lastInput,level,hull,FIXED_STEP,solids);onStep?.(state);
+    const target=clamp(desired.duty,0,1),change=target>mainThrottle?2.2:3;
+    mainThrottle=manual?target:mainThrottle+clamp(target-mainThrottle,-change*FIXED_STEP,change*FIXED_STEP);
+    if(!manual&&(stage===5||stage>=9||state.ground&&state.status==='flying'))mainThrottle=0;
+    lastInput=manual?{turn:desired.turn,thrust:target>0}:{turn:desired.turn,thrust:mainThrottle>0,throttle:mainThrottle};
+    const beforeX=state.x,beforeY=state.y;
+    stepFlight(state,lastInput,level,hull,FIXED_STEP,solids);onStep?.(state);legDistance+=Math.hypot(state.x-beforeX,state.y-beforeY);
     if(!manual&&!recovering)phaseTime+=FIXED_STEP;
-    heat+=(state.thrust>0?1-heat:-heat)*FIXED_STEP/(state.thrust>0?.5:1.8);
+    heat+=(state.thrust-heat)*FIXED_STEP/(state.thrust>heat?.5:1.8);
     if(state.status==='crashed')return state.thrust;
     if(state.status==='landed'&&(manual||recovering)){
       dockTime=0;phase(9);state.status='ready';level.pads[1].type='launch';recovering=false;
@@ -90,7 +97,7 @@ export function createLaunchSequence(hull,tuning={}){
     }
     if(manual||recovering)return state.thrust;
     if(stage>=9)dockTime+=FIXED_STEP;
-    if(stage===0&&phaseTime>=1.5)phase(1);
+    if(stage===0&&phaseTime>=boardingDuration)phase(1);
     else if(stage===1&&phaseTime>=2.5)phase(2);
     else if(stage===2&&state.y-rest+Math.max(0,state.vy)**2/(2*BASE_GRAVITY)>=apogee&&state.vy>0)phase(3);
     else if(stage===3&&Math.abs(state.angle+(station===0?1:-1)*Math.PI/2)<.06&&Math.abs(state.omega)<.2)phase(4);
@@ -101,8 +108,10 @@ export function createLaunchSequence(hull,tuning={}){
     // A completed destination becomes a service pad; the integrator handles refueling.
     if(state.status==='landed'&&stage<9){dockTime=0;phase(9);state.status='ready';level.pads[1].type='launch';}
     else if(stage===9&&phaseTime>=1.5)phase(10);
-    else if(stage===10&&phaseTime>=4.5&&heat<.05){
+    else if(stage===10&&phaseTime>=Math.max(4.5,disembarkDuration-1.5)&&heat<.05){
       leg++;station=1-station;level=legLevel(station);state.status='ready';state.pad=0;dockTime=0;phase(0);
+      state.ride=createRideState();
+      legDistance=0;
     }
     return state.thrust;
   }
@@ -110,7 +119,8 @@ export function createLaunchSequence(hull,tuning={}){
     const departure=manual||recovering?1:stage===0?0:stage===1?smooth(clamp(phaseTime/1.5,0,1)):1;
     const arrival=stage>=9?1-smooth(clamp((dockTime-.5)/2,0,1)):1;
     const crashed=state.status==='crashed';
-    return {phase:crashed?'Spacecraft destroyed':manual?'Manual flight':recovering?'Autopilot recovery':phases[stage],step:station*11+stage+1,totalSteps:22,station,destination:1-station,legs:leg,
+    const remaining=Math.hypot(level.pads[1].x-state.x,rest-state.y),tripProgress=legDistance/(legDistance+remaining||1);
+    return {phase:crashed?'Spacecraft destroyed':manual?'Manual flight':recovering?'Autopilot recovery':phases[stage],stage,phaseElapsed:phaseTime,dockTime,tripProgress,step:station*11+stage+1,totalSteps:22,station,destination:1-station,legs:leg,
       x:state.x,y:state.y,altitude:Math.max(0,state.y-rest),horizontalSpeed:state.vx,verticalSpeed:state.vy,angle:state.angle,angularSpeed:state.omega,
       flightBlend:Math.sin(state.angle)**2,throttle:!crashed&&(manual||recovering||stage<9)?throttle:0,heat,arms:station===0?[departure,arrival]:[arrival,departure],
       firing:!crashed&&(manual||recovering||stage<9)&&throttle>.012,engineArmed:!crashed&&(manual||recovering||stage>=1&&stage<9),fuel:state.fuel,status:state.status,clock,

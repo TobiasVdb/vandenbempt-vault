@@ -4,7 +4,7 @@ import { terrainSolids } from './levels.js';
 
 /** Predict a short, constant-input flight using the actual integrator. Never changes the live state. */
 export function predictGlidepath(state,input,level,hull,{seconds=3.2,solids=terrainSolids(level)}={}){
-  const ghost={...state,damage:{...state.damage},translation:state.translation?{...state.translation}:undefined},points=[[state.x,state.y]];
+  const ghost=structuredClone(state),points=[[state.x,state.y]];
   if(state.status!=='flying')return {points,impact:null,landing:null};
   for(let frame=1;frame<=Math.ceil(seconds/FIXED_STEP);frame++){
     if(ghost.worldTime!==undefined)ghost.worldTime+=FIXED_STEP;

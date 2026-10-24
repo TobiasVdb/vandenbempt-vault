@@ -1,4 +1,5 @@
 import { BASE_GRAVITY } from './flight-balance.js';
+import { createMenuTelemetry } from './menu-telemetry.js';
 import { nextMissionIndex } from './launch-sequence.js';
 import { deleteProfile } from './progression.js';
 
@@ -6,6 +7,7 @@ export function createStartMenu({profile,storage,levels,onPlay,onMission,onDelet
   const root=document.getElementById('start-menu'),missions=document.getElementById('missions-dialog'),confirmation=document.getElementById('delete-profile-dialog');
   const play=document.getElementById('menu-play'),choose=document.getElementById('menu-missions'),status=document.getElementById('menu-status');
   let ready=false;
+  const telemetry=createMenuTelemetry();
   const motion=document.getElementById('menu-motion');let paused=reducedMotion;
   function updateMotion(){motion.textContent=paused?'Play display':'Pause display';motion.setAttribute('aria-pressed',String(paused));}
   updateMotion();motion.addEventListener('click',()=>{paused=!paused;onMotion(paused);updateMotion();});
@@ -44,9 +46,10 @@ export function createStartMenu({profile,storage,levels,onPlay,onMission,onDelet
     hide(){root.hidden=true;document.body.classList.remove('at-menu');},
     setReady(value){ready=value;play.disabled=!ready;choose.disabled=!ready;for(const button of document.querySelectorAll('[data-menu-control]'))button.disabled=!ready;status.textContent=ready?'Ready for launch.':'Preparing the fleet…';},
     update(sample){
-      const labels={'menu-phase':sample.phase,'menu-altitude':`${sample.altitude.toFixed(1)} m`,'menu-engine':`${Math.round(sample.throttle*100)}%`,
+      const instruments=telemetry.update(sample);
+      const labels={'menu-phase':sample.crewPhase||sample.phase,'menu-altitude':`${sample.altitude.toFixed(1)} m`,'menu-engine':`${Math.round(instruments.throttle*100)}%`,
         'menu-step':`${String(sample.step).padStart(2,'0')} / ${sample.totalSteps}`,'menu-route':`Station ${String(sample.station+1).padStart(2,'0')} → Station ${String(sample.destination+1).padStart(2,'0')}`,
-        'menu-speed':`${Math.hypot(sample.horizontalSpeed,sample.verticalSpeed).toFixed(1)} m/s`};
+        'menu-speed':`${instruments.airspeed.toFixed(1)} m/s`};
       labels['menu-pilot']=sample.pilot==='crashed'?`Scene resets in ${Math.ceil(sample.resetIn)}s`:sample.pilot==='manual'?`Manual control · autopilot in ${Math.ceil(sample.takeoverIn)}s`:sample.pilot==='recovering'?'Autopilot is recovering the flight':'Autopilot · steer to take control';
       for(const [id,value] of Object.entries(labels)){const el=document.getElementById(id);if(el.textContent!==value)el.textContent=value;}
       root.dataset.phase=sample.phase;root.dataset.altitude=sample.altitude.toFixed(3);root.dataset.throttle=sample.throttle.toFixed(3);

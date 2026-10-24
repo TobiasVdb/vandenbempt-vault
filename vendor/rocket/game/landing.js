@@ -1,5 +1,6 @@
 import { LANDING_LIMITS } from './flight-balance.js';
 import { breakLandingLeg, destroyShip } from './damage.js';
+import { recordLandingShock } from './ride.js';
 
 const rotate=([x,y],angle)=>[x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle)];
 const world=(state,point)=>{const [x,y]=rotate(point,state.angle);return {x:state.x+x,y:state.y+y};};
@@ -117,6 +118,7 @@ export function resolveLandingContact(state,level,hull,previousPose){
   const offset=rotate(hit.local,state.angle),vx=state.vx-state.omega*offset[1],vy=state.vy+state.omega*offset[0];
   const closing=Math.max(0,-vx*nx-vy*ny),sideways=Math.abs(vx*ny-vy*nx);
   if(vx*nx+vy*ny>.001&&hit.depth<.02)return false;
+  recordLandingShock(state,closing);
   if(closing>LANDING_LIMITS.vertical||sideways>LANDING_LIMITS.horizontal){
     for(const contact of contacts)breakLandingLeg(state,contact.side,contact.local);
     state.ground=null;state.notice='Landing leg broken. Landing support lost.';return true;

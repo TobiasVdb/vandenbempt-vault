@@ -9,6 +9,9 @@ import { createPlumeObstacles } from './plume-obstacles.js';
 import { createDestructionEffect } from './damage-effect.js';
 import { projectStructure, collideMenuTower } from './menu-contact.js';
 import { createMenuBackdrop } from './menu-backdrop.js';
+import { createCrewScene, createCrewHatch } from './crew-scene.js';
+import { BOARDING_DURATION, DISEMBARK_DURATION } from './crew-transfer.js';
+import { createMenuCamera } from './menu-camera.js';
 
 export function createStartMenuScene({environment,reducedMotion,random=Math.random,parked=false}){
   const scene=new THREE.Scene();scene.background=new THREE.Color('#0b131b');scene.fog=new THREE.Fog('#0b131b',11,32);scene.environment=environment;scene.environmentIntensity=.65;
@@ -70,6 +73,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
     return {station,tower,arm,structure:createPlumeObstacles(tower),collision:body.boxes.map(projectStructure),destroyed:false};
   }
   const stations=STATION_POSITIONS.map(buildStation);
+  const crew=createCrewScene(scene,{reducedMotion}),menuCamera=createMenuCamera();let crewKey=null;
   let landscape=null;
   if(!parked&&typeof document!=='undefined'){
     landscape=new THREE.TextureLoader().load(new URL('../assets/menu-mountains-v1.png',import.meta.url).href);
@@ -88,9 +92,11 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
   const plume=createPlumeEffect(scene,{capacity:600,reducedMotion,random});
   const destruction=createDestructionEffect(scene,{capacity:reducedMotion?72:144,reducedMotion,random,horizontalLimit:Infinity});
   const plumeLevel={theme:'sandstone',gravity:BASE_GRAVITY,objective:'land',roof:[],floor:[[-LAUNCH_RANGE,0],[LAUNCH_RANGE,0]],pads:STATION_POSITIONS.map(x=>({x,y:.16,width:2.1,radius:1.05})),obstacles:stations.flatMap(item=>item.structure.boxes)};
-  const actors=new Map();let actor=null,flight=createLaunchSequence(DEFAULT_HULL),viewWidth=1,viewHeight=1,paused=reducedMotion,verticalZoom=0,visualTime=0,previousPose=null;
+  const actors=new Map();let actor=null,flight=createLaunchSequence(DEFAULT_HULL),viewWidth=1,viewHeight=1,paused=reducedMotion,visualTime=0,previousPose=null,previousView=null,currentView=null;
   const anchor=new THREE.Vector3();
   function restoreScene(){
+    crew.reset();crewKey=null;
+    menuCamera.reset();previousView=currentView=null;
     previousPose=null;
     plume.reset();destruction.reset();
     for(const item of stations){item.destroyed=false;item.tower.visible=true;item.arm.rotation.y=0;item.structure.update();}
@@ -112,19 +118,41 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
       }
     }
   }
-  function follow(sample,dt=0){
-    const targetZoom=Math.min(18,Math.abs(sample.verticalSpeed)*1.1);
-    verticalZoom+=(targetZoom-verticalZoom)*(1-Math.exp(-dt/.6));
-    const portrait=viewWidth<680,span=(portrait?8.4+sample.flightBlend*.8:5.4+sample.flightBlend*1.2)+verticalZoom,wide=span*viewWidth/viewHeight;
-    const ahead=portrait?0:THREE.MathUtils.clamp(sample.horizontalSpeed*.4,-.45,.45);
-    const x=sample.x-wide*(portrait?.12+.08*sample.flightBlend:.22)+ahead,y=parked&&portrait?sample.y+.5-span*.24:1.8+sample.altitude;
-    camera.left=-wide/2;camera.right=wide/2;camera.top=span/2;camera.bottom=-span/2;
-    camera.position.set(x,y+1.3,12);camera.lookAt(x,y,0);camera.updateProjectionMatrix();
+  function follow(sample,dt=0,instant=false){
+    const index=sample.stage>=5?sample.destination:sample.station;
+    const tower={x:STATION_POSITIONS[index]+1.12,y:0};
+    let view=menuCamera.update(sample,{width:viewWidth,height:viewHeight,tower,dt,instant,parked});
+    if(instant){previousView=null;currentView=view;}
+    else if(dt>0){previousView=currentView;currentView=view;}
+    else if(previousView&&currentView){
+      const alpha=visualTime*60;view={};for(const key of ['x','y','span','width'])view[key]=THREE.MathUtils.lerp(previousView[key],currentView[key],alpha);
+    }
+    camera.left=-view.width/2;camera.right=view.width/2;camera.top=view.span/2;camera.bottom=-view.span/2;
+    camera.position.set(view.x,view.y+1.3,12);camera.lookAt(view.x,view.y,0);camera.updateProjectionMatrix();
     backdrop?.update(camera);
     // At altitude the pad is outside the shadow volume; skip an invisible shadow pass.
     key.shadow.autoUpdate=sample.altitude<6;key.shadow.intensity=sample.altitude<6?1:0;
     key.position.set(sample.x-3,sample.y+6,6);key.target.position.set(sample.x,sample.y,0);
     rim.position.set(sample.x+3,sample.y+2,-3);rim.target.position.set(sample.x,sample.y,0);
+  }
+  function updateCrew(sample,dt){
+    if(parked||!actor)return;
+    if(sample.pilot!=='autopilot'){crew.reset();crewKey=null;return;}
+    const boarding=sample.stage===0,arriving=sample.stage>=9;
+    if(!boarding&&!arriving){
+      if(crewKey?.startsWith('board:')&&!crew.sample?.complete)crew.update(Math.max(0,BOARDING_DURATION-(crew.sample?.time||0)),camera,plumeLevel);
+      return;
+    }
+    const stationIndex=boarding?sample.station:sample.destination;
+    const key=`${boarding?'board':'arrive'}:${sample.legs}`;
+    if(crewKey!==key){
+      crewKey=key;
+      stations[stationIndex].tower.updateWorldMatrix(true,true);
+      const position=stations[stationIndex].tower.getWorldPosition(new THREE.Vector3());
+      crew.start({boarding,bubbles:false,hatch:actor.hatch,tower:{x:position.x,y:position.y,z:position.z},externalArm:stations[stationIndex].arm,ride:flight.state.ride});
+    }
+    crew.update(dt,camera,plumeLevel);
+    stations[stationIndex].structure.update();
   }
   return {
     scene,camera,
@@ -134,19 +162,25 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
         const root=source.template.clone(true),appearance=decorateCraft(root);
         root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
         root.rotation.order='ZYX';root.rotation.y=-.22;root.name=`showcase_${id}`;scene.add(root);
-        actors.set(id,{root,appearance,hull:source.hull,anchor:source.anchor,system:createFlightSystems(root,source.animations),engine:false,destroyed:false,resets:0});
+        actors.set(id,{root,appearance,hatch:createCrewHatch(root,{hull:source.hull}),hull:source.hull,anchor:source.anchor,system:createFlightSystems(root,source.animations),engine:false,destroyed:false,resets:0});
       }
       for(const item of actors.values())item.root.visible=false;
       actor=actors.get(id);actor.root.visible=true;actor.appearance.paint(color);actor.appearance.update(tuning.rcs??0,0);
       actor.appearance.configure(tuning);
-      actor.rcs=tuning.rcs??0;flight=createLaunchSequence(source.hull,tuning);verticalZoom=0;visualTime=0;
+      actor.rcs=tuning.rcs??0;flight=createLaunchSequence(source.hull,tuning,{boardingDuration:BOARDING_DURATION,disembarkDuration:DISEMBARK_DURATION});visualTime=0;menuCamera.reset();previousView=currentView=null;
       restoreScene();
       actor.system.setPaused(paused);
-      const sample=flight.sample();actor.root.position.set(sample.x,sample.y,0);actor.root.rotation.z=sample.angle;actor.root.updateMatrixWorld(true);follow(sample);
+      const sample=flight.sample();actor.root.position.set(sample.x,sample.y,0);actor.root.rotation.z=sample.angle;actor.root.updateMatrixWorld(true);
+      const door=actor.hatch.dock().sub(actor.root.position);
+      for(const item of stations){
+        item.connectedYaw=Math.atan2(door.z+.75,.93-door.x);item.arm.position.y=sample.y+door.y;
+        item.arm.scale.x=Math.hypot(.93-door.x,door.z+.75)/.8;item.arm.rotation.y=item.connectedYaw;item.structure.update();
+      }
+      follow(sample,0,true);updateCrew(sample,0);
     },
     resize(width,height){
       viewWidth=width;viewHeight=height;
-      follow(flight.sample());
+      follow(flight.sample(),0,true);
     },
     update(seconds,renderer,input={}){
       // Fixed visual steps keep emission and obstacle collisions identical at slow frame rates.
@@ -155,17 +189,19 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
       visualTime=Math.max(0,visualTime-ticks/60);
       let sample=flight.sample();
       for(let step=0;step<steps;step++){
-        const command=typeof input==='function'?input(dt):input;
+        const requested=typeof input==='function'?input(dt):input;
+        const command=crew.active&&!crew.sample?.complete&&(sample.stage===0||sample.stage>=9)?{}:requested;
         if(dt>0)previousPose=sample;
         sample=actor&&!parked?flight.update(dt,command,collideStructures):flight.sample();
         if(actor&&sample.resets!==actor.resets)restoreScene();
         stations.forEach((item,index)=>{
-          const angle=-sample.arms[index]*Math.PI/2;
+          const angle=(item.connectedYaw||0)-sample.arms[index]*Math.PI/2;
           if(item.arm.rotation.y!==angle){item.arm.rotation.y=angle;item.structure.update();}
         });
         follow(sample,dt);
         if(!actor)continue;
         actor.root.position.set(sample.x,sample.y,0);actor.root.rotation.z=sample.angle;actor.root.updateMatrixWorld(true);
+        updateCrew(sample,dt);
         actor.appearance.update(actor.rcs,flight.state.rcsTurn,flight.state.damage);
         const detached=actor.appearance.damage.update(flight.state.damage);
         if(detached.length)destruction.shed(detached,flight.state);
@@ -189,7 +225,7 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
         actor.root.position.set(pose.x,pose.y,0);actor.root.rotation.z=pose.angle;follow(pose);
       }
       // Expose only presentation telemetry to the DOM; it never touches a campaign race.
-      return {...sample,paused,loaded:Boolean(actor),width:viewWidth,height:viewHeight,plume:plume.statistics,debris:destruction.count,towersDestroyed:stations.filter(item=>item.destroyed).length};
+      return {...sample,crewPhase:crew.active&&!crew.sample?.complete?crew.sample.phase:null,crew:crew.sample,paused,loaded:Boolean(actor),width:viewWidth,height:viewHeight,plume:plume.statistics,debris:destruction.count,towersDestroyed:stations.filter(item=>item.destroyed).length};
     },
   };
 }

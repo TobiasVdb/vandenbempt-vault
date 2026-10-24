@@ -3,6 +3,7 @@ import { createDamageState, applyImpact, applyDamage, destroyShip, breakLandingL
 
 import { landingGeometry, landingFeet, stepGroundContact, resolveLandingContact, bodyTouchesGround } from './landing.js';
 import { flightHull, missionTuning } from './pod.js';
+import { createRideState, recordRide } from './ride.js';
 import {BASE_GRAVITY,BASE_THRUST,LINEAR_DAMPING,LANDING_LIMITS} from './flight-balance.js';
 export {LANDING_LIMITS} from './flight-balance.js';
 
@@ -102,7 +103,7 @@ export function createFlight(level, hull=DEFAULT_HULL, tuning={}) {
   hull=flightHull(level,hull);tuning=missionTuning(level,tuning);
   const pad=level.pads[0];
   return {x:level.spawn?.x??pad.x,y:level.spawn?.y??pad.y-Math.min(...hull.map(p=>p[1]))+.015,vx:0,vy:0,angle:0,omega:0,
-    fuel:tuning.capacity??100,time:0,status:'ready',thrust:0,reason:'',pad:0,gate:0,dockHold:0,orbitHold:0,rcsTurn:0,damage:createDamageState(),
+    fuel:tuning.capacity??100,time:0,status:'ready',thrust:0,reason:'',pad:0,gate:0,dockHold:0,orbitHold:0,rcsTurn:0,damage:createDamageState(),ride:createRideState(),
     tuning:{thrust:BASE_THRUST,turnPower:level.objective==='land'?(100/60)/.396:2.9,capacity:100,rcs:0,...tuning}};
 }
 
@@ -162,15 +163,19 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   if (!['ready','flying'].includes(state.status))return;
   hull=flightHull(level,hull);
   const tuning=state.tuning||{thrust:BASE_THRUST,turnPower:(100/60)/.396,capacity:100,rcs:0};
-  const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y,angle:state.angle},previousVy=state.vy;
+  const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y,angle:state.angle},previousVy=state.vy,previousVx=state.vx;
   const turn=clamp(input.turn||0,-1,1),engine=state.damage.engine/100,steering=state.damage[turn>0?'right':'left']/100;
   const translation=level.controls==='translation';
-  const thrust=!translation&&Boolean(input.thrust)&&state.fuel>0&&engine>0;
-  state.thrust=thrust?engine:0;
+  const throttle=Number.isFinite(input.throttle)?clamp(input.throttle,0,1):input.thrust?1:0;
+  const thrust=!translation&&throttle>0&&state.fuel>0&&engine>0;
+  state.thrust=thrust?engine*throttle:0;
   let tx=translation?clamp(input.translateX||0,-1,1):0,ty=translation?clamp(input.translateY||0,-1,1):0;
   const magnitude=Math.max(1,Math.hypot(tx,ty));tx/=magnitude;ty/=magnitude;
   if(state.fuel<=0||engine<=0){tx=0;ty=0;}
   if (state.status==='ready' && !thrust&&!(translation&&(tx||ty||turn||state.worldTime>0))) {if(!translation)state.fuel=Math.min(tuning.capacity,state.fuel+dt*12);return;}
+  if(state.status==='ready'&&!translation&&thrust&&state.thrust*tuning.thrust*env.engineScale*Math.cos(state.angle)<=env.downward){
+    state.fuel=Math.max(0,state.fuel-dt*2.15*throttle);return;
+  }
   state.status='flying';state.time+=dt;
   if(level.objective==='land'&&state.ground){
     if(thrust)state.ground=null;
@@ -189,7 +194,7 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
     state.omega*=Math.max(0,1-3.1*(jetsAvailable?1+tuning.rcs*.6:1)*dt);
   }else state.omega+=(translation?state.rcsTurn*turnPower:turn*turnPower-state.omega*4.4)*dt;
   state.angle=(state.angle+state.omega*dt+Math.PI*3)%(Math.PI*2)-Math.PI;
-  const force=thrust?tuning.thrust*env.engineScale*engine:0;
+  const force=tuning.thrust*env.engineScale*state.thrust;
   state.vx+=(-Math.sin(state.angle)*force-(state.vx-env.wind)*env.drag)*dt;
   state.vy+=(Math.cos(state.angle)*force-env.downward-state.vy*env.verticalDrag)*dt;
   if(level.objective==='land'){
@@ -201,7 +206,8 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
     const acceleration=level.translationForce*engine;
     state.vx+=tx*acceleration*dt;state.vy+=ty*acceleration*dt;state.translation={x:tx,y:ty};
   }
-  state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15:0)+Math.hypot(tx,ty)*(translation?.12:.8)+Math.abs(state.rcsTurn)*.12));
+  if(dt>0)recordRide(state,(state.vx-previousVx)/dt,(state.vy-previousVy)/dt+env.downward,dt);
+  state.fuel=Math.max(0,state.fuel-dt*((thrust?2.15*throttle:0)+Math.hypot(tx,ty)*(translation?.12:.8)+Math.abs(state.rcsTurn)*.12));
   const previous=worldHull(state,hull),oldBottom=Math.min(...previous.map(p=>p[1]));
   state.x+=state.vx*dt;state.y+=(previousVy+state.vy)*dt/2;
   const body=worldHull(state,hull),bottom=Math.min(...body.map(p=>p[1])),left=Math.min(...body.map(p=>p[0])),right=Math.max(...body.map(p=>p[0]));

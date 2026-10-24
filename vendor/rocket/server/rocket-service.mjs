@@ -5,6 +5,7 @@ import { createRace, stepRace } from '../game/race.js';
 import { createFlight, completed, FIXED_STEP, worldHull, polygonsOverlap } from '../game/physics.js';
 import { flightTuning, SKINS } from '../game/progression.js';
 import { hasFlightInput } from '../game/controls.js';
+import { ARRIVAL_DURATION } from '../game/crew-transfer.js';
 
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
@@ -142,7 +143,10 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
         stepRace(room.race,{thrust:anyThrust},FIXED_STEP,inputs);
         for(const racer of room.race.racers)if(racer.finishTime!==null)room.finishTimes.set(racer.id,racer.finishTime);
         for(const racer of room.players.values())if(!racer.settling&&!racer.waiting&&(completed(racer.state)||racer.state.status==='crashed'))settle(room,racer);
-        if(room.players.size>=2&&room.nextLevelAt===null&&[...room.players.values()].some(racer=>completed(racer.state)))room.nextLevelAt=room.race.elapsed+4;
+        if(room.players.size>=2){
+          const finishes=[...room.players.values()].filter(racer=>completed(racer.state)).map(racer=>racer.finishTime??room.race.elapsed);
+          if(finishes.length)room.nextLevelAt=Math.max(room.nextLevelAt??0,Math.max(...finishes)+ARRIVAL_DURATION+1);
+        }
         if(room.nextLevelAt!==null&&room.race.elapsed+1e-9>=room.nextLevelAt)nextRound(room);
       }accumulator=Math.max(0,accumulator-FIXED_STEP);broadcastClock+=FIXED_STEP;
     }

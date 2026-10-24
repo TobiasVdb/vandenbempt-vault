@@ -14,6 +14,7 @@ export function applyDamage(state,amount,point={x:0,y:0},reason='Hull integrity 
   const zone=point.y<-.5?'engine':point.y>.35?'nose':point.x<0?'left':'right';
   damage.hull=clamp(damage.hull-loss,0,100);damage[zone]=clamp(damage[zone]-loss*1.6,0,100);
   damage.revision++;damage.lastHit={x:point.x,y:point.y,amount:loss,zone};
+  if(state.ride)state.ride.impacts++;
   if(damage.hull===0){damage.engine=0;state.status='crashed';state.thrust=0;state.rcsTurn=0;state.reason=reason;}
   return loss;
 }

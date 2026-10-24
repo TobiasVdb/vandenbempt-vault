@@ -52,6 +52,30 @@ function obstacleHit(x,y,z,toX,toY,toZ,obstacles){
   return nearest;
 }
 
+const padBoxes=new WeakMap();
+export function plumeJetReach(source,level,length){
+  const dx=Math.sin(source.angle),dy=-Math.cos(source.angle),z=source.z??.4;
+  if(!padBoxes.has(level))padBoxes.set(level,level.pads.map(pad=>{
+    const half=[pad.width/2,.19,(pad.depth??(pad.radius!==undefined?pad.radius*2:2.5))/2];
+    return {x:pad.x,y:pad.y-.19,z:pad.z||0,half,axes:[1,0,0,0,1,0,0,0,1],radius:Math.hypot(...half)};
+  }));
+  const hit=obstacleHit(source.x,source.y,z,source.x+dx*length,source.y+dy*length,z,[...(level.obstacles||[]),...padBoxes.get(level)]);
+  let reach=hit?Math.max(0,length*hit.time):length,wall=[0,0,0,1],plane=[0,0,1],previous=Infinity;
+  if(hit)wall=[hit.nx,hit.ny,hit.nz,-hit.nx*(source.x+dx*reach)-hit.ny*(source.y+dy*reach)-hit.nz*z];
+  const steps=Math.max(1,Math.ceil(reach/.04));
+  for(let i=0;i<=steps;i++){
+    const distance=reach*i/steps,x=source.x+dx*distance,y=source.y+dy*distance,surface=plumeSurface(level,x,z);
+    const clearance=y-surface.y-.01;
+    if(clearance<0){
+      const before=reach*Math.max(0,i-1)/steps;
+      reach=i===0?0:before+(distance-before)*previous/(previous-clearance);
+      plane=[surface.nx,surface.ny,-surface.nx*x-surface.ny*surface.y];break;
+    }
+    previous=clearance;
+  }
+  return {length:reach,plane,wall};
+}
+
 export function plumeOpacity(age,lifetime){
   const t=clamp((age/lifetime-.35)/.65,0,1),fade=1-t*t*(3-2*t);
   return .23*Math.min(1,age/.06)*fade;
@@ -80,7 +104,8 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
 
   function emit(id,source,seconds,level,rate=96){
     if(seconds<=0)return;
-    const previous=clocks.get(id)||0,effectiveRate=rate*clamp(source.throttle??1,0,1);
+    const spacing=Math.min(4,Math.max(1,Math.hypot(source.vx||0,source.vy||0)/8));
+    const previous=clocks.get(id)||0,effectiveRate=rate*clamp(source.throttle??1,0,1)*spacing;
     if(effectiveRate===0)return;
     let pending=previous+seconds*effectiveRate;
     // A stalled frame cannot generate an unbounded burst.
@@ -124,6 +149,10 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
       const grounded=p.impacted&&!p.water;
       const cooled=!p.water&&!p.fire&&p.age>.25;
       const drag=p.water?.8:grounded?.55:(cooled?2.4:.38)*p.density;
+      if(cooled&&!grounded){
+        p.vx+=Math.sin(p.y*1.7+p.age*2.1+p.seed)*.35*p.density*h;
+        p.vz+=Math.cos(p.x*1.3+p.age*1.7+p.seed)*.2*p.density*h;
+      }
       p.vx+=(p.wind*.65-p.vx)*drag*h;
       p.vz*=Math.exp(-drag*h);
       p.vy+=(p.water?2.2:grounded?.08:p.fire?1.8*p.density:.3*p.density)*h;
@@ -200,8 +229,9 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
         p.opacity=plumeOpacity(p.age,p.lifetime)*.8;p.heat=p.fireHeat*Math.max(0,1-p.age/.9)**2;p.hotLength=p.height;
         p.jetNx=p.jetNy=0;p.jetD=1;
       }else{
-        p.width=.11+p.age*(.24+p.expansion*.85);
-        p.height=.28+p.age*(.32+p.expansion*.3);
+        p.width=.11+p.age*(.36+p.expansion*.85);
+        const cooling=clamp((p.age-.2)/.5,0,1),jetHeight=.28+p.age*(.32+p.expansion*.3);
+        p.height=jetHeight+(p.width*1.15-jetHeight)*cooling;
         p.rotation=Math.atan2(p.vy,p.vx)-Math.PI/2;
         const dilution=Math.pow(.11*.28/(p.width*p.height),.4);
         p.opacity=plumeOpacity(p.age,p.lifetime)*dilution*(.35+.65*Math.sqrt(clamp(p.density,0,1)));

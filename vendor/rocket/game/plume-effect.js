@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createPlumeCore} from './plume-core.js';
 import { createPlumePool } from './plume.js';
 
 /** Anisotropic billboards distinguish the airborne jet from its low, rolling ground wake. */
@@ -62,7 +63,7 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
       }
       void main(){
         if(dot(vPlane.xy,vWorld.xy)+vPlane.z<.001||dot(vWall.xyz,vWorld)+vWall.w<0.0)discard;
-        if(firePass>.5){if(vHeat<.005||dot(vJet.xy,vWorld.xy)+vJet.z<0.0)discard;}
+        if(firePass>.5){if(vKind<.5||vHeat<.005||dot(vJet.xy,vWorld.xy)+vJet.z<0.0)discard;}
         else if(vOpacity<.001)discard;
         vec2 p=(vUv-.5)*2.0;
         vec2 drift=vec2(vSeed*.19,vSeed*.31+vAge*.3);
@@ -72,11 +73,10 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         float body=.55+textureNoise*.45;
         if(firePass>.5){
           float core=exp(-p.x*p.x*15.0)*(1.0-smoothstep(.15,1.0,abs(p.y)));
-          float diamonds=.84+.16*cos(p.y*19.0+vAge*9.0);
           float alpha=edge*edge*body*pow(vHeat,.75)*(.45+.55*vThrottle);
           vec3 coreColor=mix(vec3(.65,.84,1.0),vec3(1.0,.9,.45),step(2.5,vKind));
           vec3 color=mix(vec3(1.0,.22,.035),coreColor,core*vHeat);
-          gl_FragColor=vec4(color*(1.25+core*1.8)*diamonds,alpha);
+          gl_FragColor=vec4(color*(1.25+core*1.8),alpha);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
           return;
@@ -103,11 +103,13 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
   // The hot pass shares every parcel and collision plane with the cooling smoke.
   const fireMaterial=new THREE.ShaderMaterial({uniforms:{...uniforms,firePass:{value:1}},vertexShader:material.vertexShader,fragmentShader:material.fragmentShader,transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,forceSinglePass:true,blending:THREE.AdditiveBlending});
   const fire=new THREE.Mesh(geometry,fireMaterial);fire.name='rocket_fire';fire.frustumCulled=false;scene.add(fire);
+  const core=createPlumeCore(scene);
   return {
     emit(id,source,seconds,level){pool.emit(id,source,seconds,level,reducedMotion?40:96);},
     ignite(id,state,level){pool.ignite(id,state,level);},
     update(seconds,level,camera,renderer,emitters){
       pool.update(seconds,level,emitters);camera.updateMatrixWorld();
+      core.update(seconds,level,camera,emitters);
       uniforms.cameraRight.value.setFromMatrixColumn(camera.matrixWorld,0);uniforms.cameraUp.value.setFromMatrixColumn(camera.matrixWorld,1);
       uniforms.dark.value=Number(level.theme==='dark');uniforms.water.value=Number(level.theme==='water');
       for(let i=0;i<3;i++){
@@ -130,7 +132,7 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
       geometry.instanceCount=renderCount;
       for(const attribute of Object.values(geometry.attributes))if(attribute.isInstancedBufferAttribute)attribute.needsUpdate=true;
     },
-    reset(){pool.reset();geometry.instanceCount=0;},
+    reset(){pool.reset();core.reset();geometry.instanceCount=0;},
     get count(){return pool.count;},
     get statistics(){
       let air=0,ground=0,water=0,maxGroundHeight=0;
