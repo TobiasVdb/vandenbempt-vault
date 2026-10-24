@@ -1,6 +1,11 @@
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
-export function createDamageState(){return {hull:100,engine:100,left:100,right:100,nose:100,revision:0,lastHit:null};}
+export function createDamageState(){return {hull:100,engine:100,left:100,right:100,nose:100,legLeft:100,legRight:100,revision:0,lastHit:null};}
+
+export function breakLandingLeg(state,side,point){
+  const zone=side===0?'legLeft':'legRight';if(state.damage[zone]===0)return;
+  state.damage[zone]=0;state.damage.revision++;state.damage.lastHit={x:point[0],y:point[1],amount:20,zone};
+}
 
 /** Damage belongs to this attempt, never to the saved ship or its upgrades. */
 export function applyDamage(state,amount,point={x:0,y:0},reason='Hull integrity depleted.'){
@@ -24,6 +29,7 @@ export function destroyShip(state,reason){
 
 export function damageReadout(damage){
   if(damage.hull===0)return 'Spacecraft destroyed';
+  if(damage.legLeft===0||damage.legRight===0)return damage.legLeft===0&&damage.legRight===0?'Both landing legs broken':'Landing leg lost';
   if(damage.engine===0)return 'Engine disabled';
   if(damage.left===0||damage.right===0)return 'Steering thruster disabled';
   if(damage.hull<30)return 'Hull critical';

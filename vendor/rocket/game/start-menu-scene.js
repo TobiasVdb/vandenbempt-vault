@@ -169,13 +169,13 @@ export function createStartMenuScene({environment,reducedMotion,random=Math.rand
         actor.appearance.update(actor.rcs,flight.state.rcsTurn,flight.state.damage);
         const detached=actor.appearance.damage.update(flight.state.damage);
         if(detached.length)destruction.shed(detached,flight.state);
-        if(sample.status==='crashed'&&!actor.destroyed){destruction.destroy(actor.root,flight.state);actor.root.visible=false;actor.destroyed=true;}
+        if(sample.status==='crashed'&&!actor.destroyed){plume.ignite('showcase',flight.state,plumeLevel);destruction.destroy(actor.root,flight.state);actor.root.visible=false;actor.destroyed=true;}
         if(sample.engineArmed!==actor.engine){actor.system.playTrigger(sample.engineArmed?'Engine_start':'Engine_stop');actor.engine=sample.engineArmed;}
         actor.system.update(dt);
         actor.root.localToWorld(anchor.copy(actor.anchor));exhaustLight.position.copy(anchor);exhaustLight.intensity=sample.firing?sample.throttle*12:sample.heat*.65;
         // A rotating nozzle inherits its tangential motion as well as the hull's translation.
         const emitter={x:anchor.x,y:anchor.y,z:anchor.z,angle:sample.angle,
-          vy:sample.verticalSpeed+sample.angularSpeed*(anchor.x-actor.root.position.x),vx:sample.horizontalSpeed-sample.angularSpeed*(anchor.y-actor.root.position.y),firing:sample.firing,throttle:sample.throttle,density:1};
+          vy:sample.verticalSpeed+sample.angularSpeed*(anchor.x-actor.root.position.x),vx:sample.horizontalSpeed-sample.angularSpeed*(anchor.y-actor.root.position.y),firing:sample.firing,throttle:sample.throttle,power:flight.state.tuning.thrust*sample.throttle,density:1};
         if(sample.firing)plume.emit('showcase',emitter,dt,plumeLevel);
         plume.update(dt,plumeLevel,camera,renderer,[emitter]);
         destruction.update(dt,plumeLevel);

@@ -10,7 +10,7 @@ export function batchCraftDetails(root,animations=[]){
     const name=object.name.replaceAll('_',' ');
     const engineRings=/cooling ring|reinforced lip/i.test(name);
     if(!engineRings&&!/fastener|seam|stripe|insignia|stencil|manifold|brace|structural rail|conformal titanium rail|cooling slot|heat shield|power module|coupling|recess|throat|rotor blade|louver/i.test(name))return;
-    if(!engineRings&&/nav|window|visor|glaz|fin|wing|cheek|fairing|bell|collar/i.test(name))return;
+    if(!engineRings&&/nav|window|visor|glaz|fin|wing|vane|landing|shoe|cheek|fairing|bell|collar/i.test(name))return;
     // Siblings retain their shared parent's animation when merged in that parent's space.
     if(animated.has(object.name))return;
     const key=object.parent.uuid+object.material.uuid+Object.keys(object.geometry.attributes).sort().join(',')+(engineRings?':engine':':trim');

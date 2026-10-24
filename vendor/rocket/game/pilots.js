@@ -7,6 +7,7 @@ export function createPilot({speed=2.4,delay=0}={}){return {waypoint:0,pwm:0,spe
 /** Feedback control, not a prerecorded path: every command goes through normal flight physics. */
 export function pilotInput(pilot,state,level,elapsed){
   if(elapsed<pilot.delay||!['ready','flying'].includes(state.status))return {};
+  if(state.ground&&!state.ground.resting)return {};
   if(level.controls==='translation'){
     const route=[...level.route,level.dock?[level.dock.x,level.dock.y]:[level.rings.at(-1).x+2,level.rings.at(-1).y]];
     let target=route[Math.min(pilot.waypoint,route.length-1)];

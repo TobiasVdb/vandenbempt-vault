@@ -38,12 +38,16 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
       if(!room.race.racers.some(other=>other!==racer&&!other.waiting&&['ready','flying'].includes(other.state.status)&&polygonsOverlap(worldHull(racer.state,racer.hull),worldHull(other.state,other.hull)))){racer.waiting=false;return;}
     }racer.waiting=true;
   }
-  function createRoom(mission){
-    if(rooms.size>=40)fail(503,'All flight lanes are busy. Try again shortly.');
-    const level=LEVELS.find(level=>level.id===mission);if(!level)fail(400,'Unknown mission.');
+  function botRace(level){
     const race=createRace(level,{hull:hulls.aster,bots:[{id:'ash',name:'Ash',hull:hulls.futurama,delay:2.2},{id:'vesper',name:'Vesper',hull:hulls.wraith,delay:3.5}]});
     race.racers.shift();race.multiplayer=true;
     race.racers[0].ship='futurama';race.racers[0].color='#79b4d4';race.racers[1].ship='wraith';race.racers[1].color='#bc8fba';
+    return race;
+  }
+  function createRoom(mission){
+    if(rooms.size>=40)fail(503,'All flight lanes are busy. Try again shortly.');
+    const level=LEVELS.find(level=>level.id===mission);if(!level)fail(400,'Unknown mission.');
+    const race=botRace(level);
     const room={id:randomUUID(),level,race,players:new Map(),finishTimes:new Map(),round:0,nextLevelAt:null,touched:now()};rooms.set(room.id,room);return room;
   }
   function humanRacer(room,player,ship){
@@ -79,6 +83,12 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
       const previous=existing.players.get(player.id);
       if(completed(previous.state)&&existing.nextLevelAt!==null)return {room:snapshot(existing)};
       if(!previous.settling&&previous.startedAt!==null)settle(existing,previous);
+      if(existing.players.size===1){
+        existing.race=botRace(existing.level);existing.finishTimes.clear();existing.nextLevelAt=null;existing.round++;
+        const racer=humanRacer(existing,player,previous.ship);
+        existing.race.racers.unshift(racer);existing.players.set(player.id,racer);spawn(existing,racer);
+        return {room:snapshot(existing)};
+      }
       const racer=humanRacer(existing,player,previous.ship);
       existing.race.racers=existing.race.racers.map(item=>item===previous?racer:item);
       existing.finishTimes.delete(player.id);existing.players.set(player.id,racer);spawn(existing,racer);

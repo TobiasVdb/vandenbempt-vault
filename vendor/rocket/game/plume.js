@@ -59,20 +59,20 @@ export function plumeOpacity(age,lifetime){
 
 export function createPlumePool({capacity=1200,random=Math.random}={}){
   const particles=Array.from({length:capacity},()=>({active:false}));
-  const clocks=new Map(),surfaceScratch={};let cursor=0,obstacleHits=0;
+  const clocks=new Map(),fires=new Map(),surfaceScratch={};let cursor=0,obstacleHits=0;
 
   function spawn(source,level,delay,interval,effectiveRate){
     const p=particles[cursor++%capacity],side=cursor%2?1:-1;
     const water=level.theme==='water',density=source.density??1;
     const throttle=clamp(source.throttle??1,0,1),expansion=1-Math.sqrt(clamp(density,0,1));
-    const speed=(water?3:11+random()*3)*(.8+.2*Math.sqrt(throttle));
+    const speed=(water?3:source.fire?1.5+random()*2:11+random()*3)*(.8+.2*Math.sqrt(throttle));
     Object.assign(p,{active:true,x:source.x-(source.vx||0)*(interval-delay),y:source.y-(source.vy||0)*(interval-delay),z:source.z??.5,delay,
       vx:Math.sin(source.angle)*speed+(source.vx||0)+(random()-.5)*.3,
       vy:-Math.cos(source.angle)*speed+(source.vy||0)+(random()-.5)*.3,
       vz:(random()-.5)*(.15+expansion*.6),age:0,
-      lifetime:water?4+random()*2:(1.6+random()*.5)*(1-expansion*.5),
-      size:.12,width:.12,height:.24,hotLength:Math.max(.32,speed/effectiveRate*2.6),rotation:-source.angle,opacity:0,heat:water?0:1,
-      water,impacted:false,impactAge:0,impactHeat:0,side,radialAngle:cursor*2.39996323+random()*.2,seed:random()*100,
+      lifetime:water?4+random()*2:source.fire?4+random()*2:density>.1?6+random()*2:.8+random()*.3,
+      size:.12,width:.12,height:.24,hotLength:Math.max(.32,speed/effectiveRate*2.6),rotation:-source.angle,opacity:0,heat:water?0:(source.fireHeat??1),fireHeat:source.fireHeat??1,
+      water,fire:Boolean(source.fire),impacted:false,impactAge:0,impactHeat:0,side,radialAngle:cursor*2.39996323+random()*.2,seed:random()*100,
       density,expansion,throttle,wind:level.wind||0,nx:0,ny:1,plane:0,
       jetNx:Math.sin(source.angle),jetNy:-Math.cos(source.angle),jetD:-Math.sin(source.angle)*source.x+Math.cos(source.angle)*source.y,
       wallNx:0,wallNy:0,wallNz:0,wallD:1,wallAge:1,heatRetention:1});
@@ -89,8 +89,32 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
     clocks.set(id,pending);
   }
 
-  function update(seconds,level){
+  function ignite(id,state,level){
+    if(level.theme==='water')return;
+    const fuel=clamp(state.fuel||0,0,300),radius=.15+Math.sqrt(fuel)*.055;
+    const source={x:state.x,y:state.y,z:.4,angle:Math.PI,vx:0,vy:0,density:level.theme==='space'?0:1,throttle:1,fire:true,fireHeat:fuel>0?1:.03};
+    if(fuel>0){
+      if(fires.size>=8)fires.delete(fires.keys().next().value);
+      fires.set(id,{...source,left:Math.min(10,.04*fuel),radius,rate:12+Math.sqrt(fuel)*5});
+    }
+    const count=Math.min(capacity,Math.floor(4+fuel*.9));
+    for(let i=0;i<count;i++){
+      const angle=random()*Math.PI*2,spread=random()*radius;
+      spawn({...source,x:source.x+Math.cos(angle)*spread,y:source.y+Math.sin(angle)*spread},level,0,0,96);
+      const particle=particles[(cursor-1)%capacity];
+      particle.vx=Math.cos(angle)*(1+random()*4);particle.vy=Math.sin(angle)*(1+random()*4)+2;
+      particle.vz=(random()-.5)*2;particle.heat=fuel>0?1:.15;
+      particle.jetNx=particle.jetNy=0;particle.jetD=1;
+    }
+  }
+
+  function update(seconds,level,emitters=[]){
     if(seconds<=0)return;
+    for(const [id,fire]of fires){
+      const duration=Math.min(seconds,fire.left);fire.left-=duration;
+      emit('fire:'+id,{...fire,x:fire.x+(random()-.5)*fire.radius,y:fire.y+(random()-.5)*fire.radius,fire:true},duration,level,fire.rate);
+      if(fire.left<=0){fires.delete(id);clocks.delete('fire:'+id);}
+    }
     const steps=Math.ceil(seconds*120),dt=seconds/steps,obstacles=level.obstacles||[];
     for(let step=0;step<steps;step++)for(const p of particles){
       if(!p.active)continue;
@@ -98,11 +122,23 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
       p.age+=h;
       if(p.age>=p.lifetime){p.active=false;p.opacity=0;continue;}
       const grounded=p.impacted&&!p.water;
-      const drag=p.water?.8:grounded?.55:.38*p.density;
+      const cooled=!p.water&&!p.fire&&p.age>.25;
+      const drag=p.water?.8:grounded?.55:(cooled?2.4:.38)*p.density;
       p.vx+=(p.wind*.65-p.vx)*drag*h;
       p.vz*=Math.exp(-drag*h);
-      p.vy+=(p.water?2.2:grounded?.08:.12*p.density)*h;
-      p.vy*=Math.exp(-(grounded?3:p.water?.5:.2*p.density)*h);
+      p.vy+=(p.water?2.2:grounded?.08:p.fire?1.8*p.density:.3*p.density)*h;
+      p.vy*=Math.exp(-(grounded?3:p.water?.5:(cooled?2.4:.2)*p.density)*h);
+      // Every firing engine acts on every parcel, including an opponent's old trail.
+      if(p.age>.12)for(const source of emitters){
+        if(!source.firing)continue;
+        const dx=Math.sin(source.angle),dy=-Math.cos(source.angle),x=p.x-source.x,y=p.y-source.y,z=p.z-(source.z??.4);
+        const along=x*dx+y*dy;if(along<0||along>6)continue;
+        const across=x*dy-y*dx,radius=.22+along*.24;
+        const weight=Math.exp(-(across*across+z*z)/(radius*radius)*2)*(1-along/6);
+        const power=clamp((source.power??16.67*(source.throttle??1))/16.67,0,3),force=weight*power*h;
+        p.vx+=(dx*22+dy*across*7)*force;p.vy+=(dy*22-dx*across*7)*force;p.vz+=z*7*force;
+        if(p.impacted&&p.vy>1)p.impacted=false;
+      }
       const beforeX=p.x,beforeY=p.y,beforeZ=p.z;
       p.x+=p.vx*h;p.y+=p.vy*h;p.z+=p.vz*h;
       p.wallAge+=h;
@@ -159,11 +195,15 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
         const remaining=p.lifetime-p.age+p.impactAge;
         p.opacity=plumeOpacity(p.impactAge,remaining)*dilution*(.7+.3*p.throttle);
         p.heat=p.impactHeat*Math.exp(-p.impactAge/.13);p.hotLength=p.height;
+      }else if(p.fire){
+        p.width=.22+p.age*.5;p.height=.4+p.age*.65;p.rotation=0;
+        p.opacity=plumeOpacity(p.age,p.lifetime)*.8;p.heat=p.fireHeat*Math.max(0,1-p.age/.9)**2;p.hotLength=p.height;
+        p.jetNx=p.jetNy=0;p.jetD=1;
       }else{
         p.width=.11+p.age*(.24+p.expansion*.85);
         p.height=.28+p.age*(.32+p.expansion*.3);
         p.rotation=Math.atan2(p.vy,p.vx)-Math.PI/2;
-        const dilution=Math.pow(.11*.28/(p.width*p.height),.7);
+        const dilution=Math.pow(.11*.28/(p.width*p.height),.4);
         p.opacity=plumeOpacity(p.age,p.lifetime)*dilution*(.35+.65*Math.sqrt(clamp(p.density,0,1)));
         p.heat=Math.max(0,1-p.age/.2)*p.heatRetention;
       }
@@ -172,8 +212,9 @@ export function createPlumePool({capacity=1200,random=Math.random}={}){
     }
   }
 
-  return {particles,emit,update,
-    reset(){clocks.clear();cursor=0;obstacleHits=0;for(const p of particles){p.active=false;p.opacity=0;}},
+  return {particles,emit,ignite,update,
+    reset(){clocks.clear();fires.clear();cursor=0;obstacleHits=0;for(const p of particles){p.active=false;p.opacity=0;}},
+    get fires(){return fires.size;},
     get obstacleHits(){return obstacleHits;},
     get count(){return particles.reduce((count,p)=>count+Number(p.active),0);},
   };

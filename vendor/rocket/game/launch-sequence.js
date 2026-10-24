@@ -76,7 +76,7 @@ export function createLaunchSequence(hull,tuning={}){
     if(input.thrust||input.turn){manual=true;recovering=false;idle=0;}
     else if(manual){idle+=FIXED_STEP;if(idle+1e-10>=2)recover();}
     // Gameplay accepts an on/off main engine, so holding altitude uses real thrust pulses.
-    const desired=manual?{turn:clamp(input.turn||0,-1,1),duty:input.thrust?1:0}:recovering?recoveryCommand():command();
+    const desired=manual?{turn:clamp(input.turn||0,-1,1),duty:input.thrust?1:0}:state.ground&&!state.ground.resting?{turn:0,duty:0}:recovering?recoveryCommand():command();
     pwm+=desired.duty;const thrust=pwm>=1;if(thrust)pwm--;
     lastInput={turn:desired.turn,thrust};stepFlight(state,lastInput,level,hull,FIXED_STEP,solids);onStep?.(state);
     if(!manual&&!recovering)phaseTime+=FIXED_STEP;

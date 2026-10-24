@@ -3,11 +3,17 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import {createFlightPrediction} from '../vendor/rocket/game/flight-prediction.js'
 import path from 'node:path'
+import {readFile} from 'node:fs/promises'
+import {createLocalStore} from '../vendor/rocket/server/rocket-store.mjs'
+import {createRocketService} from '../vendor/rocket/server/rocket-service.mjs'
+import {createCrashReplay} from '../vendor/rocket/game/crash-replay.js'
+import {breakLandingLeg} from '../vendor/rocket/game/damage.js'
+import {createPlumePool} from '../vendor/rocket/game/plume.js'
 import express from 'express'
 import { createRocketHttp } from '../vendor/rocket/server/rocket-http.mjs'
 import { BASE_GRAVITY, BASE_THRUST, LANDING_LIMITS } from '../vendor/rocket/game/flight-balance.js';
 import { PLAYABLE_LEVELS } from '../vendor/rocket/game/levels.js';
-import { createFlight, stepFlight, FIXED_STEP, DEFAULT_HULL, environmentAt } from '../vendor/rocket/game/physics.js';
+import { createFlight, stepFlight, FIXED_STEP, DEFAULT_HULL, environmentAt, checkTerrainCollision } from '../vendor/rocket/game/physics.js';
 import { newProfile, flightTuning, sanitizeProfile } from '../vendor/rocket/game/progression.js';
 import { POD_TUNING } from '../vendor/rocket/game/pod.js';
 import { createPilot, pilotInput } from '../vendor/rocket/game/pilots.js';
@@ -76,9 +82,9 @@ test('all engine/frame tiers have identical engine-off vertical trajectories and
   assert.ok(-terminal.vy>LANDING_LIMITS.vertical*2,'Unpowered descent must still require landing control.');
 });
 
-test('landing accepts just below each threshold and rejects just above it',()=>{
+test('soft contact lands; excessive contact speed breaks the legs before hull destruction',()=>{
   const pad=amber.pads[1];
-  for(const [key,limit]of [['vy',LANDING_LIMITS.vertical],['vx',LANDING_LIMITS.horizontal],['angle',LANDING_LIMITS.angle]]){
+  for(const [key,limit]of [['vy',LANDING_LIMITS.vertical],['vx',LANDING_LIMITS.horizontal]]){
     for(const safe of [true,false]){
       const state=createFlight(amber),value=limit*(safe?.98:1.02);
       // Target contact speed, allowing for gravity during the final physics tick.
@@ -86,7 +92,8 @@ test('landing accepts just below each threshold and rejects just above it',()=>{
       const bottom=Math.min(...DEFAULT_HULL.map(([x,y])=>x*Math.sin(state.angle)+y*Math.cos(state.angle)));
       state.y=pad.y-bottom+.0001;
       stepFlight(state,{},amber,DEFAULT_HULL,FIXED_STEP,[]);
-      assert.equal(state.status,safe?'landed':'crashed',`${key} ${value}`);
+      if(safe)assert.equal(state.status,'landed',`${key} ${value}`);
+      else{assert.equal(state.status,'flying');assert.ok(state.damage.legLeft===0||state.damage.legRight===0);step(state,amber,.5);assert.equal(state.status,'crashed');}
     }
   }
 });
@@ -140,4 +147,149 @@ test('ballistic ascent and descent retain continuous acceleration through jitter
     }
     assert.ok(maxAcceleration<12,`${fps} Hz: snapshot timing introduced ${maxAcceleration.toFixed(2)} m/s² acceleration`);
   }
+});
+
+function terrain(slope=0,pads=[]){return {id:'contact-test',objective:'land',theme:'sandstone',gravity:9.8,floor:[[-10,-10*slope],[10,10*slope]],roof:[],pads,spawn:{x:0,y:1.05}};}
+function dropped(level,overrides={}){return Object.assign(createFlight(level),{status:'flying',vy:-.5,...overrides});}
+function run(state,level,seconds=4,solids){for(let i=0;i<seconds/FIXED_STEP&&state.status==='flying';i++)stepFlight(state,{},level,DEFAULT_HULL,FIXED_STEP,solids);return state;}
+
+test('gentle contact settles on ordinary terrain without awarding a race finish',()=>{
+  const level=terrain(),state=run(dropped(level),level);
+  assert.equal(state.status,'flying');assert.equal(state.ground.resting,true);
+  assert.equal(state.vy,0);assert.equal(state.omega,0);assert.equal(state.damage.hull,100);
+  stepFlight(state,{thrust:true},level);assert.equal(state.ground,null);assert.ok(state.vy>0);
+});
+
+test('both feet settle onto a gentle slope; gravity topples a steep-slope landing',()=>{
+  const gentle=terrain(.18),stable=run(dropped(gentle),gentle);
+  assert.equal(stable.damage.hull,100);assert.equal(stable.ground.resting,true);
+  assert.ok(Math.abs(stable.angle-Math.atan(.18))<.02);
+  const steep=terrain(.8),unstable=dropped(steep,{y:1.5});
+  let tilted=false;
+  for(let i=0;i<120*5&&unstable.status==='flying';i++){stepFlight(unstable,{},steep);tilted ||= Math.abs(unstable.angle)>.35;}
+  assert.ok(tilted);assert.equal(unstable.status,'crashed');
+});
+
+test('a small tilted touchdown falls onto both feet; a centre of mass outside the feet tips over',()=>{
+  const level=terrain();
+  const recovered=run(dropped(level,{angle:.2,y:1.15}),level);
+  assert.equal(recovered.damage.hull,100);assert.equal(recovered.ground.resting,true);assert.ok(Math.abs(recovered.angle)<.02);
+  const tipped=run(dropped(level,{angle:.65,y:1.5}),level);
+  assert.equal(tipped.status,'crashed');
+});
+
+test('a hard landing breaks the legs first, then the falling pressure hull is destroyed',()=>{
+  const level=terrain(),state=dropped(level,{y:1.001,vy:-6});
+  stepFlight(state,{},level);assert.equal(state.status,'flying');assert.equal(state.damage.hull,100);
+  assert.equal(state.damage.legLeft,0);assert.equal(state.damage.legRight,0);
+  run(state,level,.5);assert.equal(state.status,'crashed');assert.match(state.reason,/hull|terrain/i);
+});
+
+test('a glancing obstacle hit detaches one leg without instant hull destruction and prevents a stable landing',()=>{
+  const level=terrain(),state=dropped(level,{y:1.05,vx:-1});
+  const solids=[[[-100,0],[100,0],[100,-20],[-100,-20]],[[-.42,-.02],[-.3,-.02],[-.3,.08],[-.42,.08]]];
+  checkTerrainCollision(state,level,DEFAULT_HULL,solids);
+  assert.equal(state.damage.legLeft,0);assert.equal(state.damage.legRight,100);assert.equal(state.damage.hull,100);
+  run(state,level,5,solids);assert.equal(state.status,'crashed');
+  const fresh=createFlight(level);assert.equal(fresh.damage.legLeft,100);assert.equal(fresh.damage.legRight,100);
+});
+
+test('missing legs cannot be repaired by a pad; only an intact settled goal landing finishes the race',()=>{
+  const level=terrain(0,[{x:0,y:0,width:5,type:'goal'}]);
+  const safe=run(dropped(level),level);assert.equal(safe.status,'landed');
+  const broken=dropped(level);breakLandingLeg(broken,0,[-.38,-1]);
+  run(broken,level);assert.equal(broken.status,'crashed');assert.equal(broken.damage.legLeft,0);
+});
+
+test('clipping the side of a raised pad shears off the leg without teleporting onto its top',()=>{
+  const level=terrain(0,[{x:.6,y:.2,width:1,type:'goal'}]),state=dropped(level,{x:-.29,y:1.1,vx:1.5,vy:0});
+  stepFlight(state,{},level);assert.equal(state.damage.legRight,0);assert.equal(state.damage.legLeft,100);
+  assert.equal(state.damage.hull,100);assert.equal(state.status,'flying');assert.ok(state.y<1.11);
+  const displaced=dropped(level,{x:-.27,y:1.1});checkTerrainCollision(displaced,level);
+  assert.equal(displaced.damage.legRight,0);assert.equal(displaced.damage.hull,100);
+});
+
+const level=amber,source={x:-19,y:-7.1,z:.4,angle:0,vx:0,vy:0};
+const pool=()=>createPlumePool({random:()=>.5});
+test('firing engines push both pilots cooled smoke; greater engine power moves it farther',()=>{
+  const air={...level,floor:[[-100,-20],[100,-20]],roof:[],pads:[]};
+  const cases=[0,10,25].map(power=>{
+    const value=pool();for(const id of ['you','opponent'])value.emit(id,{...source,x:id==='you'?0:.05,y:10},.1,air);
+    value.update(.7,air);const parcel=value.particles.find(p=>p.active);
+    const emitter={x:parcel.x+1,y:parcel.y,z:parcel.z,angle:-Math.PI/2,firing:power>0,power};
+    value.update(.2,air,[emitter]);return value.particles.filter(p=>p.active);
+  });
+  assert.equal(cases[0].length,cases[1].length);
+  cases[0].forEach((quiet,index)=>{
+    assert.ok(cases[1][index].x<quiet.x-.03,'Either pilot exhaust must respond to the shared engine field.');
+    assert.ok(cases[2][index].x<cases[1][index].x-.03);
+  });
+});
+
+test('a descending rocket passes through its own lingering exhaust without taking damage',()=>{
+  const air={...level,floor:[[-100,-20],[100,-20]],roof:[],pads:[],spawn:{x:0,y:4}};
+  const state={...createFlight(air),status:'flying',vy:6},smoke=pool();let crossed=false;
+  for(let i=0;i<720&&!crossed&&state.status==='flying';i++){
+    stepFlight(state,{thrust:i<60},air);
+    if(i<60)smoke.emit('you',{x:state.x,y:state.y-1,z:.4,angle:0,vx:state.vx,vy:state.vy},FIXED_STEP,air);
+    smoke.update(FIXED_STEP,air);
+    crossed=state.vy<0&&smoke.particles.some(p=>p.active&&p.age>.8&&Math.abs(state.y-p.y)<.25);
+  }
+  assert.ok(crossed,'The old smoke trail must remain in the descent path after engine cutoff.');
+  assert.equal(state.damage.hull,100);assert.equal(state.status,'flying');
+});
+
+test('remaining fuel scales the burst and burn duration; empty tanks and underwater wrecks do not sustain fire',()=>{
+  const low=pool(),full=pool(),empty=pool(),water=pool(),wreck={x:0,y:1,fuel:20};
+  low.ignite('low',wreck,level);full.ignite('full',{...wreck,fuel:100},level);empty.ignite('empty',{...wreck,fuel:0},level);
+  water.ignite('wet',wreck,{...level,theme:'water'});
+  assert.ok(full.count>low.count*3);assert.equal(empty.fires,0);assert.equal(water.count,0);
+  empty.update(.1,level);assert.ok(empty.particles.filter(p=>p.active).every(p=>p.heat<=.03));
+  low.update(1,level);full.update(1,level);assert.equal(low.fires,0);assert.equal(full.fires,1);
+  for(let i=0;i<25;i++)full.update(1,level);
+  assert.equal(full.fires,0);assert.equal(full.count,0);
+  full.ignite('again',{...wreck,fuel:100},level);full.reset();assert.equal(full.fires,0);assert.equal(full.count,0);
+});
+
+test('a crash remains visible for two seconds and triggers only one automatic restart',()=>{
+  const replay=createCrashReplay();replay.start();
+  for(let i=0;i<119;i++){replay.update(1/60);assert.equal(replay.consume(),false);}
+  replay.update(1/60+1e-10);assert.equal(replay.consume(),true);assert.equal(replay.consume(),false);assert.equal(replay.active,false);
+});
+
+test('hidden or paused playback does not consume crash time; navigation and manual restart cancel pending work',()=>{
+  const replay=createCrashReplay();replay.start();replay.update(1);
+  assert.equal(replay.update(0),1);assert.equal(replay.consume(),false);
+  replay.cancel();assert.equal(replay.update(10),null);assert.equal(replay.consume(),false);
+  replay.start();assert.equal(replay.update(0),2);replay.update(2);assert.equal(replay.consume(),true);
+});
+
+const hulls=JSON.parse(await readFile(new URL('../vendor/rocket/server/ship-hulls.json',import.meta.url)));
+async function fixture(t){
+  let time=100000;const store=await createLocalStore(),service=createRocketService({store,hulls,now:()=>time,autoTick:false});
+  const server=http.createServer((req,res)=>service.handle(req,res,new URL(req.url,'http://localhost').pathname));
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base=`http://127.0.0.1:${server.address().port}`;
+  t.after(()=>{service.close();server.closeAllConnections();server.close();});
+  async function call(route,data,token,headers={}){
+    time+=40;const response=await fetch(base+route,{method:data===undefined?'GET':'POST',headers:{...(token?{Authorization:`Bearer ${token}`} :{}),...headers},body:data===undefined?undefined:JSON.stringify(data)});
+    return {status:response.status,value:await response.json()};
+  }
+  const a=await store.create('Alpha'),b=await store.create('Beta');return {store,service,base,call,a,b,advance:seconds=>{time+=seconds*1000;service.tick(seconds);}};
+}
+
+
+test('a solo retry resets the bots, timer and result order while retaining the room and pilot progress',async t=>{
+  const f=await fixture(t),joined=await f.call('/join',{mission:'amber',ship:'aster'},f.a.token),id=joined.value.room.id;
+  const room=f.service.rooms.get(id),previous=room.players.get(f.a.id);
+  room.race.started=true;room.race.elapsed=30;room.finishTimes.set('ash',25);
+  room.race.racers.find(r=>r.id==='ash').finishTime=25;
+  f.advance(.3);
+  const retry=await f.call('/join',{room:id,ship:'aster',restart:true},f.a.token);
+  assert.equal(retry.status,200);assert.equal(retry.value.room.id,id);assert.equal(f.service.rooms.size,1);
+  assert.equal(room.race.elapsed,0);assert.equal(room.race.started,false);assert.equal(room.round,1);assert.equal(room.finishTimes.size,0);
+  assert.equal(room.race.racers.filter(r=>r.pilot).length,2);
+  assert.ok(room.race.racers.every(r=>r.finishTime===null&&r.state.status==='ready'));
+  assert.notEqual(room.players.get(f.a.id).attemptId,previous.attemptId);
+  assert.equal((await f.call('/me',undefined,f.a.token)).value.player.profile.coins,0);
 });

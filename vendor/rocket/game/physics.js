@@ -1,6 +1,7 @@
 import { terrainSolids, meteorPolygon, meteorMotion } from './levels.js';
-import { createDamageState, applyImpact, applyDamage, destroyShip } from './damage.js';
+import { createDamageState, applyImpact, applyDamage, destroyShip, breakLandingLeg } from './damage.js';
 
+import { landingGeometry, landingFeet, stepGroundContact, resolveLandingContact, bodyTouchesGround } from './landing.js';
 import { flightHull, missionTuning } from './pod.js';
 import {BASE_GRAVITY,BASE_THRUST,LINEAR_DAMPING,LANDING_LIMITS} from './flight-balance.js';
 export {LANDING_LIMITS} from './flight-balance.js';
@@ -58,6 +59,7 @@ export function resolveShipCollision(a,b,hullA=DEFAULT_HULL,hullB=DEFAULT_HULL){
   const closing=(b.vx-b.omega*by-a.vx+a.omega*ay)*nx+(b.vy+b.omega*bx-a.vy-a.omega*ax)*ny;
   a.x-=nx*(depth+.00001)/2;a.y-=ny*(depth+.00001)/2;
   b.x+=nx*(depth+.00001)/2;b.y+=ny*(depth+.00001)/2;
+  if(a.ground)a.ground=null;if(b.ground)b.ground=null;
   if(closing>=0)return true;
   applyImpact(a,-closing,{x:cx,y:cy},'Hull destroyed in a collision with another spacecraft.');
   applyImpact(b,-closing,{x:cx,y:cy},'Hull destroyed in a collision with another spacecraft.');
@@ -81,8 +83,18 @@ export function resolveShipCollision(a,b,hullA=DEFAULT_HULL,hullB=DEFAULT_HULL){
 export function checkTerrainCollision(state,level,hull=DEFAULT_HULL,solids=terrainSolids(level)){
   if(!['ready','flying'].includes(state.status))return;
   if(level.controls==='translation'){resolveMeteorContacts(state,level,flightHull(level,hull));return;}
-  const body=worldHull(state,hull);
   const pads=level.pads.map(p=>[[p.x-p.width/2,p.y-.38],[p.x+p.width/2,p.y-.38],[p.x+p.width/2,p.y],[p.x-p.width/2,p.y]]);
+  if(level.objective==='land'){
+    for(const [side,foot]of landingFeet(state,hull).entries()){
+      if((state.damage[side===0?'legLeft':'legRight']??100)===0)continue;
+      const radius=.025,point=[[foot.x-radius,foot.y-radius],[foot.x+radius,foot.y-radius],[foot.x+radius,foot.y+radius],[foot.x-radius,foot.y+radius]];
+      const surface=level.floor;
+      // Foot contact with the supporting floor is handled by the landing solver.
+      const walls=solids.slice(Math.max(0,surface.length-1));
+      if(walls.some(p=>polygonsOverlap(point,p))||pads.some((shape,index)=>foot.y<level.pads[index].y-.03&&polygonsOverlap(point,shape)))breakLandingLeg(state,side,landingGeometry(hull).feet[side]);
+    }
+  }
+  const body=worldHull(state,level.objective==='land'?landingGeometry(hull).body:hull);
   if([...solids,...pads].some(p=>polygonsOverlap(body,p)))crash(state,level.theme==='space'?'Collision with a meteor.':'Contact with the terrain.');
 }
 
@@ -150,7 +162,7 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   if (!['ready','flying'].includes(state.status))return;
   hull=flightHull(level,hull);
   const tuning=state.tuning||{thrust:BASE_THRUST,turnPower:(100/60)/.396,capacity:100,rcs:0};
-  const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y},previousVy=state.vy;
+  const env=environmentAt(state,level),previousPosition={x:state.x,y:state.y,angle:state.angle},previousVy=state.vy;
   const turn=clamp(input.turn||0,-1,1),engine=state.damage.engine/100,steering=state.damage[turn>0?'right':'left']/100;
   const translation=level.controls==='translation';
   const thrust=!translation&&Boolean(input.thrust)&&state.fuel>0&&engine>0;
@@ -160,6 +172,13 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   if(state.fuel<=0||engine<=0){tx=0;ty=0;}
   if (state.status==='ready' && !thrust&&!(translation&&(tx||ty||turn||state.worldTime>0))) {if(!translation)state.fuel=Math.min(tuning.capacity,state.fuel+dt*12);return;}
   state.status='flying';state.time+=dt;
+  if(level.objective==='land'&&state.ground){
+    if(thrust)state.ground=null;
+    else if(stepGroundContact(state,level,hull,env.downward,dt)){
+      state.rcsTurn=0;
+      bodyTouchesGround(state,level,hull);checkTerrainCollision(state,level,hull,solids);return;
+    }
+  }
   state.rcsTurn=(translation||tuning.rcs>0)&&state.fuel>0&&steering>0?turn:0;
   const jetsAvailable=tuning.rcs>0&&state.fuel>0&&steering>0;
   const turnPower=(tuning.rcs>0&&!jetsAvailable?(100/60)/.396:tuning.turnPower)*(.35+.65*steering);
@@ -186,18 +205,25 @@ export function stepFlight(state,input,level,hull=DEFAULT_HULL,dt=FIXED_STEP,sol
   const previous=worldHull(state,hull),oldBottom=Math.min(...previous.map(p=>p[1]));
   state.x+=state.vx*dt;state.y+=(previousVy+state.vy)*dt/2;
   const body=worldHull(state,hull),bottom=Math.min(...body.map(p=>p[1])),left=Math.min(...body.map(p=>p[0])),right=Math.max(...body.map(p=>p[0]));
-  for(const [index,pad] of level.pads.entries()) {
-    const crossing=oldBottom>=pad.y-.025 && bottom<=pad.y && state.vy<=0;
-    const nearPad=right>=pad.x-pad.width/2 && left<=pad.x+pad.width/2;
-    if(!crossing || !nearPad)continue;
-    const inside=left>=pad.x-pad.width/2 && right<=pad.x+pad.width/2;
-    const safe=inside&&Math.abs(state.angle)<=LANDING_LIMITS.angle&&Math.abs(state.vx)<=LANDING_LIMITS.horizontal&&-state.vy<=LANDING_LIMITS.vertical;
-    if(safe){
-      state.y+=pad.y-bottom+.015;state.vx=0;state.vy=0;state.omega=0;state.angle=0;
-      state.y=pad.y-Math.min(...hull.map(p=>p[1]))+.015;
-      state.status=pad.type==='goal'?'landed':'ready';state.pad=index;state.thrust=0;
-    }else crash(state,inside?'Landing too hard or too tilted.':'Keep the whole ship over the pad.');
-    return;
+  if(level.objective==='land'){
+    if(bodyTouchesGround(state,level,hull))return;
+    resolveLandingContact(state,level,hull,previousPosition);
+    if(state.ground)stepGroundContact(state,level,hull,env.downward,0);
+    bodyTouchesGround(state,level,hull);
+  }else{
+    for(const [index,pad] of level.pads.entries()) {
+      const crossing=oldBottom>=pad.y-.025 && bottom<=pad.y && state.vy<=0;
+      const nearPad=right>=pad.x-pad.width/2 && left<=pad.x+pad.width/2;
+      if(!crossing || !nearPad)continue;
+      const inside=left>=pad.x-pad.width/2 && right<=pad.x+pad.width/2;
+      const safe=inside&&Math.abs(state.angle)<=LANDING_LIMITS.angle&&Math.abs(state.vx)<=LANDING_LIMITS.horizontal&&-state.vy<=LANDING_LIMITS.vertical;
+      if(safe){
+        state.y+=pad.y-bottom+.015;state.vx=0;state.vy=0;state.omega=0;state.angle=0;
+        state.y=pad.y-Math.min(...hull.map(p=>p[1]))+.015;
+        state.status=pad.type==='goal'?'landed':'ready';state.pad=index;state.thrust=0;
+      }else crash(state,inside?'Landing too hard or too tilted.':'Keep the whole ship over the pad.');
+      return;
+    }
   }
   // Pads have solid sides as well as a landing surface.
   checkTerrainCollision(state,level,hull,solids);

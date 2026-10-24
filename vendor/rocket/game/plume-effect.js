@@ -74,7 +74,8 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
           float core=exp(-p.x*p.x*15.0)*(1.0-smoothstep(.15,1.0,abs(p.y)));
           float diamonds=.84+.16*cos(p.y*19.0+vAge*9.0);
           float alpha=edge*edge*body*pow(vHeat,.75)*(.45+.55*vThrottle);
-          vec3 color=mix(vec3(1.0,.22,.035),vec3(.65,.84,1.0),core*vHeat);
+          vec3 coreColor=mix(vec3(.65,.84,1.0),vec3(1.0,.9,.45),step(2.5,vKind));
+          vec3 color=mix(vec3(1.0,.22,.035),coreColor,core*vHeat);
           gl_FragColor=vec4(color*(1.25+core*1.8)*diamonds,alpha);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -84,6 +85,7 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         if(alpha<.001)discard;
         float ground=step(.5,vKind)*(1.0-water);
         vec3 smoke=mix(vec3(.44,.47,.48),vec3(.48,.45,.40),ground);
+        smoke=mix(smoke,vec3(.15,.14,.13),step(2.5,vKind));
         smoke=mix(smoke,vec3(.43,.71,.78),water);
         vec3 color=mix(smoke,vec3(1.0,.62,.27),vHeat);
         float illumination=1.0;
@@ -103,8 +105,9 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
   const fire=new THREE.Mesh(geometry,fireMaterial);fire.name='rocket_fire';fire.frustumCulled=false;scene.add(fire);
   return {
     emit(id,source,seconds,level){pool.emit(id,source,seconds,level,reducedMotion?40:96);},
+    ignite(id,state,level){pool.ignite(id,state,level);},
     update(seconds,level,camera,renderer,emitters){
-      pool.update(seconds,level);camera.updateMatrixWorld();
+      pool.update(seconds,level,emitters);camera.updateMatrixWorld();
       uniforms.cameraRight.value.setFromMatrixColumn(camera.matrixWorld,0);uniforms.cameraUp.value.setFromMatrixColumn(camera.matrixWorld,1);
       uniforms.dark.value=Number(level.theme==='dark');uniforms.water.value=Number(level.theme==='water');
       for(let i=0;i<3;i++){
@@ -117,7 +120,7 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         const i=renderCount++;
         centers[i*3]=p.x;centers[i*3+1]=p.y;centers[i*3+2]=p.z;
         sizes[i*2]=p.width;sizes[i*2+1]=p.height;
-        rotations[i]=p.rotation;types[i]=p.water?2:Number(p.impacted);
+        rotations[i]=p.rotation;types[i]=p.fire?3:p.water?2:Number(p.impacted);
         parcels[i*4]=p.opacity;parcels[i*4+1]=p.heat;parcels[i*4+2]=p.seed;parcels[i*4+3]=p.age;
         planes[i*3]=p.nx;planes[i*3+1]=p.ny;planes[i*3+2]=p.plane;
         walls[i*4]=p.wallNx;walls[i*4+1]=p.wallNy;walls[i*4+2]=p.wallNz;walls[i*4+3]=p.wallD;

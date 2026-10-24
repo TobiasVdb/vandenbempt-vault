@@ -6,7 +6,7 @@ import { surfaceAt } from './levels.js';
 const hullNames=new Set(['Checkerboard pressure hull','Planet Express pressure hull','Racing fuselage','Faceted stealth monocoque','Aster blade monocoque','Pod pressure hull']);
 const nameOf=object=>(object?.name??'').replaceAll('_',' ');
 const isHull=object=>hullNames.has(nameOf(object))||hullNames.has(nameOf(object.parent));
-const isPart=object=>/fin|wing|armor cheek|shoe|fairing|bell|collar|cooling ring|reinforced lip|upper rotation nozzle/i.test(nameOf(object));
+const isPart=object=>/fin|wing|vane|armor cheek|shoe|fairing|bell|collar|cooling ring|reinforced lip|upper rotation nozzle/i.test(nameOf(object));
 
 /** Each actor owns its dents; GLB templates, animation nodes and collision outlines stay intact. */
 export function createCraftDamage(root){
@@ -20,7 +20,8 @@ export function createCraftDamage(root){
       object.geometry.computeBoundingBox();
       const center=object.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(object.matrixWorld).applyMatrix4(inverseRoot);
       const engine=/bell|collar|cooling ring|reinforced lip/i.test(nameOf(object));
-      parts.push({object,visible:object.visible,zone:engine?'engine':center.x<0?'left':'right'});
+      const leg=/landing|delivery fin|swept racing fin|interceptor wing|vane|ivory fin flash|fin reinforcement/i.test(nameOf(object));
+      parts.push({object,visible:object.visible,zone:leg?(center.x<0?'legLeft':'legRight'):engine?'engine':center.x<0?'left':'right'});
     }
   });
   function reset(){
@@ -35,7 +36,7 @@ export function createCraftDamage(root){
       if(damage.revision===0){reset();return [];}
       root.updateWorldMatrix(true,true);inverseRoot.copy(root.matrixWorld).invert();
       const hit=damage.lastHit;
-      if(hit)for(const body of bodies){
+      if(hit&&!hit.zone.startsWith('leg'))for(const body of bodies){
         if(!body.dented){body.dented=body.original.clone();body.object.geometry=body.dented;}
         const transform=inverseRoot.clone().multiply(body.object.matrixWorld),inverse=transform.clone().invert();
         const positions=body.dented.attributes.position,direction=new THREE.Vector2(-hit.x,-hit.y).normalize();
