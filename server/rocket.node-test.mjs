@@ -369,3 +369,24 @@ test('a later human landing extends the shared deadline for that crew to disemba
   while(room.race.elapsed<original+.2)f.advance(.1);
   assert.equal(room.round,0,'The second crew must not be interrupted by the first deadline.');
 });
+
+import {createLandingHttp} from '../vendor/rocket/landing/server/http.mjs';
+import {createMetrics,createNewsletterStore} from '../vendor/rocket/landing/server/services.mjs';
+test('the landing replaces only the Rocket root, preserves /game and stores newsletter consent through the host body parser',async t=>{
+  const fs=await import('node:fs/promises'),os=await import('node:os'),dir=await fs.mkdtemp(path.join(os.tmpdir(),'rocket-landing-host-'));
+  t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+  const newsletter=await createNewsletterStore({file:path.join(dir,'newsletter.json')}),metrics=await createMetrics();
+  const landingHandler=createLandingHttp({root:path.resolve('vendor/rocket/landing'),getServices:()=>({newsletter,metrics,reporter:{enabled:false},config:{steamUrl:null,newsletterReady:true}})});
+  const app=express();app.use(express.json());const handle=createRocketHttp({root:path.resolve('vendor/rocket'),getService:()=>null,landingHandler});app.use('/rocket',(req,res)=>{void handle(req,res)});
+  app.get('*',(_req,res)=>res.send('Other host routes'));
+  const server=http.createServer(app);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>{server.closeAllConnections();server.close()});
+  const base='http://127.0.0.1:'+server.address().port;
+  const html=await(await fetch(base+'/rocket/')).text();assert.ok(html.includes('<base href="./landing/">'));assert.ok(html.includes('Three pilots.'));assert.ok(html.includes('https://rocket.planetarypixel.be/game/'));
+  assert.ok((await(await fetch(base+'/rocket/game/')).text()).includes('pilot-dialog'));
+  for(const route of ['/rocket/landing/src/app.js','/rocket/landing/runtime/ships/aster.glb','/rocket/landing/api/config'])assert.equal((await fetch(base+route)).status,200,route);
+  for(const route of ['/rocket/landing/server/http.mjs','/rocket/landing/.data/newsletter.json'])assert.equal((await fetch(base+route)).status,404,route);
+  const signup=await fetch(base+'/rocket/landing/api/newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'host-qa@example.test',consent:true})});assert.equal(signup.status,200);const receipt=await signup.json();assert.ok(receipt.unsubscribeToken);assert.equal(newsletter.totals().newsletter_subscribers,1);
+  assert.equal((await fetch(base+'/rocket/landing/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',sequence:1,events:{page_view:1},activeMs:50})})).status,202);
+  assert.equal(metrics.snapshot().days[new Date().toISOString().slice(0,10)].events.page_view,1);
+  assert.equal(await(await fetch(base+'/bob/')).text(),'Other host routes');
+});

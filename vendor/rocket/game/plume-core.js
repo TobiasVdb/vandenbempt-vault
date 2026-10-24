@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {plumeJetReach} from './plume.js';
 
 /** A continuous hot core avoids the repeated bright parcels of a sideways jet. */
-export function createPlumeCore(scene,{capacity=8}={}){
+export function createPlumeCore(scene,{capacity=8,widthScale=1}={}){
   const base=new THREE.PlaneGeometry(1,1),geometry=new THREE.InstancedBufferGeometry();
   geometry.index=base.index;geometry.attributes.position=base.attributes.position;geometry.attributes.uv=base.attributes.uv;
   const origins=new Float32Array(capacity*3),flows=new Float32Array(capacity*4),planes=new Float32Array(capacity*3),walls=new Float32Array(capacity*4),powers=new Float32Array(capacity);
@@ -32,7 +32,7 @@ export function createPlumeCore(scene,{capacity=8}={}){
         const upgrade=Math.sqrt((source.power??16.67*throttle)/(16.67*throttle));
         const length=(.35+.95*Math.sqrt(throttle))*upgrade*(1+(1-(source.density??1))*.5),reach=plumeJetReach(source,level,length);
         if(reach.length<.02)continue;const i=count++;
-        origins.set([source.x,source.y,source.z??.4],i*3);flows.set([Math.sin(source.angle),-Math.cos(source.angle),reach.length,.045+.1*Math.sqrt(throttle)],i*4);
+        origins.set([source.x,source.y,source.z??.4],i*3);flows.set([Math.sin(source.angle),-Math.cos(source.angle),reach.length,(.045+.1*Math.sqrt(throttle))*widthScale],i*4);
         planes.set(reach.plane,i*3);walls.set(reach.wall,i*4);powers[i]=Math.sqrt(throttle);
       }
       geometry.instanceCount=count;for(const name of ['origin','flow','floorClip','wallClip','strength'])geometry.attributes[name].needsUpdate=true;

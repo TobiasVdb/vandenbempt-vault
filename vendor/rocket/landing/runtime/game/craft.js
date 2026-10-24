@@ -1,0 +1,97 @@
+import * as THREE from 'three';
+import { POD_HULL } from './pod.js';
+import { convexHull } from './physics.js';
+import { createCraftDamage } from './damage-effect.js';
+
+const paintNames=new Set(['Ceramic ivory','Vermilion enamel','Sage green alloy','Oxblood fins','Pearl titanium armor','Aster porcelain alloy']);
+export function decorateCraft(root){
+  const originalChildren=root.children.map(object=>({object,visible:object.visible}));
+  const pod=new THREE.Group();pod.name='navigation_pod';pod.visible=false;root.add(pod);
+  const shell=new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape(POD_HULL.map(([x,y])=>new THREE.Vector2(x,y))),{depth:.28,bevelEnabled:false}),new THREE.MeshStandardMaterial({color:'#d7d8cb',metalness:.35,roughness:.6}));
+  shell.position.z=-.14;shell.name='Pod pressure hull';pod.add(shell);
+  const bumper=new THREE.Mesh(new THREE.TorusGeometry(.3,.035,4,8),new THREE.MeshStandardMaterial({color:'#59666b',roughness:.9}));bumper.position.z=.12;pod.add(bumper);
+  const window=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.025,12),new THREE.MeshStandardMaterial({color:'#294b60',emissive:'#1b3f52',emissiveIntensity:.5,metalness:.3,roughness:.25}));
+  window.rotation.x=Math.PI/2;window.position.z=.16;pod.add(window);
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(.1,.045,.02),new THREE.MeshStandardMaterial({color:'#e6ad57',roughness:.65}));stripe.position.set(0,-.235,.16);pod.add(stripe);
+  let podActive=false;
+  const materials=new Map(),jets=[],translationJets=[],fittings=[],navigationLamps=[];
+  const jetHeight=.57,attachments=[];let front=.17;
+  const collision=root.getObjectByName('collision');
+  if(collision?.geometry){
+    root.updateWorldMatrix(true,true);
+    const transform=root.matrixWorld.clone().invert().multiply(collision.matrixWorld),points=[];
+    const position=collision.geometry.attributes.position;
+    for(let i=0;i<position.count;i++){
+      const point=new THREE.Vector3().fromBufferAttribute(position,i).applyMatrix4(transform);points.push([point.x,point.y]);front=Math.max(front,point.z+.025);
+    }
+    const hull=convexHull(points);
+    for(let i=0;i<hull.length;i++){
+      const a=hull[i],b=hull[(i+1)%hull.length];
+      if(a[1]===b[1]||jetHeight<Math.min(a[1],b[1])||jetHeight>Math.max(a[1],b[1]))continue;
+      attachments.push(a[0]+(b[0]-a[0])*(jetHeight-a[1])/(b[1]-a[1]));
+    }
+  }
+  // Small fore/aft and lateral ports are supplied by the zero-g mission's manoeuvring kit.
+  for(const [name,x,y,dx,dy] of [['left',-.18,.05,-1,0],['right',.18,.05,1,0],['up',0,.38,0,1],['down',0,-.38,0,-1]]){
+    const group=new THREE.Group();group.name=`translation_jet_${name}`;group.position.set(x,y,front);group.visible=false;root.add(group);
+    const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(.018,.026,.055,8),new THREE.MeshStandardMaterial({color:'#82949f',metalness:.8,roughness:.35}));
+    const flare=new THREE.Mesh(new THREE.ConeGeometry(.024,.2,8),new THREE.MeshBasicMaterial({color:'#9de2ff',transparent:true,opacity:.8,toneMapped:false,blending:THREE.AdditiveBlending,depthWrite:false}));
+    const angle=Math.atan2(-dx,dy);nozzle.rotation.z=angle;flare.rotation.z=angle;
+    nozzle.position.set(dx*.02,dy*.02,0);flare.position.set(dx*.14,dy*.14,0);group.add(nozzle,flare);
+    // Exhaust points outward; the opposing port provides the requested acceleration.
+    translationJets.push({group,flare,dx,dy});
+  }
+  root.traverse(object=>{
+    if(!object.isMesh)return;
+    const clone=material=>{
+      if(!materials.has(material)){const copy=material.clone();materials.set(material,{copy,color:material.color.clone()});}
+      return materials.get(material).copy;
+    };
+    object.material=Array.isArray(object.material)?object.material.map(clone):clone(object.material);
+  });
+  const fittingMaterial=new THREE.MeshStandardMaterial({color:'#b49a66',metalness:.75,roughness:.4});
+  for(const [kind,y,width] of [['engine',-.66,.12],['tank',-.26,.17],['frame',.18,.1]])for(let tier=1;tier<=3;tier++){
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(width,.018,.022),fittingMaterial);mesh.name=`fitted_${kind}_${tier}`;mesh.position.set(0,y+(tier-1)*.037,front);mesh.visible=false;root.add(mesh);fittings.push({mesh,kind,tier});
+  }
+  for(const side of [-1,1]){
+    const edge=attachments.length?(side>0?Math.max(...attachments):Math.min(...attachments)):side*.12;
+    const group=new THREE.Group();group.name=`upper_rotation_${side>0?'right':'left'}`;
+    group.position.set(edge-side*.008,jetHeight,0);group.scale.setScalar(.35);root.add(group);
+    const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(.045,.065,.14,10),new THREE.MeshStandardMaterial({color:'#76848b',metalness:.8,roughness:.35}));
+    nozzle.name=`upper_rotation_nozzle_${side>0?'right':'left'}`;
+    nozzle.rotation.z=-side*Math.PI/2;nozzle.position.x=side*.06;group.add(nozzle);
+    const flare=new THREE.Mesh(new THREE.ConeGeometry(.04,.27,10),new THREE.MeshBasicMaterial({color:'#b4e6ff',transparent:true,opacity:.9,toneMapped:false,blending:THREE.AdditiveBlending,depthWrite:false}));
+    flare.rotation.z=-side*Math.PI/2;flare.position.x=side*.21;group.add(flare);jets.push({group,flare,side});
+    flare.name=`upper_rotation_flame_${side>0?'right':'left'}`;
+  }
+  for(const [name,color] of [['nav_port_lens','#ed4848'],['nav_starboard_lens','#63ee92']]){
+    const lens=root.getObjectByName(name);if(!lens)continue;
+    root.updateMatrixWorld(true);const position=root.worldToLocal(lens.getWorldPosition(new THREE.Vector3()));
+    const lamp=new THREE.PointLight(color,.7,4,2);lamp.position.copy(position);root.add(lamp);navigationLamps.push(lamp);
+  }
+  return {
+    damage:createCraftDamage(root),
+    configure(tuning,navigationLighting=true){
+      if(Boolean(tuning.pod)!==podActive){
+        podActive=Boolean(tuning.pod);pod.visible=podActive;
+        for(const {object,visible} of originalChildren)object.visible=podActive?false:visible;
+        for(const jet of translationJets)jet.group.position.set(podActive?jet.dx*.34:jet.dx*.18,podActive?jet.dy*.34:jet.dy*.38+(jet.dx!==0?.05:0),podActive?.16:front);
+      }
+      if(podActive){for(const fitting of fittings)fitting.mesh.visible=false;for(const lamp of navigationLamps)lamp.visible=false;return;}
+      for(const fitting of fittings)fitting.mesh.visible=(tuning[`${fitting.kind}Tier`]||0)>=fitting.tier;
+      // Emissive navigation lenses remain visible in daylight; only night needs cast light.
+      for(const lamp of navigationLamps)lamp.visible=navigationLighting;
+    },
+    paint(color){
+      for(const {copy,color:original} of materials.values())if(paintNames.has(copy.name)){
+        if(color){copy.color.set(color);if(['Ceramic ivory','Aster porcelain alloy'].includes(copy.name))copy.color.lerp(new THREE.Color('#e5e4dc'),.25);}
+        else copy.color.copy(original);
+      }
+    },
+    update(tier,turn,damage,translation=null){
+      for(const jet of jets){jet.group.visible=!podActive&&(tier>0||translation!==null)&&(damage?.[jet.side>0?'right':'left']??100)>0;jet.flare.visible=turn*jet.side>.05;}
+      const c=Math.cos(root.rotation.z),s=Math.sin(root.rotation.z),x=translation?translation.x*c+translation.y*s:0,y=translation?-translation.x*s+translation.y*c:0;
+      for(const jet of translationJets){jet.group.visible=translation!==null;const force=Math.max(0,-x*jet.dx-y*jet.dy);jet.flare.visible=force>.02;jet.flare.scale.y=.4+force*.6;}
+    },
+  };
+}

@@ -3,7 +3,7 @@ import {createPlumeCore} from './plume-core.js';
 import { createPlumePool } from './plume.js';
 
 /** Anisotropic billboards distinguish the airborne jet from its low, rolling ground wake. */
-export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,random=Math.random}={}){
+export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,random=Math.random,widthScale=1}={}){
   const pool=createPlumePool({capacity,random});
   const centers=new Float32Array(capacity*3),sizes=new Float32Array(capacity*2),planes=new Float32Array(capacity*3),rotations=new Float32Array(capacity),types=new Float32Array(capacity);
   const geometry=new THREE.InstancedBufferGeometry();geometry.instanceCount=0;
@@ -103,7 +103,7 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
   // The hot pass shares every parcel and collision plane with the cooling smoke.
   const fireMaterial=new THREE.ShaderMaterial({uniforms:{...uniforms,firePass:{value:1}},vertexShader:material.vertexShader,fragmentShader:material.fragmentShader,transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,forceSinglePass:true,blending:THREE.AdditiveBlending});
   const fire=new THREE.Mesh(geometry,fireMaterial);fire.name='rocket_fire';fire.frustumCulled=false;scene.add(fire);
-  const core=createPlumeCore(scene);
+  const core=createPlumeCore(scene,{widthScale});
   return {
     emit(id,source,seconds,level){pool.emit(id,source,seconds,level,reducedMotion?40:96);},
     ignite(id,state,level){pool.ignite(id,state,level);},
@@ -121,7 +121,7 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         if(!p.active)continue;
         const i=renderCount++;
         centers[i*3]=p.x;centers[i*3+1]=p.y;centers[i*3+2]=p.z;
-        sizes[i*2]=p.width;sizes[i*2+1]=p.height;
+        sizes[i*2]=p.width*widthScale;sizes[i*2+1]=p.height;
         rotations[i]=p.rotation;types[i]=p.fire?3:p.water?2:Number(p.impacted);
         parcels[i*4]=p.opacity;parcels[i*4+1]=p.heat;parcels[i*4+2]=p.seed;parcels[i*4+3]=p.age;
         planes[i*3]=p.nx;planes[i*3+1]=p.ny;planes[i*3+2]=p.plane;

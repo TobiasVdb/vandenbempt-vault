@@ -242,6 +242,13 @@ const pool = poolConfig ? new Pool(poolConfig) : null
 // Rocket owns only this mount and additive rocket_* tables; other routes stay independent.
 const rocketDir = path.resolve(process.cwd(), 'vendor', 'rocket')
 let rocketService = null
+let rocketLandingServices = null
+const rocketLandingDir = path.join(rocketDir, 'landing')
+const rocketLandingModules = fs.existsSync(path.join(rocketLandingDir, 'server', 'http.mjs'))
+  ? await Promise.all([
+    import(pathToFileURL(path.join(rocketLandingDir, 'server', 'http.mjs')).href),
+    import(pathToFileURL(path.join(rocketLandingDir, 'server', 'postgres.mjs')).href),
+  ]) : null
 const rocketModules = fs.existsSync(path.join(rocketDir, 'server', 'rocket-service.mjs'))
   ? await Promise.all([
     import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-service.mjs')).href),
@@ -249,7 +256,8 @@ const rocketModules = fs.existsSync(path.join(rocketDir, 'server', 'rocket-servi
     import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-http.mjs')).href),
   ]) : null
 if (rocketModules) {
-  const handleRocket = rocketModules[2].createRocketHttp({ root: rocketDir, getService: () => rocketService })
+  const landingHandler = rocketLandingModules?.[0].createLandingHttp({ root: rocketLandingDir, getServices: () => rocketLandingServices })
+  const handleRocket = rocketModules[2].createRocketHttp({ root: rocketDir, getService: () => rocketService, landingHandler })
   app.get(/^\/rocket$/, (_request, response) => response.redirect(302, '/rocket/'))
   app.use('/rocket', (request, response) => {
     void handleRocket(request, response).catch(() => {
@@ -3300,6 +3308,13 @@ initializeDatabase()
           ringDbInitError = error instanceof Error ? error.message : 'Ring Eater database initialization failed.'
           console.error('Ring Eater database initialization failed:', error)
         })
+
+      if (rocketLandingModules) {
+        void rocketLandingModules[1].createProductionServices(pool).then((services) => {
+          rocketLandingServices = services
+          console.log('Rocket landing newsletter and metrics database are ready.')
+        }).catch(() => console.warn('Rocket landing database initialization failed; signup stays unavailable.'))
+      }
 
       if (rocketModules) {
         void rocketModules[1].createPostgresStore(pool).then((store) => {
