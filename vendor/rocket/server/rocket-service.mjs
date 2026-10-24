@@ -27,7 +27,7 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
   function roomList(){return [...rooms.values()].map(room=>({id:room.id,mission:room.level.id,name:room.level.name,players:room.players.size,capacity:ROOM_CAPACITY}));}
   function lobby(){lastLobby=now();everyone('lobby',{rooms:roomList(),players:[...sessions.values()].filter(player=>streams.has(player.id)).map(player=>({id:player.id,name:player.name,room:members.get(player.id)||null}))});}
   function snapshot(room){return {id:room.id,mission:room.level.id,round:room.round,nextLevelIn:room.nextLevelAt===null?null:Math.max(0,room.nextLevelAt-room.race.elapsed),elapsed:room.race.elapsed,started:room.race.started,contacts:room.race.contacts,
-    racers:room.race.racers.map(racer=>({id:racer.id,attemptId:racer.attemptId,name:racer.name,ship:racer.ship||'futurama',color:racer.color??null,state:racer.state,hull:racer.hull,finishTime:racer.finishTime,waiting:Boolean(racer.waiting),result:racer.result||null}))};}
+    racers:room.race.racers.map(racer=>({id:racer.id,attemptId:racer.attemptId,inputSequence:racer.inputSequence??null,name:racer.name,ship:racer.ship||'futurama',color:racer.color??null,state:racer.state,hull:racer.hull,finishTime:racer.finishTime,waiting:Boolean(racer.waiting),result:racer.result||null}))};}
   function leave(id){const room=rooms.get(members.get(id));if(!room)return;
     room.players.delete(id);room.race.racers=room.race.racers.filter(racer=>racer.id!==id);members.delete(id);room.touched=now();to(id,'left',{});lobby();
   }
@@ -180,7 +180,11 @@ export function createRocketService({store,hulls,now=Date.now,autoTick=true}){
         if(typeof data.thrust!=='boolean'||!Number.isFinite(data.turn)||Math.abs(data.turn)>1)fail(400,'Invalid flight input.');
         const translation={};
         for(const axis of ['translateX','translateY'])if(data[axis]!==undefined){if(!Number.isFinite(data[axis])||Math.abs(data[axis])>1)fail(400,'Invalid translation input.');translation[axis]=data[axis];}
-        limited(`input:${player.id}`,25);racer.input={thrust:data.thrust,turn:data.turn,...translation};racer.inputAt=now();return json(res,200,{ok:true});
+        if(data.inputSequence!==undefined&&(!Number.isSafeInteger(data.inputSequence)||data.inputSequence<0))fail(400,'Invalid input sequence.');
+        limited(`input:${player.id}`,25);
+        if(data.inputSequence===undefined||racer.inputSequence===undefined||data.inputSequence>racer.inputSequence){racer.input={thrust:data.thrust,turn:data.turn,...translation};racer.inputSequence=data.inputSequence;racer.inputAt=now();}
+        else if(data.inputSequence===racer.inputSequence)racer.inputAt=now();
+        return json(res,200,{ok:true});
       }
       if(route==='/chat'){
         limited(`chat:${player.id}`,750);const text=typeof data.text==='string'?data.text.trim():'';

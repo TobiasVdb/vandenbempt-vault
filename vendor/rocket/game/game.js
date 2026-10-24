@@ -21,6 +21,7 @@ import { createOnline } from './online.js';
 import { levelAssetFile, prepareLevelModel, resetLevelModel } from './level-assets.js';
 import { createRocketAudio } from './rocket-audio.js';
 import { createFlightPresentation } from './flight-presentation.js';
+import { createFlightPrediction } from './flight-prediction.js';
 import { batchCraftDetails } from './craft-batching.js';
 import { createRenderBudget } from './render-budget.js';
 
@@ -62,6 +63,7 @@ const plume=createPlumeEffect(scene,{reducedMotion});
 const destruction=createDestructionEffect(scene,{capacity:reducedMotion?32:96,reducedMotion});
 const rocketAudio=createRocketAudio();
 const flightPresentation=createFlightPresentation();
+const flightPrediction=createFlightPrediction();
 const flightCamera=createFlightCamera();
 let selected=null,course=0,level=LEVELS[0],plumeEnvironment=level,state=null;
 let mode='menu',elapsed=0,accumulator=0,last=performance.now(),lastEngine=false,shake=0;
@@ -232,6 +234,7 @@ function acceptNetworkRace(snapshot,playerId){
   }else if(newAttempt)resetFlight();
   const ordered=[own,...snapshot.racers.filter(racer=>racer!==own)].map(racer=>({...racer,id:racer.id===playerId?'you':racer.id}));
   flightPresentation.receive(ordered,performance.now()/1000);
+  flightPrediction.receive(own.state,own.waiting?null:own.inputSequence,performance.now()/1000,level,own.hull);
   race={...snapshot,level,racers:ordered,finished:Boolean(own.result)};state=own.state;
   for(const racer of ordered.slice(1)){
     const previous=botVisuals.get(racer.id);if(previous&&previous.ship!==racer.ship)removeRemoteVisual(racer.id,previous);
@@ -271,7 +274,7 @@ online=createOnline({storage,getShip:()=>$('ship').value,getMission:()=>level,is
 // Network input cadence must not depend on WebGL frame rate or shader compilation.
 setInterval(()=>{
   if(!networkRoom)return;
-  online.sendInput(mode==='running'?controls.read(level.controls==='translation'):{thrust:false,turn:0});controls.advance(.1);
+  sendFlightInput(mode==='running'?controls.readHeld(level.controls==='translation'):{thrust:false,turn:0});
 },100);
 let scoresRequest=0;
 async function showScores(){
@@ -298,7 +301,7 @@ function showBrief(){
   if(online)showScores();
 }
 function resetFlight(brief=false){
-  flightPresentation.reset();flightCamera.reset();
+  flightPresentation.reset();flightPrediction.reset();flightCamera.reset();
   clearInput();lastEngine=false;elapsed=0;accumulator=0;shake=0;
   for(const item of fleet.values()){item.root.visible=false;item.system.reset();item.appearance.damage.reset();item.destroyed=false;item.damageRevision=0;item.leakClock=0;}
   selected=fleet.get($('ship').value);
@@ -352,8 +355,9 @@ function togglePause(){
   mode='paused';$('pause').firstChild.textContent='Resume ';
   setMessage('FLIGHT ON HOLD','Take a breather.',networkRoom?'Your controls are released. The shared race continues while you pause.':'Your position, fuel, and flight time are held.','Resume flight →');
 }
-function clearInput(){controls.clear();menuControls.clear();if(networkRoom)online?.sendInput({thrust:false,turn:0});rocketAudio.update(0);for(const b of document.querySelectorAll('[data-control],[data-menu-control]'))b.classList.remove('active');}
-function sendCurrentInput(){if(networkRoom&&mode==='running')online.sendInput(controls.read(level.controls==='translation'));}
+function sendFlightInput(input){const sequence=online.sendInput(input);flightPrediction.command(sequence,input,performance.now()/1000);}
+function clearInput(){controls.clear();menuControls.clear();if(networkRoom&&online)sendFlightInput({thrust:false,turn:0});rocketAudio.update(0);for(const b of document.querySelectorAll('[data-control],[data-menu-control]'))b.classList.remove('active');}
+function sendCurrentInput(){if(networkRoom&&mode==='running')sendFlightInput(controls.readHeld(level.controls==='translation'));}
 function finish(){
   clearInput();mode='ended';$('pause').disabled=true;
   if(completed(state)){
@@ -369,9 +373,10 @@ function finish(){
   }
 }
 function renderShip(dt=0){
-  const pose=networkRoom?flightPresentation.sample('you',performance.now()/1000,dt)||state:state;
+  const preview=mode==='running'?flightPrediction.state:null;
+  const pose=networkRoom?preview||flightPresentation.sample('you',performance.now()/1000,dt)||state:state;
   selected.appearance.configure(state.tuning,level.theme==='dark');
-  selected.root.position.set(pose.x,pose.y,.4);selected.root.rotation.z=pose.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,state.rcsTurn,state.damage,level.controls==='translation'?(state.status==='flying'?state.translation:null)||{x:0,y:0}:null);syncDamage(selected,state);
+  selected.root.position.set(pose.x,pose.y,.4);selected.root.rotation.z=pose.angle;selected.root.updateMatrixWorld(true);selected.appearance.update(state.tuning.rcs,preview?.rcsTurn??state.rcsTurn,state.damage,level.controls==='translation'?((preview||state).status==='flying'?(preview||state).translation:null)||{x:0,y:0}:null);syncDamage(selected,state);
   for(const racer of race.racers.slice(1)){
     const model=botVisuals.get(racer.id);if(!model)continue;
     const pose=networkRoom?flightPresentation.sample(racer.id,performance.now()/1000,dt)||racer.state:racer.state;
@@ -441,7 +446,8 @@ const projected=new THREE.Vector3();
 function updateCamera(dt){
   if(!state)return;
   const visual=selected.root.position;
-  const view=flightCamera.update({x:visual.x,y:visual.y,vx:state.vx,vy:state.vy},{aspect:innerWidth/innerHeight,pod:level.controls==='translation',overview:mode==='briefing',openSpace:level.theme==='space'||level.objective==='orbit',dt:mode==='paused'?0:dt});
+  const velocity=mode==='running'&&flightPrediction.state||state;
+  const view=flightCamera.update({x:visual.x,y:visual.y,vx:velocity.vx,vy:velocity.vy},{aspect:innerWidth/innerHeight,pod:level.controls==='translation',overview:mode==='briefing',openSpace:level.theme==='space'||level.objective==='orbit',dt:mode==='paused'?0:dt});
   camera.left=-view.width/2;camera.right=view.width/2;camera.top=view.height/2;camera.bottom=-view.height/2;camera.updateProjectionMatrix();
   camera.position.set(view.x+(Math.random()-.5)*shake,view.y+(Math.random()-.5)*shake,50);camera.lookAt(view.x,view.y,0);camera.updateMatrixWorld();shake=Math.max(0,shake-dt*.5);
   canvas.dataset.cameraHeight=view.height.toFixed(3);canvas.dataset.cameraX=view.x.toFixed(3);canvas.dataset.cameraY=view.y.toFixed(3);
@@ -503,7 +509,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){rocketAudi
 for(const button of document.querySelectorAll('[data-control]')){
   const control=button.dataset.control;
   button.addEventListener('pointerdown',e=>{e.preventDefault();if(mode!=='running')return;button.setPointerCapture(e.pointerId);controls.press(`pointer:${e.pointerId}`,control);button.classList.add('active');sendCurrentInput();});
-  button.addEventListener('click',e=>{if(e.detail===0&&mode==='running'){controls.press('keyboard-button',control);controls.release('keyboard-button');}});
+  button.addEventListener('click',e=>{if(e.detail===0&&mode==='running'){const source=`keyboard-button:${control}`;controls.press(source,control);sendCurrentInput();setTimeout(()=>{controls.release(source);sendCurrentInput();},90);}});
   for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,e=>{controls.release(`pointer:${e.pointerId}`);button.classList.remove('active');sendCurrentInput();});
 }
 for(const button of document.querySelectorAll('[data-menu-control]')){
@@ -538,14 +544,17 @@ function frame(now){
   }
   if(selected&&state){
     if(networkRoom){
+      if(mode==='running'&&online.connected)flightPrediction.update(controls.readHeld(level.controls==='translation'),now/1000,dt);
       renderShip(dt);
     }else if(mode==='running'&&!online){
       accumulator+=dt;
       while(accumulator>=FIXED_STEP){stepRace(race,controls.read(level.controls==='translation'),FIXED_STEP);controls.advance(FIXED_STEP);accumulator-=FIXED_STEP;if(race.finished){finish();accumulator=0;break;}}
       renderShip();
     }
-    const firing=mode==='running'&&state.thrust>0&&state.status==='flying';
-    rocketAudio.update(firing?state.thrust:0,{rcs:mode==='running'&&state.status==='flying'?Math.max(Math.abs(state.rcsTurn),Math.hypot(state.translation?.x||0,state.translation?.y||0)):0,submerged:level.theme==='water'});
+    const feedback=flightPrediction.state||state;
+    canvas.dataset.predictedThrust=String(feedback.thrust);canvas.dataset.predictedAngle=selected.root.rotation.z.toFixed(3);canvas.dataset.localPrediction=String(Boolean(flightPrediction.state));
+    const firing=mode==='running'&&feedback.thrust>0&&feedback.status==='flying';
+    rocketAudio.update(firing?feedback.thrust:0,{rcs:mode==='running'&&feedback.status==='flying'?Math.max(Math.abs(feedback.rcsTurn),Math.hypot(feedback.translation?.x||0,feedback.translation?.y||0)):0,submerged:level.theme==='water'});
     // Flight-path prediction is temporarily disabled while responsiveness is assessed.
     if(mode!=='paused'&&firing!==lastEngine){selected.system.playTrigger(firing?'Engine_start':'Engine_stop');lastEngine=firing;}
     if(mode!=='paused'){selected.system.update(dt);}
@@ -558,8 +567,9 @@ function frame(now){
       const emitters=race.racers.map(racer=>{
         const model=racer.id==='you'?selected:botVisuals.get(racer.id);
         const position=model.root.localToWorld(model.anchor.clone());
-        const burning=mode==='running'&&racer.state.thrust>0&&racer.state.status==='flying';
-        const source={x:position.x,y:position.y,z:position.z,angle:model.root.rotation.z,vx:racer.state.vx,vy:racer.state.vy,density:environmentAt(racer.state,level).density,firing:burning,throttle:racer.state.thrust};
+        const flight=racer.id==='you'?feedback:racer.state;
+        const burning=mode==='running'&&flight.thrust>0&&flight.status==='flying';
+        const source={x:position.x,y:position.y,z:position.z,angle:model.root.rotation.z,vx:flight.vx,vy:flight.vy,density:environmentAt(flight,level).density,firing:burning,throttle:flight.thrust};
         if(burning)plume.emit(racer.id,source,dt,plumeEnvironment);
         return source;
       });

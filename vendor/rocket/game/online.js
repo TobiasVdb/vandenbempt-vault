@@ -1,3 +1,4 @@
+import {createInputCommands} from './controls.js';
 const API=new URL('../api/',import.meta.url);
 export const PLAYER_KEY='hollow-player-v1';
 
@@ -6,6 +7,8 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
   let identity=null,player=null,room=null,connected=false,stream=null,stopped=false,retryTimer=null,joinBusy=false,inputBusy=false,pendingInput=null,inputTimer=null,lastInputAt=-Infinity;
   let resolveReady;const ready=new Promise(resolve=>resolveReady=resolve);
   let lobby=null,busy=false,invitation=null;
+  const inputCommands=createInputCommands();
+  function acknowledgeRoom(value){inputCommands.acknowledge(value.racers.find(racer=>racer.id===player.id)?.inputSequence);}
   try{identity=JSON.parse(storage?.getItem(PLAYER_KEY)||'null');}catch{/* A malformed identity requires a new pilot. */}
   async function request(route,data){
     const response=await fetch(new URL(route,API),{method:data===undefined?'GET':'POST',headers:{...(identity?.token?{Authorization:`Bearer ${identity.token}`} :{}),...(data!==undefined?{'Content-Type':'application/json'}:{})},body:data===undefined?undefined:JSON.stringify(data),signal:AbortSignal.timeout(12000)});
@@ -68,7 +71,7 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
     if(value.type==='lobby'){
       lobby=value;renderLobby();
     }
-    if(value.type==='race'){room=value.room;onRace(room,player.id);}
+    if(value.type==='race'){room=value.room;acknowledgeRoom(room);onRace(room,player.id);}
     if(value.type==='left')room=null;
     if(value.type==='notice')status.textContent=value.message;
     if(value.type==='invite'){invitation=value;renderInvitation();}
@@ -106,7 +109,7 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
   async function join(data){
     if(joinBusy)throw new Error('Joining a game…');if(!isReady())throw new Error('The fleet is still loading.');
     await ready;if(!connected)throw new Error('Reconnect to the lobby before joining.');joinBusy=true;
-    try{const result=await request('join',{ship:getShip(),...data});room=result.room;return room;}finally{joinBusy=false;}
+    try{const result=await request('join',{ship:getShip(),...data});room=result.room;acknowledgeRoom(room);return room;}finally{joinBusy=false;}
   }
   queueMicrotask(restore);
   return {
@@ -117,7 +120,9 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
     async equip(ship){const value=await request('equip',{ship});applyPlayer(value.player);return {ok:true};},
     async reset(){const value=await request('reset',{});applyPlayer(value.player);return true;},
     async scores(mission){return (await request(`scores/${mission}`)).scores;},
-    sendInput(input){pendingInput=input;flushInput();},
+    sendInput(input){
+      const command=inputCommands.next(input);pendingInput=command;flushInput();return command.inputSequence;
+    },
     close(){stopped=true;clearTimeout(retryTimer);clearTimeout(inputTimer);stream?.abort();},
   };
 }
