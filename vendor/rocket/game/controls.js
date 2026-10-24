@@ -27,6 +27,8 @@ export function createInputCommands(){
       if(changed){sequence++;last=command;if(pending[0]?.inputSequence===sent)pending.shift();}
       const value={...command,inputSequence:sequence};
       if(changed||!pending.length)pending.push(value);
+      // Preserve the latest press/release pair without replaying a stale input backlog.
+      if(pending.length>2)pending.splice(0,pending.length-2);
       return value;
     },
     take(){const value=pending.shift();if(value)sent=value.inputSequence;return value;},

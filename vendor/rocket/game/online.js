@@ -4,7 +4,7 @@ export const PLAYER_KEY='hollow-player-v1';
 
 export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,getMission,isReady}){
   const $=id=>document.getElementById(id),identityDialog=$('pilot-dialog'),status=$('lobby-status');
-  let identity=null,player=null,room=null,connected=false,stream=null,stopped=false,retryTimer=null,joinBusy=false,inputBusy=false,inputTimer=null,lastInputAt=-Infinity;
+  let identity=null,player=null,room=null,connected=false,stream=null,stopped=false,retryTimer=null,joinBusy=false,inputBusy=0,inputTimer=null,lastInputAt=-Infinity;
   let resolveReady;const ready=new Promise(resolve=>resolveReady=resolve);
   let lobby=null,busy=false,invitation=null;
   const inputCommands=createInputCommands();
@@ -15,11 +15,13 @@ export function createOnline({storage,onProfile,onRace,onStatus,onJoin,getShip,g
     const value=await response.json();if(!response.ok)throw Object.assign(new Error(value.error||'Connection failed.'),{status:response.status});return value;
   }
   function flushInput(){
-    if(inputBusy||!connected||!room||!inputCommands.pending)return;
+    if(inputBusy>=4||!connected||!room||!inputCommands.pending)return;
     const delay=40-(performance.now()-lastInputAt);
     if(delay>0){clearTimeout(inputTimer);inputTimer=setTimeout(flushInput,delay);return;}
-    const input=inputCommands.take();inputBusy=true;lastInputAt=performance.now();
-    request('input',input).catch(error=>{if(error.status!==429)status.textContent=error.message;}).finally(()=>{inputBusy=false;flushInput();});
+    const input=inputCommands.take();inputBusy++;lastInputAt=performance.now();
+    // Sequence acknowledgements make overlap safe: release need not wait for an older reply.
+    request('input',input).catch(error=>{if(error.status!==429)status.textContent=error.message;}).finally(()=>{inputBusy--;flushInput();});
+    flushInput();
   }
   function applyPlayer(value){player=value;onProfile(value.profile);}
   function renderLobby(){
