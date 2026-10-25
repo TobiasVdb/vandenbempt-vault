@@ -11,7 +11,7 @@ import {createStartMenuScene} from '../runtime/game/start-menu-scene.js';
 import {createRenderBudget} from '../runtime/game/render-budget.js';
 import {createCrewScene,createCrewHatch} from '../runtime/game/crew-scene.js';
 import {createDescent,storyFraming,landscapeFraming} from './story.js';
-import {createFallAir} from './atmosphere.js';
+import {createFallAir,createDescentClouds} from './atmosphere.js';
 import {createFlightTrail} from './flight-trail.js';
 
 export async function loadSpacecraft(){
@@ -59,6 +59,7 @@ export function createCinema(canvas,source){
     return {x:anchor.x,y:anchor.y,z:anchor.z,angle:Math.atan2(axis.x,-axis.y),density:1,active:state.status==='flying',throttle:burning?state.thrust:.12,opacityScale:burning?1:.28,fireHeat:burning?1:0,firing:burning,power:state.tuning.thrust*state.thrust};
   }
   const trail=createFlightTrail({duration:descent.duration,emitterAt,effect:plume});
+  const clouds=createDescentClouds(scene);
   const crew=createCrewScene(scene),hatch=createCrewHatch(ship,{hull:source.hull}),pad=new THREE.Group();scene.add(pad);
   const final=descent.sample(1),towerPosition={x:final.x+1.12,y:.16,z:.15};
   ship.position.set(final.x,final.y,0);ship.rotation.set(0,storyFraming(1,1).yaw,final.angle);
@@ -99,6 +100,7 @@ export function createCinema(canvas,source){
       if(state.status!=='landed'&&landing){crew.reset();parkTower();landing=false;}
       crew.update(landing&&!paused?dt:0,camera,descent.level);
       air.update(dt,state,camera,{paused,reducedMotion});
+      clouds.update(dt,camera,{paused,reducedMotion});
       backdrop.update(camera);
       const framing=landscapeFraming(progress,aspect,texture.image?texture.image.width/texture.image.height:1672/941);
       texture.repeat.set(framing.x,framing.y);texture.offset.set(framing.offsetX,framing.offsetY);

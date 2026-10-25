@@ -3,6 +3,46 @@ import * as THREE from 'three';
 const fract=value=>value-Math.floor(value);
 const random=seed=>fract(Math.sin(seed*127.1+311.7)*43758.5453);
 
+/** World-anchored banks pass above the camera as the rocket descends through them. */
+export function createDescentClouds(scene){
+  const banks=[166,140,112,86,58,28],count=banks.length*10,geometry=new THREE.PlaneGeometry(1,1),data=new Float32Array(count*2),wisps=[];
+  const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,
+    vertexShader:`attribute vec2 cloudData;varying vec2 vUv;varying vec2 vCloud;
+      void main(){vUv=uv;vCloud=cloudData;gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vUv;varying vec2 vCloud;
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+      void main(){vec2 p=vUv*vec2(5.,3.)+vCloud.x;
+        float billow=noise(p)*.65+noise(p*2.1)*.25+noise(p*4.3)*.1;
+        float edge=1.-smoothstep(.2,1.,length((vUv-.5)*2.));
+        float density=smoothstep(.18,.75,billow)*edge*edge;
+        vec3 color=mix(vec3(.24,.36,.44),vec3(.62,.73,.79),vUv.y*.65+billow*.35);
+        gl_FragColor=vec4(color,density*vCloud.y);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const clouds=new THREE.InstancedMesh(geometry,material,count);clouds.name='descent_cloud_banks';clouds.frustumCulled=false;
+  clouds.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(clouds);
+  for(let i=0;i<count;i++){
+    const near=i%3===0;
+    wisps.push({x:(i%10-4.5)*2.6+(random(i+3)-.5)*1.5,y:banks[Math.floor(i/10)]+(random(i+41)-.5)*2.2,z:near?2.4:-3.2,width:4+random(i+75)*4,height:1.3+random(i+93)*2,phase:random(i+137)*Math.PI*2});
+    data.set([random(i+173)*100,near?.38:.55],i*2);
+  }
+  geometry.setAttribute('cloudData',new THREE.InstancedBufferAttribute(data,2));
+  const transform=new THREE.Object3D();let clock=0;
+  return {update(dt,camera,{paused=false,reducedMotion=false}={}){
+    if(!paused&&!reducedMotion)clock+=dt;
+    for(let i=0;i<count;i++){
+      const w=wisps[i];
+      transform.position.set(w.x+Math.sin(clock*.035+w.phase)*.35,w.y,w.z);
+      transform.quaternion.copy(camera.quaternion);transform.scale.set(w.width,w.height,1);transform.updateMatrix();clouds.setMatrixAt(i,transform.matrix);
+    }
+    clouds.instanceMatrix.needsUpdate=true;
+  }};
+}
+
 /** Fine air streaks rise past a descending ship; the actual flight velocity sets their strength. */
 export function createFallAir(scene,ship){
   const count=24,positions=new Float32Array(count*6),strength=new Float32Array(count*2),geometry=new THREE.BufferGeometry();
