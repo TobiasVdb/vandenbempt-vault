@@ -70,7 +70,7 @@ export async function createNewsletterStore({file,now=Date.now}){
       const email=body.email.trim().toLowerCase();
       return transact(next=>{
         if(next.signups.some(signup=>signup.email===email))return {status:200,ok:true};
-        const token=randomBytes(32).toString('hex');next.signups.push({email,subscribedAt:new Date(now()).toISOString(),consent:'House of Tobias game news',source:'thrustlings-landing',unsubscribeHash:hash(token)});
+        const token=randomBytes(32).toString('hex');next.signups.push({email,subscribedAt:new Date(now()).toISOString(),consent:'Thrustlings game news',source:'thrustlings-landing',unsubscribeHash:hash(token)});
         return {status:200,ok:true,unsubscribeToken:token};
       });
     },

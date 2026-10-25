@@ -32,7 +32,7 @@ export async function createProductionServices(pool,env=process.env){
   const newsletter={
     async subscribe(body){
       if(body?.consent!==true||typeof body.email!=='string'||body.email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()))return {status:400,error:'A valid email and consent are required.'};
-      const token=randomBytes(32).toString('hex'),result=await pool.query('INSERT INTO rocket_landing_newsletter (email,consent,unsubscribe_hash) VALUES ($1,$2,$3) ON CONFLICT (email) DO NOTHING RETURNING email',[body.email.trim().toLowerCase(),'House of Tobias game news',hash(token)]);await refresh();
+      const token=randomBytes(32).toString('hex'),result=await pool.query('INSERT INTO rocket_landing_newsletter (email,consent,unsubscribe_hash) VALUES ($1,$2,$3) ON CONFLICT (email) DO NOTHING RETURNING email',[body.email.trim().toLowerCase(),'Thrustlings game news',hash(token)]);await refresh();
       return {status:200,ok:true,...(result.rowCount?{unsubscribeToken:token}:{})};
     },
     async unsubscribe(token){

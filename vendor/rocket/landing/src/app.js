@@ -38,7 +38,7 @@ async function configure(){
   let response;for(let attempt=0;attempt<3;attempt++){response=await fetch('./api/config');if(response.status!==503)break;await new Promise(resolve=>setTimeout(resolve,1000));}
   if(!response.ok)throw new Error('Page configuration unavailable.');config=await response.json();
   if(config.steamUrl){$('steam-link').href=config.steamUrl;$('steam-link').removeAttribute('aria-disabled');$('steam-link').textContent='Wishlist on Steam ↗';}
-  if(!config.newsletterReady){$('signup-status').textContent='The House of Tobias mailing list opens here soon.';$('newsletter').querySelector('button').disabled=true;$('email').disabled=true;}
+  if(!config.newsletterReady){$('signup-status').textContent='The Thrustlings mailing list opens here soon.';$('newsletter').querySelector('button').disabled=true;$('email').disabled=true;}
 }
 $('steam-link').addEventListener('click',()=>{if(config.steamUrl)tracker.action('steam_click');});
 $('newsletter').addEventListener('submit',async event=>{
