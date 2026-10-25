@@ -1,5 +1,5 @@
 import {loadSpacecraft,createCinema,createDemo} from './scene.js';
-import {clamp,smooth} from './story.js';
+import {clamp,smooth,landingDock,advanceStory} from './story.js';
 import {createTracker} from './tracker.js';
 import {createMenuTelemetry} from '../runtime/game/menu-telemetry.js';
 
@@ -66,25 +66,22 @@ try{
 }catch(error){document.body.classList.add('scene-error');$('load-status').textContent='The spacecraft could not load. Reload to try again.';console.error(error);}
 let previousChapter=-1;
 function frame(now){
-  requestAnimationFrame(frame);const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;if(document.hidden)return;
-  if(!paused)intro=Math.min(3,intro+dt);
+  requestAnimationFrame(frame);const elapsed=Math.max(0,(now-last)/1000),dt=Math.min(.05,elapsed);last=now;if(document.hidden)return;
+  if(!paused)intro=Math.min(3.2,intro+elapsed);
   const target=scrollY<landingStart?.86*clamp(scrollY/landingStart):.86+.14*clamp((scrollY-landingStart)/landingLength);
-  progress+=(target-progress)*(1-Math.exp(-dt*6));
+  progress=advanceStory(progress,target,elapsed);
   const chapter=clamp(Math.floor(scrollY/Math.max(1,landingStart/4)),0,4);if(chapter!==previousChapter){tracker.chapter(chapter);previousChapter=chapter;}
   const landingBlend=smooth((scrollY-landingStart+innerHeight*.6)/(innerHeight*.6));
-  // Frame against the incoming copy, rather than waiting for the flight timeline.
-  // This anticipates the next section and cannot lag behind a fast scroll.
-  const nextCopy=$('story-two').querySelector('.story-copy').getBoundingClientRect(),lastCopy=$('story-three').querySelector('.story-copy').getBoundingClientRect();
-  const incoming=rect=>smooth((innerHeight*1.2-rect.top)/(innerHeight*.65));
-  const toLeft=incoming(nextCopy),toRight=incoming(lastCopy),screenX=.74+(.24-.74)*toLeft+(.74-.24)*toRight;
-  document.body.classList.toggle('after-landing',scrollY>landingStart+landingLength+innerHeight*.5);
+  const dock=landingDock(scrollY,landingStart,landingLength);
+  $('cinema').style.transform=`translate3d(0,${dock}px,0)`;
+  document.body.classList.toggle('after-landing',dock<0);
   $('scroll-cue').style.opacity=target>.035?'0':'1';
-  if(cinema&&!demoVisible){
-    const lead=reduced.matches?.022:.022*smooth(intro/2.8),p=lead+progress*(1-lead),state=cinema.update(p,dt,{paused,reducedMotion:reduced.matches,landingBlend,screenX});
+  if(cinema&&!demoVisible&&dock>-innerHeight){
+    const lead=reduced.matches?.022:.022*clamp(intro/3.2),p=lead+progress*(1-lead),state=cinema.update(p,dt,{paused,reducedMotion:reduced.matches,landingBlend,frameSeconds:elapsed});
     $('story-status').textContent=state.status==='landed'?'TOUCHDOWN':state.thrust>.02?'LANDING BURN':'ENGINE STANDBY';$('story-altitude').textContent=`${Math.round(state.y)} m / ${Math.round(state.thrust*100)}% THRUST`;
   }
   if(demo&&demoVisible){
-    const sample=demo.update(dt,command(),!demoStarted),shown=instruments.update(sample);
+    const sample=demo.update(dt,command(),!demoStarted,elapsed),shown=instruments.update(sample);
     controlsReady=sample.stage!==0||Boolean(sample.crew?.complete);
     $('take-controls').disabled=demoStarted&&!controlsReady;
     const invitation=!demoStarted?'Start flight →':controlsReady?'I can land that ↗':'Boarding crew…';

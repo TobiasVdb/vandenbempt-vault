@@ -41,7 +41,8 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         if(firePass>.5&&kind<.5){dimensions.x=max(.16,dimensions.x*1.3);dimensions.y=max(hotLength,puffSize.y);}
         vec2 offset=position.xy*dimensions;
         vec2 projected=vec2(dot(velocity,cameraRight),dot(velocity,cameraUp));
-        float angle=kind<.5&&length(projected)>.01?atan(projected.y,projected.x)-1.5707963:rotation;
+        float jetAngle=kind<.5&&length(projected)>.01?atan(projected.y,projected.x)-1.5707963:rotation;
+        float angle=jetAngle+sin(parcel.z+parcel.w*.7)*.65*smoothstep(.15,1.1,parcel.w)*(1.-step(.5,kind));
         float c=cos(angle),s=sin(angle);
         offset=mat2(c,s,-s,c)*offset;
         vWorld=center+cameraRight*offset.x+cameraUp*offset.y;
@@ -81,10 +82,10 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
           #include <colorspace_fragment>
           return;
         }
-        float alpha=edge*edge*body*vOpacity;
+        float alpha=edge*body*vOpacity;
         if(alpha<.001)discard;
         float ground=step(.5,vKind)*(1.0-water);
-        vec3 smoke=mix(vec3(.44,.47,.48),vec3(.48,.45,.40),ground);
+        vec3 smoke=mix(vec3(.57,.64,.68),vec3(.48,.45,.40),ground);
         smoke=mix(smoke,vec3(.15,.14,.13),step(2.5,vKind));
         smoke=mix(smoke,vec3(.43,.71,.78),water);
         vec3 color=mix(smoke,vec3(1.0,.62,.27),vHeat);
@@ -123,7 +124,8 @@ export function createPlumeEffect(scene,{capacity=1200,reducedMotion=false,rando
         centers[i*3]=p.x;centers[i*3+1]=p.y;centers[i*3+2]=p.z;
         sizes[i*2]=p.width*widthScale;sizes[i*2+1]=p.height;
         rotations[i]=p.rotation;types[i]=p.fire?3:p.water?2:Number(p.impacted);
-        parcels[i*4]=p.opacity;parcels[i*4+1]=p.heat;parcels[i*4+2]=p.seed;parcels[i*4+3]=p.age;
+        // Broadening the same parcel spreads its optical density instead of making a fog wall.
+        parcels[i*4]=p.opacity/widthScale;parcels[i*4+1]=p.heat;parcels[i*4+2]=p.seed;parcels[i*4+3]=p.age;
         planes[i*3]=p.nx;planes[i*3+1]=p.ny;planes[i*3+2]=p.plane;
         walls[i*4]=p.wallNx;walls[i*4+1]=p.wallNy;walls[i*4+2]=p.wallNz;walls[i*4+3]=p.wallD;
         jets[i*3]=p.jetNx;jets[i*3+1]=p.jetNy;jets[i*3+2]=p.jetD;

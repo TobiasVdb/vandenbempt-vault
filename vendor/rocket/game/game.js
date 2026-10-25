@@ -49,7 +49,7 @@ const renderBudget=createRenderBudget();renderer.setPixelRatio(renderBudget.resi
 const graphics=renderer.getContext(),graphicsInfo=graphics.getExtension('WEBGL_debug_renderer_info');
 canvas.dataset.gpuMode=graphicsInfo?(/swiftshader|llvmpipe|software/i.test(graphics.getParameter(graphicsInfo.UNMASKED_RENDERER_WEBGL))?'software':'hardware'):'unknown';
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
 const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();
 const environment=pmrem.fromScene(room,.04);scene.environment=environment.texture;scene.environmentIntensity=.65;room.dispose();pmrem.dispose();
 const menuScene=createStartMenuScene({environment:environment.texture,reducedMotion});

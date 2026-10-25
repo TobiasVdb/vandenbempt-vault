@@ -8,3 +8,9 @@
 .landing-sequence{height:240svh;position:relative}.landing-pin{position:sticky;top:0;height:100svh;display:flex;align-items:flex-start;padding:18vh 8vw 0}.landing-copy{max-width:480px;width:42%}.landing-copy h2{font-size:clamp(38px,5vw,78px);font-weight:500;letter-spacing:-.055em;line-height:1.04;margin:24px 0}.landing-copy>p:not(.eyebrow){font-size:16px;line-height:1.7;color:#a6bac5}.landing-prompt{font-size:8px;letter-spacing:2px;color:#8ea9b9;display:block;margin-top:35px}.landing-prompt span{padding-left:18px}.dispatch{position:relative;display:flex;align-items:center;justify-content:center;background:#07121b;padding:100px 8vw;min-height:850px;border-top:1px solid #6e899733}.after-landing .flight-readout,.after-landing #motion,.after-landing #scroll-cue{opacity:0;pointer-events:none}@media(max-width:760px){.landing-sequence{height:250svh}.landing-pin{padding:90px 7vw 0}.landing-copy{width:100%;max-width:none;text-align:center}.landing-copy h2{font-size:42px;margin:18px 0}.landing-copy>p:not(.eyebrow){font-size:13px}.landing-prompt{font-size:7px;margin-top:20px}.dispatch{padding:70px 7vw;min-height:760px}}
 
 .wordmark .brand-mark{width:30px;height:36px;object-fit:contain;flex:none}
+
+/* A first-paint landscape precedes WebGL and remains behind the docked landing scene. */
+body{background:#07121b url('../runtime/assets/menu-mountains-v1.png') center 55%/cover fixed}
+#cinema{will-change:transform}
+@media(max-width:760px){.story .annotation{max-width:185px}.story.right .annotation{margin-left:auto;text-align:right}.story.right .annotation .rule{margin-left:auto}}
+@media(max-width:760px){.landing-copy{max-width:155px;text-align:left}.landing-copy .eyebrow{font-size:7px;letter-spacing:1px}.landing-copy h2{font-size:36px}.landing-prompt span{padding-left:8px}}
