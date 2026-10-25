@@ -1,10 +1,11 @@
 import {loadSpacecraft,createCinema,createDemo} from './scene.js';
-import {clamp,smooth,landingDock,advanceStory} from './story.js';
+import {clamp,smooth,landingDock,createScrollPlayback} from './story.js';
 import {createTracker} from './tracker.js';
 import {createMenuTelemetry} from '../runtime/game/menu-telemetry.js';
 
 const $=id=>document.getElementById(id),reduced=matchMedia('(prefers-reduced-motion: reduce)'),tracker=createTracker();
-let paused=reduced.matches,cinema,demo,source,config={},demoVisible=false,manual=false,demoStarted=!reduced.matches,controlsReady=false,last=performance.now(),intro=0,progress=0;
+let paused=reduced.matches,cinema,demo,source,config={},demoVisible=false,manual=false,demoStarted=!reduced.matches,controlsReady=false,last=performance.now();
+const playback=createScrollPlayback();
 const held=new Set(),pointers=new Map(),instruments=createMenuTelemetry();let lastStatus='',lastPilot='',lastLeg=0;
 function motionLabel(){$('motion').setAttribute('aria-pressed',String(paused));$('motion').textContent=paused?'Resume motion ▷':'Pause motion Ⅱ';}
 motionLabel();$('motion').addEventListener('click',()=>{paused=!paused;motionLabel();});
@@ -67,9 +68,8 @@ try{
 let previousChapter=-1;
 function frame(now){
   requestAnimationFrame(frame);const elapsed=Math.max(0,(now-last)/1000),dt=Math.min(.05,elapsed);last=now;if(document.hidden)return;
-  if(!paused)intro=Math.min(3.2,intro+elapsed);
   const target=scrollY<landingStart?.86*clamp(scrollY/landingStart):.86+.14*clamp((scrollY-landingStart)/landingLength);
-  progress=advanceStory(progress,target,elapsed);
+  const motion=playback.update(target,elapsed,{paused});
   const chapter=clamp(Math.floor(scrollY/Math.max(1,landingStart/4)),0,4);if(chapter!==previousChapter){tracker.chapter(chapter);previousChapter=chapter;}
   const landingBlend=smooth((scrollY-landingStart+innerHeight*.6)/(innerHeight*.6));
   const dock=landingDock(scrollY,landingStart,landingLength);
@@ -77,7 +77,7 @@ function frame(now){
   document.body.classList.toggle('after-landing',dock<0);
   $('scroll-cue').style.opacity=target>.035?'0':'1';
   if(cinema&&!demoVisible&&dock>-innerHeight){
-    const lead=reduced.matches?.022:.022*clamp(intro/3.2),p=lead+progress*(1-lead),state=cinema.update(p,dt,{paused,reducedMotion:reduced.matches,landingBlend,frameSeconds:elapsed});
+    const p=.022+motion.progress*.978,state=cinema.update(p,dt,{paused,reducedMotion:reduced.matches,landingBlend,frameSeconds:elapsed,effectSeconds:motion.seconds});
     $('story-status').textContent=state.status==='landed'?'TOUCHDOWN':state.thrust>.02?'LANDING BURN':'ENGINE STANDBY';$('story-altitude').textContent=`${Math.round(state.y)} m / ${Math.round(state.thrust*100)}% THRUST`;
   }
   if(demo&&demoVisible){

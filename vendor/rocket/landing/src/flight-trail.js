@@ -4,7 +4,7 @@ export function createFlightTrail({duration,emitterAt,effect}){
   return {
     advance(progress,dt,level,camera,renderer){
       const time=progress*duration;
-      let start=previous??time;
+      let start=previous??Math.max(0,time-1.1);
       if(time<start-.002||time-start>1.2){
         effect.reset();start=Math.max(0,time-1.1);
       }
@@ -12,7 +12,7 @@ export function createFlightTrail({duration,emitterAt,effect}){
       let before=emitterAt(start/duration);
       for(let i=0;i<steps;i++){
         const end=start+(time-start)*(i+1)/steps,h=seconds/steps,current=emitterAt(end/duration);
-        const source={...current,vx:h>0?(current.x-before.x)/h:0,vy:h>0?(current.y-before.y)/h:0};
+        const source={...current,vx:current.inheritVelocity===false?(current.vx??0):h>0?(current.x-before.x)/h:0,vy:current.inheritVelocity===false?(current.vy??0):h>0?(current.y-before.y)/h:0};
         if(source.active)effect.emit('descent',source,h,level);
         effect.update(h,level,camera,renderer,source.firing?[source]:[]);
         before=current;

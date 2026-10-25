@@ -6,6 +6,27 @@ export const smooth=value=>{const t=clamp(value);return t*t*t*(t*(t*6-15)+10);};
 /** Scroll response uses wall time, independently of capped particle/animation steps. */
 export const advanceStory=(current,target,seconds)=>current+(target-current)*(1-Math.exp(-Math.max(0,seconds)*6));
 
+/** Scroll wakes the scene gently; idle keeps vapor moving in very slow motion. */
+export function createScrollPlayback(){
+  let progress=0,rate=.015,lastTarget=0,quiet=Infinity;
+  return {update(target,seconds,{paused=false}={}){
+    const dt=Math.max(0,seconds);target=clamp(target);
+    quiet=Math.abs(target-lastTarget)>1e-6?0:quiet+dt;lastTarget=target;
+    if(paused){progress=target;return {progress,rate,seconds:0};}
+    const active=quiet<.14,desired=active?1:.015,tau=active?.32:.24,blend=Math.exp(-dt/tau);
+    const elapsed=desired*dt+(rate-desired)*tau*(1-blend);
+    rate=desired+(rate-desired)*blend;progress=advanceStory(progress,target,elapsed);
+    if(Math.abs(target-progress)<1e-7)progress=target;
+    return {progress,rate,seconds:elapsed};
+  }};
+}
+
+/** A passage opens a widening gap, then the displaced mist gradually recovers. */
+export function cloudWake(time,crossing){
+  const age=time-crossing;
+  return {age:Math.max(0,age),strength:smooth((age+.6)/.6)*(1-smooth(age/9)),radius:.6+Math.max(0,Math.min(age,9))*.18};
+}
+
 /** Cache a feedback-controlled landing, so scrolling can faithfully rewind every burn. */
 export function createDescent(hull){
   const level={id:'introduction',theme:'moon',objective:'land',gravity:9.8,floor:[[-1000,0],[1000,0]],roof:[],pads:[{x:-9,y:.16,width:2.1,type:'launch'},{x:0,y:.16,width:2.1,type:'goal'}],spawn:{x:0,y:180}};

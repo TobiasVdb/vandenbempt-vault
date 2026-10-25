@@ -56,10 +56,10 @@ export function createCinema(canvas,source){
     orientation.setFromEuler(rotation.set(0,view.yaw,state.angle));
     anchor.copy(source.anchor).applyQuaternion(orientation).add(new THREE.Vector3(state.x,state.y,0));
     axis.set(0,-1,0).applyQuaternion(orientation);
-    return {x:anchor.x,y:anchor.y,z:anchor.z,angle:Math.atan2(axis.x,-axis.y),density:1,active:state.status==='flying',throttle:burning?state.thrust:.12,opacityScale:burning?1:.28,fireHeat:burning?1:0,firing:burning,power:state.tuning.thrust*state.thrust};
+    return {x:anchor.x,y:anchor.y,z:burning?anchor.z:1.2,angle:Math.atan2(axis.x,-axis.y)+(burning?0:Math.PI+.45),vx:0,vy:.6,inheritVelocity:burning,density:1,active:state.status==='flying',throttle:burning?state.thrust:.16,opacityScale:burning?1:.65,fireHeat:burning?1:0,firing:burning,power:state.tuning.thrust*state.thrust};
   }
   const trail=createFlightTrail({duration:descent.duration,emitterAt,effect:plume});
-  const clouds=createDescentClouds(scene);
+  const clouds=createDescentClouds(scene,descent);
   const crew=createCrewScene(scene),hatch=createCrewHatch(ship,{hull:source.hull}),pad=new THREE.Group();scene.add(pad);
   const final=descent.sample(1),towerPosition={x:final.x+1.12,y:.16,z:.15};
   ship.position.set(final.x,final.y,0);ship.rotation.set(0,storyFraming(1,1).yaw,final.angle);
@@ -74,17 +74,18 @@ export function createCinema(canvas,source){
   groundMaterial.onBeforeCompile=shader=>{shader.vertexShader='varying float apronDepth;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\napronDepth=position.y;');shader.fragmentShader='varying float apronDepth;\n'+shader.fragmentShader.replace('#include <opaque_fragment>','diffuseColor.a*=1.0-smoothstep(1.0,6.0,abs(apronDepth));\n#include <opaque_fragment>');};
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,12),groundMaterial);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
   const exhaust=new THREE.PointLight('#efab66',0,5,2);scene.add(exhaust);
-  let engine=true,landing=false;
+  let engine=true,landing=false,lastProgress=null;
   return {
     environment:environment.texture,
     resize(width,height){surface.resize(width,height);},
-    update(progress,dt,{paused=false,reducedMotion=false,landingBlend=0,frameSeconds=dt}={}){
+    update(progress,dt,{paused=false,reducedMotion=false,landingBlend=0,frameSeconds=dt,effectSeconds=dt}={}){
       const width=canvas.clientWidth,height=canvas.clientHeight,aspect=width/height,state=descent.sample(progress),view=storyFraming(progress,aspect,state.x);
+      const flightSeconds=paused?0:Math.max(effectSeconds,lastProgress===null?0:Math.abs(progress-lastProgress)*descent.duration);lastProgress=progress;
       const side=view.screenX,screenY=reducedMotion?view.screenY:view.screenY+view.entry;
       ship.position.set(state.x,state.y,0);ship.rotation.set(0,view.yaw,state.angle);
       const burning=state.thrust>.005&&state.status==='flying';
       if(burning!==engine){system.playTrigger(burning?'Engine_start':'Engine_stop');engine=burning;}
-      if(!paused)system.update(dt);appearance.update(1,state.rcsTurn,state.damage);
+      system.update(flightSeconds);appearance.update(1,state.rcsTurn,state.damage);
       const tilt=.1+landingBlend*.1,landingSpan=aspect<1?7.8:8.4,span=view.span+(landingSpan-view.span)*landingBlend;
       camera.left=-span*aspect/2;camera.right=span*aspect/2;camera.top=span/2;camera.bottom=-span/2;
       const freeX=state.x-(side-.5)*view.span*aspect,freeY=state.y-(screenY-.5)*view.span/Math.cos(tilt);
@@ -93,14 +94,14 @@ export function createCinema(canvas,source){
       const x=freeX+(-(dockSide-.5)*landingSpan*aspect-freeX)*landingBlend,y=freeY+(dockY-freeY)*landingBlend;
       camera.position.set(x,y+14*Math.tan(tilt),14);camera.lookAt(x,y,0);camera.updateProjectionMatrix();camera.updateMatrixWorld();
       key.position.set(state.x-3,state.y+5,5);key.target.position.copy(ship.position);rim.position.set(state.x+3,state.y+1,-3);rim.target.position.copy(ship.position);
-      if(!paused&&!reducedMotion)trail.advance(progress,dt,descent.level,camera,renderer);
+      if(!paused&&!reducedMotion)trail.advance(progress,flightSeconds,descent.level,camera,renderer);
       ship.updateMatrixWorld(true);ship.localToWorld(anchor.copy(source.anchor));
       exhaust.position.copy(anchor);exhaust.intensity=burning?state.thrust*4.8:0;
       if(state.status==='landed'&&!landing){crew.start({rising:false,hatch,tower:towerPosition,ride:state.ride});landing=true;}
       if(state.status!=='landed'&&landing){crew.reset();parkTower();landing=false;}
-      crew.update(landing&&!paused?dt:0,camera,descent.level);
-      air.update(dt,state,camera,{paused,reducedMotion});
-      clouds.update(dt,camera,{paused,reducedMotion});
+      crew.update(landing?flightSeconds:0,camera,descent.level);
+      air.update(frameSeconds,state,camera,{paused,reducedMotion,flightSeconds});
+      clouds.update(flightSeconds,camera,progress*descent.duration,emitterAt(progress),{reducedMotion});
       backdrop.update(camera);
       const framing=landscapeFraming(progress,aspect,texture.image?texture.image.width/texture.image.height:1672/941);
       texture.repeat.set(framing.x,framing.y);texture.offset.set(framing.offsetX,framing.offsetY);
@@ -109,6 +110,7 @@ export function createCinema(canvas,source){
       canvas.dataset.altitude=state.y.toFixed(2);canvas.dataset.engine=state.thrust.toFixed(3);canvas.dataset.flightState=state.status;canvas.dataset.angle=state.angle.toFixed(3);canvas.dataset.cameraY=y.toFixed(3);canvas.dataset.landingLocked=String(landingBlend===1);canvas.dataset.drawCalls=String(renderer.info.render.calls);
       canvas.dataset.plumeCount=String(plume.count);canvas.dataset.deckY=((1-new THREE.Vector3(0,.16,0).project(camera).y)*height/2).toFixed(1);
       canvas.dataset.padBottomY=((1-new THREE.Vector3(0,0,1.16).project(camera).y)*height/2).toFixed(1);
+      canvas.dataset.effectStep=flightSeconds.toFixed(5);
       return state;
     },
   };
