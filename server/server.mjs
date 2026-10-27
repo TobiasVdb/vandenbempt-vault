@@ -15,6 +15,7 @@ import { registerDirectorate } from './directorate.mjs'
 import { registerVectraUsage } from './vectra-usage.mjs'
 import { createNycTripService, initializeNycTripDatabase } from './nyc-trip.mjs'
 import { registerRootAccess } from './root-access.mjs'
+import { registerRocketRedirect } from './rocket-redirect.mjs'
 
 const { Pool } = pg
 const app = express()
@@ -25,7 +26,7 @@ registerDirectorate(app, { bobSnapshot: () => ({
   active_rooms: bobCoop?.rooms.size ?? 0,
   websocket_players: bobCoop ? [...bobCoop.rooms.values()].reduce((total, room) => total + room.players.size, 0) : 0,
   host_uptime_seconds: Math.floor(process.uptime()),
-  rocket: rocketService?.presence?.() ?? null,
+  rocket: null,
   host_instance: gamePresenceInstance,
 }) })
 const port = Number(process.env.PORT || 8080)
@@ -240,33 +241,8 @@ let familyTasksDbReady = false
 let familyTasksDbInitError = ''
 const poolConfig = getPoolConfig()
 const pool = poolConfig ? new Pool(poolConfig) : null
-// Rocket owns only this mount and additive rocket_* tables; other routes stay independent.
-const rocketDir = path.resolve(process.cwd(), 'vendor', 'rocket')
-let rocketService = null
-let rocketLandingServices = null
-const rocketLandingDir = path.join(rocketDir, 'landing')
-const rocketLandingModules = fs.existsSync(path.join(rocketLandingDir, 'server', 'http.mjs'))
-  ? await Promise.all([
-    import(pathToFileURL(path.join(rocketLandingDir, 'server', 'http.mjs')).href),
-    import(pathToFileURL(path.join(rocketLandingDir, 'server', 'postgres.mjs')).href),
-  ]) : null
-const rocketModules = fs.existsSync(path.join(rocketDir, 'server', 'rocket-service.mjs'))
-  ? await Promise.all([
-    import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-service.mjs')).href),
-    import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-store.mjs')).href),
-    import(pathToFileURL(path.join(rocketDir, 'server', 'rocket-http.mjs')).href),
-  ]) : null
-if (rocketModules) {
-  const landingHandler = rocketLandingModules?.[0].createLandingHttp({ root: rocketLandingDir, getServices: () => rocketLandingServices })
-  const handleRocket = rocketModules[2].createRocketHttp({ root: rocketDir, getService: () => rocketService, landingHandler })
-  app.get(/^\/rocket$/, (_request, response) => response.redirect(302, '/rocket/'))
-  app.use('/rocket', (request, response) => {
-    void handleRocket(request, response).catch(() => {
-      if (!response.headersSent) response.status(500)
-      response.end()
-    })
-  })
-}
+// Rocket runs on its dedicated droplet; retain old public bookmarks.
+registerRocketRedirect(app)
 let nycTripDbReady = false
 const nycTrip = createNycTripService({ app, pool, isDbReady: () => dbReady && nycTripDbReady })
 const ringEater = createRingEaterService({
@@ -3313,21 +3289,6 @@ initializeDatabase()
           ringDbInitError = error instanceof Error ? error.message : 'Ring Eater database initialization failed.'
           console.error('Ring Eater database initialization failed:', error)
         })
-
-      if (rocketLandingModules) {
-        void rocketLandingModules[1].createProductionServices(pool).then((services) => {
-          rocketLandingServices = services
-          console.log('Rocket landing newsletter and metrics database are ready.')
-        }).catch(() => console.warn('Rocket landing database initialization failed; signup stays unavailable.'))
-      }
-
-      if (rocketModules) {
-        void rocketModules[1].createPostgresStore(pool).then((store) => {
-          const hulls = JSON.parse(fs.readFileSync(path.join(rocketDir, 'server', 'ship-hulls.json'), 'utf8'))
-          rocketService = rocketModules[0].createRocketService({ store, hulls })
-          console.log('Rocket player database and multiplayer rooms are ready.')
-        }).catch(() => console.warn('Rocket database initialization failed; /rocket/api stays unavailable.'))
-      }
 
       void initializeFamilyTasksDatabase(pool)
         .then(() => {
