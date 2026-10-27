@@ -1,5 +1,11 @@
 # House of Tobias
 
+## Main page access
+
+The household dashboard, its assets and SPA routes require the shared password through a server-rendered form. Only a salted scrypt verifier is stored in server source. Successful login creates a random, HttpOnly, Secure, SameSite=Strict cookie lasting 12 hours. Sessions are memory-only and end on deployment/restart; the existing single-instance deployment is required. Five login attempts are allowed initially, then one replenishes every 12 seconds per client.
+
+The separately mounted apps, `/nyc-follow/`, service APIs and health checks retain their existing access rules. This password gate protects the main page, not those independent services. Use the production HTTPS server to verify login; Vite's development/preview servers do not run this gate. Regression coverage runs with `npm run test:server`.
+
 ## Rocket multiplayer
 
 `/rocket/` serves Hollow, with its own `/rocket/api/` routes, live rooms and ephemeral lobby chat. The source of truth is `D:/dev/rocketdesign`; regenerate `vendor/rocket` using `node scripts/export-rocket.mjs Y:/HouseOfTobias/vendor/rocket` from there. Do not hand-edit generated files. No new production dependencies or secret configuration are required.

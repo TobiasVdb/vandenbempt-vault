@@ -14,6 +14,7 @@ import { createGenkStandbyService } from './genk-standby.mjs'
 import { registerDirectorate } from './directorate.mjs'
 import { registerVectraUsage } from './vectra-usage.mjs'
 import { createNycTripService, initializeNycTripDatabase } from './nyc-trip.mjs'
+import { registerRootAccess } from './root-access.mjs'
 
 const { Pool } = pg
 const app = express()
@@ -3242,6 +3243,10 @@ if (bobCoop) {
   // Missing BOB files 404 instead of falling through to the site's index.html.
   app.use('/bob', express.static(path.join(bobDir, 'dist')), (_request, response) => response.sendStatus(404))
 }
+
+// Separate public apps retain their existing authentication and routes.
+app.use('/nyc-follow', express.static(path.join(distDir, 'nyc-follow')), (_request, response) => response.sendStatus(404))
+app.use(registerRootAccess(app))
 
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir))
