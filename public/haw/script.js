@@ -1,17 +1,18 @@
+const english = document.documentElement?.lang === 'en';
 const toggle = document.querySelector('.menu-toggle');
 const menu = document.querySelector('#mobile-nav');
 if (toggle && menu) {
   toggle.addEventListener('click', () => {
     const open = toggle.getAttribute('aria-expanded') === 'true';
     toggle.setAttribute('aria-expanded', String(!open));
-    toggle.setAttribute('aria-label', open ? 'Menu openen' : 'Menu sluiten');
+    toggle.setAttribute('aria-label', open ? (english ? 'Open menu' : 'Menu openen') : (english ? 'Close menu' : 'Menu sluiten'));
     menu.hidden = open;
   });
   menu.addEventListener('click', event => {
     if (event.target.closest('a')) {
       menu.hidden = true;
       toggle.setAttribute('aria-expanded', 'false');
-      toggle.setAttribute('aria-label', 'Menu openen');
+      toggle.setAttribute('aria-label', english ? 'Open menu' : 'Menu openen');
     }
   });
 }
@@ -113,8 +114,8 @@ if (contactForm) {
     event.preventDefault();
     const data = new FormData(contactForm);
     const params = new URLSearchParams({
-      subject: 'Een gesprek met Holmes AND Watson',
-      body: `Naam: ${data.get('name')}\nE-mailadres: ${data.get('email')}\n\n${data.get('message')}`
+      subject: english ? 'A conversation with Holmes AND Watson' : 'Een gesprek met Holmes AND Watson',
+      body: `${english ? 'Name' : 'Naam'}: ${data.get('name')}\n${english ? 'Email' : 'E-mailadres'}: ${data.get('email')}\n\n${data.get('message')}`
     });
     window.location.href = `mailto:shari@holmeswatson.be?${params.toString()}`;
   });

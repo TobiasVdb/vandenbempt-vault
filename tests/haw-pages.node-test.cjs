@@ -58,3 +58,34 @@ test('contact form makes an email draft and does not post visitor data', () => {
   assert.match(draft.searchParams.get('body'), /Test Person/);
   assert.match(draft.searchParams.get('body'), /Hello & goodbye/);
 });
+
+test('language links connect each Dutch page to its English counterpart', () => {
+  for (const file of pages.filter(p => !p.startsWith('en/'))) {
+    const enFile = 'en/' + file;
+    assert.ok(pages.includes(enFile), 'Missing English page: ' + file);
+    const nl = fs.readFileSync(path.join(root, file), 'utf8');
+    const en = fs.readFileSync(path.join(root, enFile), 'utf8');
+    const route = file.replace(/index\.html$/, '');
+    assert.match(nl, /<html lang="nl">/);
+    assert.match(en, /<html lang="en">/);
+    assert.ok(nl.includes('href="en/' + route + '" lang="en"'), file);
+    assert.ok(en.includes('href="' + (route || './') + '" lang="nl"'), enFile);
+  }
+});
+
+test('English contact draft uses English labels', () => {
+  let submit;
+  const form = { addEventListener(type, handler) { if (type === 'submit') submit = handler; } };
+  const location = { href: '' };
+  const context = {
+    document: { documentElement: { lang: 'en' }, querySelector(selector) { return selector === '#contact-form' ? form : null; }, querySelectorAll() { return []; } },
+    window: { matchMedia: () => ({ matches: true, addEventListener() {} }), location },
+    FormData: class { get(key) { return { name: 'Test Person', email: 'test@example.test', message: 'Hello' }[key]; } },
+    URLSearchParams
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'script.js'), 'utf8'), context);
+  submit({ preventDefault() {} });
+  const draft = new URL(location.href);
+  assert.equal(draft.searchParams.get('subject'), 'A conversation with Holmes AND Watson');
+  assert.match(draft.searchParams.get('body'), /Name: Test Person\nEmail: test@example.test/);
+});
