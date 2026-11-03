@@ -49,3 +49,11 @@
 @media(prefers-reduced-motion:reduce){.alignment-path{animation:none!important;stroke-dashoffset:0}.expertise-grid article,.expertise-grid article+article,.expertise-symbol{transition:none!important}.expertise-grid article:hover,.expertise-grid article:focus-within{transform:none}}
 .hero-redesign .actions{gap:24px}.hero-redesign .actions .button{white-space:nowrap;gap:22px}.hero-redesign .actions .text-link{white-space:nowrap;gap:16px}
 h2 em,.hero-redesign h1>span{color:#747970}.proof-detail p{font-size:14px;color:#d0d2cd}.proof-detail a{font-size:13px}.people-photos figcaption span{font-size:11px}
+/* The converging paths explain the relationship between focus, alignment and direction. */
+.alignment-graphic{right:4%;bottom:34px;width:min(39%,480px);padding:14px 16px;background:rgba(249,247,243,.94);border:1px solid rgba(54,51,81,.24);opacity:1}
+.alignment-graphic svg{overflow:visible}.alignment-path{stroke:#3b42df;stroke-width:2;stroke-dasharray:400;stroke-dashoffset:0}.alignment-node{fill:#f9f7f3;stroke:#3b42df;stroke-width:2.5}.alignment-node.destination{fill:#3b42df}.alignment-halo{stroke:#7053c8;stroke-opacity:.6;stroke-width:1.5}.alignment-graphic text{font:700 15px 'DM Sans',sans-serif;letter-spacing:.05em;fill:#292843;stroke:none}.alignment-graphic .alignment-destination{fill:#4338b0;font-size:14px}
+@supports (animation-timeline:view()){.alignment-path{animation:alignment-reveal linear both;animation-timeline:view();animation-range:entry 0% exit 95%}@keyframes alignment-reveal{from{stroke-dashoffset:85}to{stroke-dashoffset:0}}}
+@media(max-width:900px){.alignment-graphic{width:40%;right:3%}}
+@media(max-width:600px){.hero-content{padding-bottom:24px}.alignment-graphic{position:relative;right:auto;bottom:auto;width:auto;margin:0 20px 24px;padding:12px;background:rgba(249,247,243,.95)}.alignment-graphic text{font-size:16px}.alignment-graphic .alignment-destination{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.alignment-path{animation:none!important;stroke-dashoffset:0}}
+@supports (animation-timeline:view()){.hero-redesign{view-timeline-name:--hero-view;view-timeline-axis:block}.alignment-path{animation-timeline:--hero-view}}
