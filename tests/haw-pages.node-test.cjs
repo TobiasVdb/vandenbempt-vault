@@ -4,7 +4,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve('public/haw');
-const pages = ['index.html','contact/index.html','overons/index.html','project/repanels/index.html','project/d-p/index.html','project/meliopus/index.html','project/groei-versnellen-door-focus-en-ritme-met-okrs/index.html'];
+const pages = [];
+function collectPages(dir) {
+  for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+    const relative = path.join(dir, entry.name);
+    if (entry.isDirectory()) collectPages(relative);
+    else if (entry.name === 'index.html') pages.push(relative.replaceAll('\\', '/'));
+  }
+}
+collectPages('');
 
 test('all pages keep site links and local assets inside the deployment prefix', () => {
   for (const file of pages) {
