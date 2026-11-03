@@ -81,7 +81,7 @@ function startMotion() {
     '.expertise .section-kicker', '.expertise-heading', '.expertise-grid article', '.okr',
     '.method-intro', '.method-row', '.case-heading', '.case-feature', '.more-case',
     '.people-photos figure', '.people-copy', '.final-top', '.final-cta h2', '.final-bottom',
-    '.counter-value'
+    '.counter-value', '.detail-reveal'
   ];
   document.querySelectorAll(selectors.join(',')).forEach(element => {
     if (element.matches('.challenge-list article, .expertise-grid article, .method-row, .more-case, .people-photos figure')) {
@@ -105,3 +105,17 @@ motionPreference.addEventListener('change', event => {
 });
 
 startMotion();
+
+// This static site opens an email draft; it does not submit or store messages.
+const contactForm = document.querySelector('#contact-form');
+if (contactForm) {
+  contactForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(contactForm);
+    const params = new URLSearchParams({
+      subject: 'Een gesprek met Holmes AND Watson',
+      body: `Naam: ${data.get('name')}\nE-mailadres: ${data.get('email')}\n\n${data.get('message')}`
+    });
+    window.location.href = `mailto:shari@holmeswatson.be?${params.toString()}`;
+  });
+}
