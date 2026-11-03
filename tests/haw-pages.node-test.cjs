@@ -60,7 +60,7 @@ test('contact form makes an email draft and does not post visitor data', () => {
 });
 
 test('language links connect each Dutch page to its English counterpart', () => {
-  for (const file of pages.filter(p => !p.startsWith('en/'))) {
+  for (const file of pages.filter(p => !p.startsWith('en/') && !p.startsWith('1/'))) {
     const enFile = 'en/' + file;
     assert.ok(pages.includes(enFile), 'Missing English page: ' + file);
     const nl = fs.readFileSync(path.join(root, file), 'utf8');
@@ -88,4 +88,31 @@ test('English contact draft uses English labels', () => {
   const draft = new URL(location.href);
   assert.equal(draft.searchParams.get('subject'), 'A conversation with Holmes AND Watson');
   assert.match(draft.searchParams.get('body'), /Name: Test Person\nEmail: test@example.test/);
+});
+
+
+test('version 1 has matching language routes and stays isolated', () => {
+  for (const file of pages.filter(p => p.startsWith('1/') && !p.startsWith('1/en/'))) {
+    const route = file.slice(2).replace(/index\.html$/, '');
+    const enFile = '1/en/' + file.slice(2);
+    assert.ok(pages.includes(enFile), 'Missing version 1 English page: ' + file);
+    const nl = fs.readFileSync(path.join(root, file), 'utf8');
+    const en = fs.readFileSync(path.join(root, enFile), 'utf8');
+    assert.ok(nl.includes('href="en/' + route + '" lang="en"'), file);
+    assert.ok(en.includes('href="' + (route || './') + '" lang="nl"'), enFile);
+  }
+});
+
+test('version 1 navigation remains in that version', () => {
+  for (const file of pages.filter(p => p.startsWith('1/'))) {
+    const html = fs.readFileSync(path.join(root, file), 'utf8');
+    const pageUrl = new URL('/haw/' + file.replace(/index\.html$/, ''), 'https://example.test');
+    const base = new URL(html.match(/<base href="([^"]+)">/)?.[1] || '.', pageUrl);
+    for (const match of html.replace(/<base\s+href="[^"]+">/, '').matchAll(/href="([^"]+)"/g)) {
+      const value = match[1].replaceAll('&amp;', '&');
+      if (/^(https?:|mailto:|tel:)/.test(value)) continue;
+      const resolved = new URL(value, base);
+      assert.ok(resolved.pathname.startsWith('/haw/1/') || resolved.pathname.startsWith('/haw/assets/'), file + ': ' + value);
+    }
+  }
 });
