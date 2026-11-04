@@ -5,7 +5,7 @@
   const ctx = canvas.getContext('2d');
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const W = 900, H = 510, columns = 76, rows = 36, count = columns * rows;
-  const cycleLength = 90;
+  const cycleLength = 90, cityStart = 2;
   let frame, lastFrame, elapsed = 0, visualTime = 0, rocketOffset = 0, advancePending = false;
   const pointer = { x: -1000, y: -1000, active: false };
   const easedPointer = { x: -1000, y: -1000, strength: 0 };
@@ -130,11 +130,11 @@
       let x = origin.x, y = origin.y;
       let alpha = .24 + point.j / 75;
       let radius = point.radius;
-      if (clock >= 10 && clock < 48) {
+      if (clock >= cityStart && clock < 48) {
         // Staggered starts bring the skyline up building by building.
-        const topDown = clamp(origin.y / H) * 6;
+        const topDown = clamp((origin.y - 200) / H) * 6;
         const delay = topDown + (point.cityPart === 'building' ? point.building * .08 : 0) + point.stagger * .4;
-        const rise = ease((clock - 10 - delay) / 5.5);
+        const rise = ease((clock - cityStart - delay) / 5.5);
         const fall = ease((clock - 36 - clamp(point.cityY / H) * 4 - point.stagger * .3) / 7);
         const shape = rise * (1 - fall);
         if (point.cityPart === 'building') radius = mix(radius, point.cityFace === 'window' ? 1.3 : 1.05, shape);
@@ -153,7 +153,7 @@
         x = mix(x, cityTargetX, shape);
         y = mix(y, cityY, shape);
         const visibility = point.cityPart !== 'hidden' ? shape
-          : ease((clock - 10 - topDown - point.stagger * .4) / 5.5)
+          : ease((clock - cityStart - topDown - point.stagger * .4) / 5.5)
             * (1 - ease((clock - 36 - clamp(origin.y / H) * 4 - point.stagger * .3) / 7));
         const cityOpacity = point.cityPart === 'water' ? (.46 - point.reflectionDepth * .29) * (.8 + .2 * Math.sin(time * .28 + point.phase))
           : point.cityPart === 'shore' ? .7 + .16 * Math.sin(time * .14 + point.phase)
@@ -214,14 +214,14 @@
       const cycleStart = elapsed - clock;
       // Wait for an in-progress morph to settle before beginning the next one.
       let next = null;
-      if (clock < 10) next = cycleStart + 10;
-      else if (clock >= 24 && clock < 36) next = cycleStart + 36;
+      if (clock < cityStart) next = cycleStart + cityStart;
+      else if (clock >= 16 && clock < 36) next = cycleStart + 36;
       else if (clock >= 48 && clock < 56) next = cycleStart + 56;
       else if (clock >= 70 && clock < 79) {
         rocketOffset = 79 - clock;
         next = cycleStart + 79;
       }
-      else if (clock >= 88) next = cycleStart + cycleLength + 10;
+      else if (clock >= 88) next = cycleStart + cycleLength + cityStart;
       if (next !== null) { elapsed = next; advancePending = false; }
     }
     draw(elapsed, visualTime);
