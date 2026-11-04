@@ -85,8 +85,8 @@
     return {
       i, j, building, cityX, cityY, cityPart, cityFace, reflectionDepth, rocketX, rocketY, rocketPart,
       movingWindow: cityPart === 'building' && cityFace === 'window'
-        && buildingHeight >= 140 && hash(index + 820) < .12,
-      buildingLeft: baseX, buildingWidth,
+        && buildingHeight >= 180 && hash(index + 820) < .06,
+      buildingBase: baseY, buildingHeight,
       stagger: hash(index + 301),
       streamSeed: hash(index + 547),
       streamSide: hash(index + 731) < .5 ? -1 : 1,
@@ -137,19 +137,19 @@
         const rise = ease((clock - cityStart - delay) / 5.5);
         const fall = ease((clock - 36 - clamp(point.cityY / H) * 4 - point.stagger * .3) / 7);
         const shape = rise * (1 - fall);
-        if (point.cityPart === 'building') radius = mix(radius, point.cityFace === 'window' ? 1.3 : 1.05, shape);
+        if (point.cityPart === 'building') radius = mix(radius, point.movingWindow ? 1.8 : point.cityFace === 'window' ? 1.3 : 1.05, shape);
         if (point.cityPart === 'shore') radius = mix(radius, 1.4, shape);
         const cityMotion = point.cityPart === 'water'
           ? Math.sin(time * .21 + point.phase + point.cityX * .015) * 3
           : Math.sin(time * .13 + point.building) * .8;
-        const cityY = mix(395, point.cityY + cityMotion, rise);
+        const elevatorY = point.buildingBase - point.buildingHeight
+          * (.12 + .76 * (.5 + .5 * Math.sin(time * .38 + point.phase)));
+        const cityY = mix(395, (point.movingWindow ? elevatorY : point.cityY) + cityMotion, rise);
         const waterRipple = point.cityPart === 'water'
           ? Math.sin(time * .32 + point.cityY * .09 + point.phase) * (1.5 + point.reflectionDepth * 3)
             + Math.sin(time * .17 + point.cityX * .025) * 1.2
           : 0;
-        const cityTargetX = point.movingWindow
-          ? point.buildingLeft + point.buildingWidth * (.5 + .32 * Math.sin(time * .24 + point.phase))
-          : point.cityX + waterRipple;
+        const cityTargetX = point.cityX + waterRipple;
         x = mix(x, cityTargetX, shape);
         y = mix(y, cityY, shape);
         const visibility = point.cityPart !== 'hidden' ? shape
@@ -158,7 +158,7 @@
         const cityOpacity = point.cityPart === 'water' ? (.46 - point.reflectionDepth * .29) * (.8 + .2 * Math.sin(time * .28 + point.phase))
           : point.cityPart === 'shore' ? .7 + .16 * Math.sin(time * .14 + point.phase)
           : point.cityPart === 'building'
-            ? (point.cityFace === 'window' ? .65 : point.cityFace === 'edge' ? .16 : point.cityFace === 'roof' ? .42 : .35)
+            ? (point.movingWindow ? .95 : point.cityFace === 'window' ? .65 : point.cityFace === 'edge' ? .16 : point.cityFace === 'roof' ? .42 : .35)
               + .09 * Math.sin(time * .16 + point.phase)
             : 0;
         alpha = mix(alpha, cityOpacity, visibility);
