@@ -13,6 +13,17 @@
   const ease = value => { const x = clamp(value); return x * x * (3 - 2 * x); };
   const mix = (a, b, amount) => a + (b - a) * amount;
   const hash = value => { const x = Math.sin(value * 127.1 + 19.19) * 43758.5453; return x - Math.floor(x); };
+  const elevatorFloors = 8, elevatorPause = 3, elevatorTravel = 2.5;
+  const elevatorStep = elevatorPause + elevatorTravel;
+  function elevatorPosition(time, offset) {
+    const cycle = (time + offset) % (elevatorFloors * 2 * elevatorStep);
+    const stop = Math.floor(cycle / elevatorStep);
+    const timeAtStop = cycle % elevatorStep;
+    const floorAt = step => step <= elevatorFloors ? step : elevatorFloors * 2 - step;
+    const from = floorAt(stop);
+    const to = floorAt((stop + 1) % (elevatorFloors * 2));
+    return mix(from, to, ease((timeAtStop - elevatorPause) / elevatorTravel)) / elevatorFloors;
+  }
   // An intentionally irregular waterfront skyline, with distinct clusters and landmarks.
   const heights = [48, 74, 58, 104, 83, 142, 98, 196, 126, 220, 150, 258, 180, 138, 216, 119, 186, 112, 151, 84, 102, 59];
   const widths = [23, 17, 25, 16, 20, 23, 16, 21, 25, 17, 25, 19, 23, 18, 22, 26, 18, 24, 17, 22, 18, 25];
@@ -87,6 +98,7 @@
       movingWindow: cityPart === 'building' && cityFace === 'window'
         && buildingHeight >= 180 && hash(index + 820) < .06,
       buildingBase: baseY, buildingHeight,
+      elevatorOffset: hash(index + 1960) * elevatorFloors * 2 * elevatorStep,
       stagger: hash(index + 301),
       streamSeed: hash(index + 547),
       streamSide: hash(index + 731) < .5 ? -1 : 1,
@@ -142,9 +154,10 @@
         const cityMotion = point.cityPart === 'water'
           ? Math.sin(time * .21 + point.phase + point.cityX * .015) * 3
           : Math.sin(time * .13 + point.building) * .8;
-        const elevatorY = point.buildingBase - point.buildingHeight
-          * (.12 + .76 * (.5 + .5 * Math.sin(time * .38 + point.phase)));
-        const cityY = mix(395, (point.movingWindow ? elevatorY : point.cityY) + cityMotion, rise);
+        const elevatorY = point.movingWindow
+          ? point.buildingBase - point.buildingHeight * (.12 + .76 * elevatorPosition(time, point.elevatorOffset))
+          : point.cityY + cityMotion;
+        const cityY = mix(395, elevatorY, rise);
         const waterRipple = point.cityPart === 'water'
           ? Math.sin(time * .32 + point.cityY * .09 + point.phase) * (1.5 + point.reflectionDepth * 3)
             + Math.sin(time * .17 + point.cityX * .025) * 1.2
