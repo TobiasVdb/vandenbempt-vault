@@ -70,21 +70,28 @@
       : cityPart === 'shore' ? 90 + hash(index + 221) * 715 : projectedX;
     const cityY = cityPart === 'water' ? 402 + reflectionDepth * 96
       : cityPart === 'shore' ? 394 + hash(index + 271) * 5 : projectedY;
-    const rocketPart = index < 480 ? 'hull' : index < 880 ? 'exhaust' : 'plume';
+    const rocketPart = index < 560 ? 'hull' : index < 1560 ? 'exhaust' : 'plume';
     const rocketSeed = hash(index + 250);
     let rocketX, rocketY;
     if (rocketPart === 'hull') {
-      // A narrow dotted hull with a pointed nose and fins.
-      const t = hash(index + 10);
-      const side = index % 2 ? 1 : -1;
-      const width = t < .22 ? 4 + t * 92 : 24 - Math.max(0, t - .72) * 30;
-      rocketX = 480 + side * width + (hash(index + 20) - .5) * 4;
-      rocketY = 270 + t * 175;
-      if (t > .8 && index % 7 === 0) rocketX += side * 18;
+      // Dotted surface of a rounded rocket, followed by two tapered fins.
+      if (index < 420) {
+        const row = Math.floor(index / 15), column = index % 15;
+        const height = row / 27;
+        const width = height < .24 ? 25 * (height / .24) ** .7
+          : height > .88 ? 25 - 4 * ((height - .88) / .12) : 25;
+        rocketX = 480 + (column / 7 - 1) * width;
+        rocketY = 220 + height * 200;
+      } else {
+        const fin = index - 420, side = fin < 70 ? -1 : 1;
+        const part = fin % 70, height = Math.floor(part / 7) / 9;
+        rocketX = 480 + side * (20 + (part % 7) / 6 * (6 + height * 21));
+        rocketY = 364 + height * 76;
+      }
     } else if (rocketPart === 'exhaust') {
       const t = hash(index + 40);
       rocketX = 480 + (rocketSeed - .5) * (10 + t * 100);
-      rocketY = 445 + t * 160;
+      rocketY = 420 + t * 160;
     } else {
       // Small overlapping clouds form a wider ground plume as the rocket rises.
       const lobe = index % 7;
@@ -102,7 +109,7 @@
       stagger: hash(index + 301),
       streamSeed: hash(index + 547),
       streamSide: hash(index + 731) < .5 ? -1 : 1,
-      rocketVisible: index < 1500,
+      rocketVisible: index < 2360,
       warm: (i + j) % 7 < 5,
       radius: j % 5 === 0 ? 1.55 : 1.05,
       phase: hash(index + 90) * Math.PI * 2
@@ -180,23 +187,24 @@
         const formIn = ease((clock - 56 - clamp(origin.y / H) * 5 - point.stagger * .4) / 7);
         const formOut = ease((clock - 79 - clamp((point.rocketY - (point.rocketPart === 'plume' ? 0 : ascent)) / H) * 3 - point.stagger * .2) / 5);
         const form = formIn * (1 - formOut);
+        if (point.rocketPart === 'hull') radius = mix(radius, 1.35, form);
         const drift = Math.sin(time * .18) * 3;
         let targetX = point.rocketX + drift;
         let targetY = point.rocketY - ascent;
-        let particleOpacity = .7;
+        let particleOpacity = .9;
         if (point.rocketPart !== 'hull') {
           // Each particle begins at the engine, falls to the surface, then
           // spreads outward. It fades at both ends before being recycled.
           const travel = (point.streamSeed + time * .07) % 1;
           const descent = ease(travel / .58);
           const spread = ease((travel - .58) / .42);
-          const engineY = 445 - ascent;
+          const engineY = 420 - ascent;
           const groundY = 457 + Math.sin(point.phase) * 7;
           const jetWidth = 2 + descent * (point.rocketPart === 'plume' ? 18 : 10);
           const turbulence = Math.sin(time * .6 + point.phase) * descent * 3;
           targetX = 480 + drift + point.streamSide * (jetWidth * point.stagger + spread * (200 + 270 * point.stagger)) + turbulence;
           targetY = mix(engineY, groundY, descent) - Math.sin(spread * Math.PI) * (point.rocketPart === 'plume' ? 26 : 12);
-          particleOpacity = .7 * ease(travel / .08) * (1 - ease((travel - .88) / .12));
+          particleOpacity = .9 * ease(travel / .08) * (1 - ease((travel - .88) / .12));
         }
         x = mix(x, targetX, form);
         y = mix(y, targetY, form);
