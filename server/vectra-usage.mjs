@@ -1,6 +1,6 @@
 import express from 'express'
 
-const origins = new Set(['https://vectra-v734a.ondigitalocean.app'])
+const origins = new Set(['https://vectra-v734a.ondigitalocean.app', 'https://vectra.planetarypixel.be'])
 
 /** Dedicated bounded anonymous intake; never forward browser credentials. */
 export function registerVectraUsage(app, { request = fetch,
