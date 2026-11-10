@@ -140,25 +140,27 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
       float bowShoulder=mix(.18,4.45,smoothstep(0.,15.,bowDistance));
       float along=smoothstep(-1.8,1.,bowDistance)*(1.-smoothstep(12.,28.,bowDistance));
       float shoulder=x-bowShoulder;
-      float contact=exp(-abs(shoulder-.42)*1.32)*along;
-      float bowCrest=exp(-abs(bowDistance-x*.57+1.0)*1.03)*exp(-x*.31);
+      float contact=exp(-abs(shoulder-.62)*.91)*along;
+      float bowOffset=.48*sin(x*1.46+transit*.93)+.23*sin(p.x*3.1-transit*.45);
+      float bowCrest=exp(-abs(bowDistance-x*.62+1.0+bowOffset)*.72)*exp(-x*.23);
       float diverging=x-(1.1+max(0.,bowDistance)*.43);
       float shoulderTrain=exp(-abs(diverging)*.39)
         *smoothstep(-1.,3.,bowDistance)*(1.-smoothstep(28.,52.,bowDistance));
-      float wakeSpread=3.6+aft*.34;
+      float wakeSpread=3.6+aft*.34+sin(aft*.23+transit*.19)*min(1.9,aft*.085);
       float wakeEnvelope=exp(-abs(x-wakeSpread)/(1.4+aft*.055))
         *smoothstep(0.,6.,aft)*(1.-smoothstep(53.,133.,aft));
-      float irregular=.59*sin(x*.83+p.y*.26)+.32*sin(x*1.51-p.y*.51);
+      float irregular=.84*sin(x*.83+p.y*.26)+.56*sin(p.x*1.51-p.y*.51);
       float bowPhase=diverging*1.5-bowDistance*.47+irregular;
       float wakePhase=x*.74-aft*.96+irregular+sin(transit*.72)*.31;
-      float sternCentre=exp(-pow(x/(1.8+aft*.074),2.))
-        *smoothstep(1.,4.,aft)*(1.-smoothstep(25.,58.,aft));
+      float sternDrift=sin(aft*.28-transit*.41)*min(1.5,aft*.12);
+      float sternCentre=exp(-pow((p.x-sternDrift)/(2.25+aft*.11),2.))
+        *smoothstep(.5,3.5,aft)*(1.-smoothstep(33.,85.,aft));
       float pump=.86+.14*sin(transit*1.12+p.y*.41);
-      float height=(bowCrest*.55+contact*.23)*pump
+      float height=(bowCrest*.76+contact*.28)*pump
         + shoulderTrain*sin(bowPhase)*.20
         + wakeEnvelope*sin(wakePhase)*.29
         + sternCentre*sin(aft*1.65-transit*1.3+irregular)*.12;
-      float breaking=(bowCrest*.88+contact*.63)*pump
+      float breaking=(bowCrest*.98+contact*.72)*pump
         + shoulderTrain*smoothstep(.53,.97,sin(bowPhase))*.60
         + wakeEnvelope*smoothstep(.32,.91,sin(wakePhase))*.89;
       return vec3(height,breaking,sternCentre);
@@ -221,8 +223,9 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
 
         vec2 eddies=texture2D(slope2,vec2(p.x*.075,p.y*.065-transit*.047)).xy;
         float breakup=smoothstep(.17,.85,grain*.62+length(eddies)*1.9);
-        foam=clamp(foam+nearHull.y*(.24+.91*breakup)+nearHull.z*(.17+.67*breakup),0.,.96);
-        vec3 color = mix(sea+glint*vec3(1.,.52,.20),vec3(.77,.83,.85),foam);
+        float froth=smoothstep(.26,.72,breakup+grain*.34);
+        foam=clamp(foam+nearHull.y*(.15+1.10*froth)+nearHull.z*(.25+.85*froth),0.,.96);
+        vec3 color = mix(sea+glint*vec3(1.,.47,.16),vec3(.77,.83,.85),foam);
         color = mix(color, vec3(.112,.151,.175),smoothstep(140.,820.,distance(cameraPosition,world)));
         gl_FragColor = vec4(color,1.);
         #include <tonemapping_fragment>
@@ -277,6 +280,118 @@ let lastFrame;
 let ship;
 let failed = false;
 
+
+function addTourHardware(ship, engine) {
+  const { BoxGeometry, CanvasTexture, CatmullRomCurve3, Mesh, MeshBasicMaterial,
+    MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } = engine;
+  const enclosure = new MeshStandardMaterial({ color: 0x141b1d, roughness: .62 });
+  const metal = new MeshStandardMaterial({ color: 0x68777b, metalness: .48, roughness: .48 });
+  function box(size, at, material) {
+    const part = new Mesh(new BoxGeometry(...size), material);
+    part.position.set(...at);
+    ship.add(part);
+    return part;
+  }
+  box([.35,.024,.25],[1.18,4.05,-19],metal);
+  box([.32,.08,.22],[1.18,4.10,-19],enclosure);
+  box([.29,.015,.19],[1.18,4.147,-19],enclosure);
+  const label = new MeshBasicMaterial({color:0xa7cb70});
+  box([.067,.004,.012],[1.18,4.156,-18.95],label);
+  const route = new CatmullRomCurve3([
+    [1.34,4.10,-19],[2.08,4.10,-19],[2.30,4.48,-18.6],[2.65,4.54,-17.4],
+    [3.28,4.55,-14],[3.85,4.54,-10],[4.10,4.45,-6],[4.12,4.42,-2],
+    [4.06,4.45,1],[3.83,4.65,3.6],[3.60,5.92,3.8],[3.55,7.36,3.7],
+    [3.23,7.52,3.45],[2.92,7.56,2.7],[2.98,7.30,-.3],[2.47,7.30,-2.8],[2.30,8.36,-2.88]
+  ].map(point => new Vector3(...point)), false, 'centripetal');
+  const cable = new Mesh(new TubeGeometry(route, 120,.009,7,false),
+    new MeshStandardMaterial({color:0xbd8b3f,roughness:.76}));
+  ship.add(cable);
+  const display = box([.85,.48,.085],[2.27,8.58,-2.88],enclosure);
+  display.rotation.x = -.12;
+  box([.17,.22,.15],[2.27,8.27,-2.97],enclosure);
+  const pixels = document.createElement('canvas');
+  pixels.width = 512;
+  pixels.height = 288;
+  const ctx = pixels.getContext('2d');
+  const texture = new CanvasTexture(pixels);
+  texture.colorSpace = SRGBColorSpace;
+  const screen = new Mesh(new PlaneGeometry(.78,.40),new MeshBasicMaterial({map:texture,toneMapped:false}));
+  screen.position.set(0,0,.047);
+  display.add(screen);
+
+  // Read the same status copy and colors used by the page's bridge display.
+  const statuses = [...document.querySelectorAll('#bridge-status .status-panel')].map(panel => ({
+    color: getComputedStyle(panel).getPropertyValue('--state-color').trim(),
+    heading: panel.querySelector('h3').innerText.split('\n'),
+    icon: panel.querySelector('.status-icon').textContent.trim(),
+    detail: panel.querySelector('p').textContent.trim(),
+    response: panel.querySelector('.status-mode strong').textContent.trim(),
+  }));
+  let previous = -1;
+  function updateScreen(progress) {
+    const index = Math.min(statuses.length-1,Math.max(0,Math.floor(progress*statuses.length)));
+    if (index === previous || index < 0) return;
+    previous = index;
+    const {color,heading,icon,detail,response} = statuses[index];
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,512,288);
+    ctx.fillStyle = '#151c1d';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('NORTHWATCH',22,32);
+    ctx.fillRect(22,44,468,2);
+    ctx.fillStyle = color;
+    ctx.fillRect(432,12,58,25);
+    ctx.fillRect(419,65,71,71);
+    ctx.fillStyle = '#151c1d';
+    ctx.fillText('PNT',441,32);
+    ctx.font = 'bold 42px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(icon,454,115);
+    ctx.textAlign = 'left';
+    heading.forEach((line,i) => ctx.fillText(line,22,94+i*43,383));
+    ctx.font = '17px sans-serif';
+    let line = '', row = 0;
+    for (const word of detail.split(' ')) {
+      const next = line ? line+' '+word : word;
+      if (ctx.measureText(next).width > 468) {
+        ctx.fillText(line,22,169+row++*20);
+        line = word;
+      } else line = next;
+    }
+    ctx.fillText(line,22,169+row*20);
+    ctx.fillRect(22,231,468,2);
+    ctx.font = '15px monospace';
+    ctx.fillText('WATCH RESPONSE',22,252);
+    ctx.font = 'bold 19px sans-serif';
+    ctx.fillText(response,22,275,468);
+    texture.needsUpdate = true;
+  }
+
+  updateScreen(0);
+
+  const sectionWalls = [];
+  const wall = new MeshStandardMaterial({color:0x66757a,roughness:.84});
+  const cutEdge = new MeshStandardMaterial({color:0xa7b8b7,roughness:.72});
+  const outline = [[-3.24,8.8],[3.24,8.8],[3.24,-3.55],[1.96,-4.84],
+    [-1.96,-4.84],[-3.24,-3.55],[-3.24,8.8]];
+  for (let i=1;i<outline.length;i++) {
+    const [ax,az] = outline[i-1], [bx,bz] = outline[i];
+    const length = Math.hypot(bx-ax,bz-az);
+    const x = (ax+bx)/2, z = (az+bz)/2;
+    const angle = -Math.atan2(bz-az,bx-ax);
+    const lowerWall = box([length,.49,.13],[x,7.44,z],wall);
+    const cutLip = box([length,.045,.18],[x,7.70,z],cutEdge);
+    lowerWall.rotation.y = cutLip.rotation.y = angle;
+    sectionWalls.push(lowerWall,cutLip);
+  }
+  function setCutaway(enabled) {
+    for (const wall of sectionWalls) wall.visible = enabled;
+  }
+  setCutaway(false);
+
+  return { route, updateScreen, setCutaway };
+}
+
 function suspend() {
   cancelAnimationFrame(renderId);
   renderId = undefined;
@@ -299,24 +414,26 @@ async function start() {
     const query = new URLSearchParams(location.search);
 
     let view = ['deck','helm'].includes(query.get('view')) ? query.get('view') : 'exterior';
+    let touring = view === 'exterior' && !reduceMotion.matches;
+    let tourElapsed = 0;
     const viewControls = new Map();
     const controls = document.createElement('div');
     controls.className = 'pollux-views';
     controls.setAttribute('role','group');
     controls.setAttribute('aria-label','Pollux inspection views');
-    for (const [value,label] of [['exterior','Exterior'],['deck','Deck'],['helm','Helm cutaway']]) {
+    for (const [value,label] of [['tour','Tour'],['exterior','Exterior'],['deck','Deck'],['helm','Helm cutaway']]) {
       const control = document.createElement('button');
       control.type = 'button';
       control.textContent = label;
-      control.setAttribute('aria-pressed',String(value === view));
+      control.setAttribute('aria-pressed',String(value === (touring ? 'tour' : view)));
       control.addEventListener('click', () => changeView(value));
       viewControls.set(value,control);
       controls.append(control);
     }
-    const engine = await import("./sea-engine.mjs?v=10");
+    const engine = await import("./sea-engine.mjs?v=12");
     const {
       ACESFilmicToneMapping, DirectionalLight, HemisphereLight, PerspectiveCamera,
-      Scene, Vector3, WebGLRenderer, GLTFLoader, Sky
+      Scene, Vector3, WebGLRenderer, GLTFLoader, Sky, CatmullRomCurve3
     } = engine;
     renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
     renderer.toneMapping = ACESFilmicToneMapping;
@@ -324,7 +441,7 @@ async function start() {
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     const scene = new Scene();
     scene.add(new HemisphereLight(0xa7c0db, 0x536974, 1.72));
-    const sun = new DirectionalLight(0xffbd78, 3.6);
+    const sun = new DirectionalLight(0xffae65, 4.0);
     sun.position.set(-91, 3.2, 31);
     scene.add(sun);
     const fill = new DirectionalLight(0xb9d4ea, .58);
@@ -349,6 +466,7 @@ async function start() {
 
     ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=8', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
+    const hardware = addTourHardware(ship,engine);
 
     const roof = ship.getObjectByName('Bridge_roof_and_mast');
     const windows = ship.getObjectByName('Bridge_glazing_and_mullions');
@@ -364,6 +482,7 @@ async function start() {
       return [new Vector3(43,15.5,-37).multiplyScalar(distance),new Vector3(0,4.9,1)];
     }
     function setCutaway(enabled) {
+      hardware.setCutaway(enabled);
       if (roof) roof.visible = !enabled;
       if (windows) windows.visible = !enabled;
     }
@@ -379,11 +498,86 @@ async function start() {
       const offset = position.clone().sub(target);
       return [Math.atan2(offset.x,offset.z),Math.atan2(offset.y,Math.hypot(offset.x,offset.z)),offset.length()];
     }
+
+    // Follow the routed cable from outside the rail before entering the bridge cutaway.
+    const bowAim = new Vector3(1.55,4.37,-18.9);
+    const helmAim = new Vector3(2.23,8.46,-2.91);
+    const bowPosition = new Vector3(6.2,7.1,-17.65);
+    const helmPosition = new Vector3(3.34,9.61,.40);
+    const cableCamera = new CatmullRomCurve3([
+      bowPosition, new Vector3(6.6,7.15,-12), new Vector3(7.1,7.4,-4),
+      new Vector3(6.7,8.7,2.8), new Vector3(5.2,10.3,2.45), helmPosition
+    ]);
+    const tourLength = 26;
+    const smooth = value => value*value*(3-2*value);
+    const tourPosition = new Vector3();
+    const tourAim = new Vector3();
+    function applyTourPose(position,target) {
+      ship.updateMatrixWorld(true);
+      camera.position.copy(ship.localToWorld(position));
+      aim.copy(ship.localToWorld(target));
+      camera.lookAt(aim);
+    }
+    function tourOrbit(fromPosition,fromTarget,toPosition,toTarget,progress) {
+      const [fromAngle,fromElevation,fromRadius] = orbit(fromPosition,fromTarget);
+      const [toAngle,toElevation,toRadius] = orbit(toPosition,toTarget);
+      const turn = Math.atan2(Math.sin(toAngle-fromAngle),Math.cos(toAngle-fromAngle));
+      const angle = fromAngle + turn*progress;
+      const elevation = fromElevation + (toElevation-fromElevation)*progress;
+      const radius = fromRadius + (toRadius-fromRadius)*progress;
+      const horizontal = Math.cos(elevation)*radius;
+      tourAim.lerpVectors(fromTarget,toTarget,progress);
+      tourPosition.set(Math.sin(angle)*horizontal,Math.sin(elevation)*radius,Math.cos(angle)*horizontal).add(tourAim);
+      applyTourPose(tourPosition,tourAim);
+    }
+    function animateTour() {
+      const elapsed = tourElapsed;
+      const phase = elapsed < 4 ? 0 : 4+(elapsed-4)%tourLength;
+      const [exteriorPosition,exteriorAim] = cameraPose('exterior');
+      let shot = 'exterior';
+      if (phase < 4 || phase >= 20) {
+        placeCamera('exterior');
+      } else if (phase < 7) {
+        shot = 'bow-approach';
+        const progress = smooth((phase-4)/3);
+        tourOrbit(exteriorPosition,exteriorAim,bowPosition,bowAim,progress);
+        inspectionLight.intensity = progress*.9;
+        setCutaway(false);
+      } else if (phase < 8) {
+        shot = 'bow-device';
+        applyTourPose(tourPosition.copy(bowPosition),tourAim.copy(bowAim));
+      } else if (phase < 12) {
+        shot = 'cable';
+        const progress = smooth((phase-8)/4);
+        cableCamera.getPointAt(progress,tourPosition);
+        hardware.route.getPointAt(Math.min(1,progress+.055),tourAim);
+        if (progress > .78) tourAim.lerp(helmAim,smooth((progress-.78)/.22));
+        applyTourPose(tourPosition,tourAim);
+        setCutaway(progress > .78);
+        inspectionLight.intensity = .9+progress*.65;
+      } else if (phase < 17) {
+        shot = 'helm-display';
+        applyTourPose(tourPosition.copy(helmPosition),tourAim.copy(helmAim));
+        hardware.updateScreen((phase-12)/5);
+        setCutaway(true);
+      } else {
+        shot = 'return';
+        const progress = smooth((phase-17)/3);
+        tourOrbit(helmPosition,helmAim,exteriorPosition,exteriorAim,progress);
+        setCutaway(progress < .52);
+        inspectionLight.intensity = 1.55*(1-progress);
+      }
+      frame.dataset.tourShot = shot;
+    }
+
     function changeView(next) {
-      if (next === view || failed) return;
-      view = next;
+      if (failed || (!touring && next === view) || (touring && next === 'tour')) return;
+      touring = next === 'tour' && !reduceMotion.matches;
+      tourElapsed = 0;
+      view = next === 'tour' ? 'exterior' : next;
+      delete frame.dataset.tourShot;
       for (const [name,control] of viewControls) {
-        control.setAttribute('aria-pressed', String(name === view));
+        control.setAttribute('aria-pressed', String(name === (touring ? 'tour' : view)));
       }
       if (reduceMotion.matches || !visible || document.hidden) {
         cameraMove = undefined;
@@ -424,13 +618,18 @@ async function start() {
     function draw() {
       ocean.update(time);
       if (!paused) ocean.move(ship);
+      if (touring && !cameraMove) animateTour();
       renderer.render(scene, camera);
     }
 
     function render(now) {
       renderId = undefined;
       if (lastFrame === undefined || now - lastFrame >= 30) {
-        if (!paused && lastFrame !== undefined) time += Math.min((now-lastFrame)/1000,.08);
+        if (!paused && lastFrame !== undefined) {
+          const delta = (now-lastFrame)/1000;
+          time += Math.min(delta,.08);
+          if (touring && !cameraMove) tourElapsed += delta;
+        }
         animateCamera(now);
         draw();
         lastFrame = now;
@@ -472,7 +671,11 @@ async function start() {
     frame.append(controls);
     toggle.hidden = false;
     toggle.addEventListener('click', () => { paused = !paused; sync(); });
-    reduceMotion.addEventListener('change', event => { paused = event.matches; sync(); });
+    reduceMotion.addEventListener('change', event => {
+      paused = event.matches;
+      if (event.matches && touring) changeView('exterior');
+      sync();
+    });
     document.addEventListener('visibilitychange', sync);
     canvas.addEventListener('webglcontextlost', fallback, { once: true });
   } catch (error) {
