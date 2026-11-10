@@ -409,12 +409,13 @@ function addNavigationLights(ship, { BoxGeometry, Mesh, MeshBasicMaterial, MeshS
   const lensGeometry = new BoxGeometry(.18,.19,.16);
   const haloGeometry = new PlaneGeometry(1.15,1.15);
   const radians = Math.PI/180;
+  // COLREG Rules 21 and 23: steady lights, with sectors measured from the bow.
   const lamps = [
     { name:'Port sidelight', at:[-3.72,8.43,-2.8], color:0xff4248, center:-56.25, width:112.5, roof:true },
     { name:'Starboard sidelight', at:[3.72,8.43,-2.8], color:0x5dff92, center:56.25, width:112.5, roof:true },
-    { name:'Forward masthead light', at:[0,9.7,-4.4], color:0xfff6dc, center:0, width:225, roof:true },
-    { name:'Aft masthead light', at:[0,15.4,8.35], color:0xfff6dc, center:0, width:225, roof:true },
-    { name:'Sternlight', at:[0,2.05,26.62], color:0xfff6dc, center:180, width:135, roof:false },
+    { name:'Forward masthead light', at:[0,8.91,-4.4], color:0xffffff, center:0, width:225, roof:true },
+    { name:'Aft masthead light', at:[0,15.0,7.86], color:0xffffff, center:0, width:225, roof:true },
+    { name:'Sternlight', at:[0,2.05,26.62], color:0xffffff, center:180, width:135, roof:false },
   ].map(spec => {
     const base = new Mesh(baseGeometry,baseMaterial);
     base.name = spec.name + ' housing';
@@ -448,11 +449,11 @@ function addNavigationLights(ship, { BoxGeometry, Mesh, MeshBasicMaterial, MeshS
     return {...spec,base,lens,halo};
   });
   const localCamera = new Vector3();
-  return (camera,cutaway) => {
+  return (camera,cutawayAmount) => {
     localCamera.copy(camera.position);
     ship.worldToLocal(localCamera);
     for (const {base,lens,halo,center,width,roof} of lamps) {
-      base.visible = !roof || !cutaway;
+      base.visible = !roof || cutawayAmount < .65;
       const bearing = Math.atan2(localCamera.x-base.position.x,base.position.z-localCamera.z);
       const angle = bearing-center*radians;
       const inSector = Math.abs(Math.atan2(Math.sin(angle),Math.cos(angle))) <= width*radians/2;
@@ -715,7 +716,6 @@ async function start() {
     let cutaway = false;
     let cutawayAmount = 0;
     const shellFade = { value: 0 };
-    const shellReturning = { value: false };
     for (const shell of [roof, windows]) {
       shell?.traverse(mesh => {
         if (!mesh.isMesh) return;
@@ -724,18 +724,17 @@ async function start() {
           const material = original.clone();
           material.onBeforeCompile = shader => {
             shader.uniforms.shellFade = shellFade;
-            shader.uniforms.shellReturning = shellReturning;
             shader.vertexShader = 'varying float vShellHeight;\n' + shader.vertexShader.replace(
               '#include <begin_vertex>',
               '#include <begin_vertex>\nvShellHeight = (modelMatrix * vec4(transformed, 1.0)).y;'
             );
-            shader.fragmentShader = 'uniform float shellFade;\nuniform bool shellReturning;\nvarying float vShellHeight;\n' +
+            shader.fragmentShader = 'uniform float shellFade;\nvarying float vShellHeight;\n' +
               shader.fragmentShader.replace('#include <alphatest_fragment>', `
                 #include <alphatest_fragment>
                 if (shellFade > 0.0) {
-                  float edge = mix(18.0, 6.2, shellReturning ? 1.0-shellFade : shellFade);
-                  float aboveEdge = smoothstep(edge - 0.75, edge + 0.75, vShellHeight);
-                  float coverage = shellReturning ? aboveEdge : 1.0-aboveEdge;
+                  // The mast and roof share one opacity. The glazing trails the roof as it returns.
+                  float coverage = ${shell === roof ? '1.0 - shellFade' :
+                    '1.0 - smoothstep(0.0, 1.0, shellFade + 0.28 * shellFade * (1.0 - shellFade) * (9.0 - vShellHeight))'};
                   float grain = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
                   if (coverage <= grain) discard;
                 }`);
@@ -746,8 +745,6 @@ async function start() {
       });
     }
     function setCutaway(amount) {
-      if (cutawayAmount === 1 && amount < 1) shellReturning.value = true;
-      if (cutawayAmount === 0 && amount > 0) shellReturning.value = false;
       cutawayAmount = Number(amount);
       shellFade.value = cutawayAmount;
       cutaway = cutawayAmount > .8;
@@ -824,7 +821,7 @@ async function start() {
         hardware.route.getPointAt(Math.min(1,progress+.055),tourAim);
         if (progress > .78) tourAim.lerp(helmAim,smooth((progress-.78)/.22));
         applyTourPose(tourPosition,tourAim);
-        setCutaway(smooth(Math.min(1,Math.max(0,(progress-.72)/.28))));
+        setCutaway(smooth(Math.min(1,Math.max(0,(phase-9.75)/2.25))));
         inspectionLight.intensity = .9+progress*.65;
       } else if (phase < 17) {
         shot = 'helm-display';
@@ -840,7 +837,7 @@ async function start() {
         shot = 'return';
         const progress = smooth((phase-17)/3);
         tourOrbit(chartPosition,chartAim,exteriorPosition,exteriorAim,progress);
-        setCutaway(1-smooth(Math.min(1,Math.max(0,(progress-.24)/.46))));
+        setCutaway(1-smooth(Math.min(1,Math.max(0,(phase-17.45)/2.4))));
         inspectionLight.intensity = 1.55*(1-progress);
       }
       frame.dataset.tourShot = shot;
@@ -866,7 +863,8 @@ async function start() {
     }
     function animateCamera(now) {
       if (!cameraMove) return;
-      const fraction = Math.min(1, (now-cameraMove.start)/950);
+      const duration = view === 'helm' || cameraMove.cutaway > 0 ? 1450 : 950;
+      const fraction = Math.min(1, (now-cameraMove.start)/duration);
       if (fraction >= 1 || reduceMotion.matches) {
         cameraMove = undefined;
         placeCamera(view);
@@ -884,7 +882,7 @@ async function start() {
       aim.lerpVectors(cameraMove.aim,target,eased);
       camera.position.set(Math.sin(angle)*horizontal,Math.sin(elevation)*radius,Math.cos(angle)*horizontal).add(aim);
       camera.lookAt(aim);
-      const reveal = smooth(Math.min(1,Math.max(0,(fraction-.28)/.72)));
+      const reveal = smooth(Math.min(1,Math.max(0,(fraction-.12)/.88)));
       setCutaway(cameraMove.cutaway + (Number(view === 'helm')-cameraMove.cutaway)*reveal);
       inspectionLight.intensity = cameraMove.light + ((view === 'exterior' ? 0 : 1.55)-cameraMove.light)*eased;
     }
@@ -895,7 +893,7 @@ async function start() {
       ocean.update(time);
       if (!paused) ocean.move(ship);
       if (touring && !cameraMove) animateTour();
-      updateNavigationLights(camera,cutaway);
+      updateNavigationLights(camera,cutawayAmount);
       renderer.render(scene, camera);
     }
 
