@@ -26,6 +26,14 @@ orange = material('Rescue equipment', (.82, .18, .035))
 black = material('Black', (.012, .014, .014))
 yellow = material('Belgian yellow', (.98, .69, .025))
 red = material('Belgian red', (.69, .035, .03))
+deck_lamp = material('Shielded deck lighting', (1, .57, .22), .35)
+deck_lamp_shader = deck_lamp.node_tree.nodes.get('Principled BSDF')
+deck_lamp_shader.inputs['Emission Color'].default_value = (1, .38, .09, 1)
+deck_lamp_shader.inputs['Emission Strength'].default_value = 3
+rope = material('Mooring rope', (.25, .22, .16), .95)
+deck_marking = material('Deck safety markings', (.64, .43, .055), .8)
+for paint in (structure, waterline):
+    paint.node_tree.nodes.get('Principled BSDF').inputs['Metallic'].default_value = .22
 
 def mesh(name, verts, faces, mat):
     data = bpy.data.meshes.new(name)
@@ -34,6 +42,12 @@ def mesh(name, verts, faces, mat):
     obj = bpy.data.objects.new(name, data)
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(mat)
+    if mat == deck:
+        uv = data.uv_layers.new(name='Deck metres')
+        for polygon in data.polygons:
+            for loop_index in polygon.loop_indices:
+                vertex = data.vertices[data.loops[loop_index].vertex_index].co
+                uv.data[loop_index].uv = (vertex.x/2, vertex.y/2)
     return obj
 
 def box(name, position, dimensions, mat, bevel=0):
@@ -50,14 +64,16 @@ def box(name, position, dimensions, mat, bevel=0):
         obj.modifiers.new('Weighted normals', 'WEIGHTED_NORMAL')
     return obj
 
-def rod(name, start, end, radius, mat):
+def rod(name, start, end, radius, mat, segments=8):
     delta = Vector(end) - Vector(start)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=radius, depth=delta.length,
+    bpy.ops.mesh.primitive_cylinder_add(vertices=segments, radius=radius, depth=delta.length,
                                        location=(Vector(start) + Vector(end))/2)
     obj = bpy.context.object
     obj.name = name
     obj.rotation_euler = delta.to_track_quat('Z', 'Y').to_euler()
     obj.data.materials.append(mat)
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = len(polygon.vertices) == 4
     return obj
 
 
@@ -224,7 +240,7 @@ for side in (-1,1):
     rod('Anchor shank',(side*(w+.01),19.5,1.33),(side*(w+.01),19.5,1.9),.085,waterline)
 
 # Foredeck fittings and open aft working deck.
-for y,x in [(23,0),(20,0),(16.4,-1.4),(15.9,1.3),(-24,-2.4),(-24,2.4)]:
+for y,x in [(-24,-2.4),(-24,2.4)]:
     w,z=interpolated_top(y)
     box('Mooring fitting',(x,y,z+.23),(.60,.76,.44),structure,.075)
 # Mooring and service fittings follow the local deck sheer.
@@ -236,7 +252,7 @@ for y in (12.8, 19.1, 23.9):
         for offset in (-.17,.17):
             rod('Mooring bitt',(x,y+offset,z+.055),(x,y+offset,z+.32),.092,waterline)
             rod('Bitt head',(x,y+offset,z+.29),(x,y+offset,z+.36),.128,waterline)
-for y in (14.4, 17.2, 21.1):
+for y in (22.4,):
     _,z=interpolated_top(y)
     box('Gasketed inspection plate',(0,y,z+.033),(.78,1.04,.056),waterline,.035)
     box('Non-slip inspection lid',(0,y,z+.066),(.71,.96,.035),deck,.031)
@@ -440,8 +456,8 @@ def console_station(x,y,yaw,width,displays):
 console_station(-1.91,3.47,.35,1.62,[(-.41,.65,telemetry_face),(.37,.65,radar_face)])
 console_station(0,3.83,0,2.19,[(-.71,.57,chart_face),(0,.65,comms_face),(.71,.57,telemetry_face)])
 console_station(1.91,3.47,-.35,1.62,[(-.38,.64,radar_face),(.38,.64,telemetry_face)])
-console_station(-2.75,-.91,-math.pi/2,1.36,[(-.29,.50,comms_face),(.30,.50,radar_face)])
-console_station(2.75,-1.39,math.pi/2,1.36,[(-.29,.50,chart_face),(.30,.50,comms_face)])
+console_station(-2.75,-.91,math.pi/2,1.36,[(-.29,.50,comms_face),(.30,.50,radar_face)])
+console_station(2.75,-1.39,-math.pi/2,1.36,[(-.29,.50,chart_face),(.30,.50,comms_face)])
 
 for x,y in [(-1.65,1.79),(1.64,1.73)]:
     box('Seat floor plate',(x,y,7.235),(.49,.51,.072),helm_dark,.033)
@@ -501,8 +517,84 @@ for side in (-1,1):
         box('Working deck storage',(side*2.71,y,2.11),(1.00,.82,.79),structure,.065)
     for y in (-4.5,1.15,5.75):
         box('Weather deck drain',(side*4.02,y,3.49),(.31,.26,.024),waterline,.024)
-box('Foredeck chain locker',(0,17.55,3.92),(1.23,1.20,.30),structure,.05)
-rod('Foredeck winch axle',(-.58,15.1,4.05),(.58,15.1,4.05),.24,waterline)
+# Low relief service details stay in the existing material batches.
+for y,width,length in [(13.4,1.95,1.45),(18.0,1.1,.85)]:
+    _,z=interpolated_top(y)
+    box('Hatch gasket',(0,y,z+.04),(width+.12,length+.12,.07),waterline,.045)
+    box('Bolted hatch coaming',(0,y,z+.095),(width,length,.10),structure,.045)
+    box('Hatch non-slip insert',(0,y,z+.15),(width-.16,length-.16,.018),deck,.025)
+    for x in (-width*.43,width*.43):
+        for offset in (-length*.39,0,length*.39):
+            rod('Hatch bolt',(x,y+offset,z+.146),(x,y+offset,z+.17),.023,waterline)
+    for x in (-.34,.34):
+        box('Hatch hinge',(x,y+length*.48,z+.14),(.17,.11,.075),structure,.015)
+    rod('Hatch pull',(-.13,y-length*.25,z+.19),(.13,y-length*.25,z+.19),.024,waterline)
+
+# Twin supports, flanges and a wound drum make the windlass readable from deck level.
+_,winch_z=interpolated_top(15.7)
+box('Windlass bed',(-.65,15.7,winch_z+.09),(1.9,1.15,.16),structure,.05)
+for x in (-1.38,.08):
+    box('Windlass bearing pedestal',(x,15.7,winch_z+.47),(.20,.72,.70),structure,.055)
+    rod('Windlass drum flange',(x-.055,15.7,winch_z+.77),(x+.055,15.7,winch_z+.77),.43,structure,24)
+    for angle in range(0,360,60):
+        a=math.radians(angle)
+        y=15.7+math.sin(a)*.33
+        z=winch_z+.77+math.cos(a)*.33
+        rod('Windlass flange bolt',(x+.06,y,z),(x+.085,y,z),.028,waterline)
+rod('Windlass core',(-1.32,15.7,winch_z+.77),(.02,15.7,winch_z+.77),.29,waterline,24)
+for i in range(27):
+    x=-1.27+i*.047
+    bpy.ops.mesh.primitive_torus_add(major_segments=16,minor_segments=4,
+        location=(x,15.7,winch_z+.77),rotation=(0,math.pi/2,0),major_radius=.30,minor_radius=.025)
+    bpy.context.object.name='Wound mooring line'
+    bpy.context.object.data.materials.append(rope)
+for y in (15.13,16.27):
+    for x in (-1.47,.17):
+        rod('Windlass bed bolt',(x,y,winch_z+.17),(x,y,winch_z+.20),.034,waterline)
+for y in (14.98,16.42):
+    for i in range(7):
+        box('Windlass clearance marking',(-1.66+i*.31,y,winch_z+.014),(.18,.06,.009),deck_marking)
+
+_,vent_z=interpolated_top(20.65)
+ring_body('Foredeck ventilator',[(-.58,20.2),(.58,20.2),(.58,21.1),(-.58,21.1)],
+    [(-.39,20.31),(.39,20.31),(.39,20.99),(-.39,20.99)],vent_z+.04,vent_z+.65,structure)
+for i in range(6):
+    box('Ventilator louvre',(0,20.19,vent_z+.14+i*.074),(.82,.045,.032),waterline)
+
+for side in (-1,1):
+    # Short inner frames retain the solid forward bulwark profile.
+    handrail=[]
+    for y in (12.6,15.3,18.2,21.1,23.4,25.2):
+        w,z=interpolated_top(y)
+        x=side*(w-.055)
+        cap_height=.54 if y<14 else .73 if y<23 else .65
+        rod('Foredeck handrail stanchion',(x,y,z+cap_height-.04),(x,y,z+cap_height+.37),.029,structure)
+        handrail.append((x,y,z+cap_height+.37))
+    for a,b in zip(handrail,handrail[1:]):
+        rod('Foredeck upper handrail',a,b,.033,structure)
+    for y in (12.6,15.3,18.2,21.1,23.4):
+        w,z=interpolated_top(y)
+        x=side*(w-.10)
+        box('Bulwark inner stiffener',(x,y,z+.26),(.075,.10,.48),structure)
+        box('Bulwark stiffener foot',(x-side*.055,y,z+.055),(.19,.24,.07),structure)
+    for y in (14.1,19.3,22.6):
+        w,z=interpolated_top(y)
+        x=side*(w-.13)
+        box('Shielded deck lamp housing',(x,y,z+.34),(.10,.32,.16),waterline,.018)
+        box('Warm deck lamp lens',(x-side*.055,y,z+.32),(.018,.25,.075),deck_lamp,.008)
+    for y in (12.8,16.9,20.4):
+        w,z=interpolated_top(y)
+        x=side*(w-.42)
+        box('Drain grating surround',(x,y,z+.022),(.36,.55,.032),structure,.018)
+        for i in range(6):
+            box('Drain grating slot',(x,y-.21+i*.084,z+.042),(.27,.033,.007),waterline)
+    for y in (13.9,17.5,21.4):
+        w,z=interpolated_top(y)
+        x=side*(w-.74)
+        bpy.ops.mesh.primitive_torus_add(major_segments=12,minor_segments=4,
+            location=(x,y,z+.031),major_radius=.065,minor_radius=.016)
+        bpy.context.object.name='Flush deck tie down'
+        bpy.context.object.data.materials.append(structure)
 for x in (-.50,.50):
     rod('Winch flange',(x-.055,15.1,4.05),(x+.055,15.1,4.05),.33,structure)
 for x,y,z in [(0,7.35,3.54),(0,-24.37,1.70),(-2.07,10.7,3.59),(2.07,10.7,3.59)]:
@@ -524,7 +616,7 @@ for name,location,description in anchors:
     anchor['status']='illustrative'
 
 # Bake bevels and batch geometry by material to keep browser draw calls low.
-for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber,
+for paint in [hull,structure,deck,waterline,glass,white,orange,black,deck_lamp,rope,deck_marking,helm_dark,helm_floor,screen,rubber,
               console_blue,fascia_trim,task_strip,radar_face,chart_face,telemetry_face,comms_face]:
     def removable(obj):
         return obj.name.startswith(('Overhanging bridge roof','Lattice mast','Mast cross','Mast diagonal','Radar support',

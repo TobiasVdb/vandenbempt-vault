@@ -138,12 +138,27 @@ function animateEnsign(ship) {
   };
 }
 
-function refinePolluxMaterials(vessel) {
+function refinePolluxMaterials(vessel, { CanvasTexture, RepeatWrapping }) {
   const tuned = new Set();
+  const grit = document.createElement('canvas');
+  grit.width = grit.height = 256;
+  const context = grit.getContext('2d');
+  const pixels = context.createImageData(256,256);
+  let seed = 1729;
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    seed = (Math.imul(seed,1664525)+1013904223) >>> 0;
+    const value = 130+(seed >>> 25);
+    pixels.data.set([value,value,value,255],i);
+  }
+  context.putImageData(pixels,0,0);
+  const deckTexture = new CanvasTexture(grit);
+  deckTexture.wrapS = deckTexture.wrapT = RepeatWrapping;
+  deckTexture.repeat.set(4,4);
+  deckTexture.anisotropy = 4;
   const finishes = {
     'Naval grey': { color: 0x82919b, roughness: .69, grain: .06, seams: .065 },
     'Light superstructure': { color: 0x9ba8ae, roughness: .62, grain: .043, seams: .038 },
-    'Non-slip deck': { color: 0x545957, roughness: .88, grain: .1, seams: 0 },
+    'Non-slip deck': { color: 0x687274, roughness: .85, grain: .055, seams: 0 },
   };
   vessel.traverse(object => {
     if (!object.isMesh) return;
@@ -160,6 +175,13 @@ function refinePolluxMaterials(vessel) {
       material.map = null;
       material.color.setHex(finish.color);
       material.roughness = finish.roughness;
+      if (material.name === 'Non-slip deck') {
+        material.map = deckTexture;
+        material.bumpMap = deckTexture;
+        material.bumpScale = .004;
+        material.roughnessMap = deckTexture;
+        material.metalness = .16;
+      }
       material.onBeforeCompile = shader => {
         shader.vertexShader = shader.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vPaintPosition;')
@@ -188,7 +210,7 @@ function refinePolluxMaterials(vessel) {
             float scuff = sin(vPaintPosition.x*2.8+vPaintPosition.z*.65) * .01;
             diffuseColor.rgb *= 1. + paintGrain*${finish.grain.toFixed(3)} - (plateJoint + weld*.45)*${finish.seams.toFixed(3)} + paintVariation + scuff;`);
       };
-      material.customProgramCacheKey = () => material.name + ':pollux-paint-v2';
+      material.customProgramCacheKey = () => material.name + ':pollux-paint-v3';
       material.needsUpdate = true;
     }
   });
@@ -747,8 +769,8 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=13', import.meta.url).href)).scene;
-    refinePolluxMaterials(ship);
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=15', import.meta.url).href)).scene;
+    refinePolluxMaterials(ship,engine);
     const updateEnsign = animateEnsign(ship);
     addHelmInstrumentTextures(ship,engine);
     const hardware = addTourHardware(ship,engine);
@@ -763,7 +785,7 @@ async function start() {
     let distance = 1;
 
     function cameraPose(name) {
-      if (name === 'deck') return [new Vector3(29*distance,38*distance,48*distance),new Vector3(0,3.1,3.5)];
+      if (name === 'deck') return [new Vector3(3,6,-12),new Vector3(-.2,4.1,-23)];
       if (name === 'helm') return [new Vector3(10*distance,8+12*distance,13*distance),new Vector3(0,7.4,2)];
       return [new Vector3(43,10.6,-39).multiplyScalar(distance),new Vector3(-1.4,6.2,-.4)];
     }
@@ -813,7 +835,8 @@ async function start() {
       camera.lookAt(aim);
       if (name === 'exterior' || name === 'helm') hardware.updateScreen('status');
       setCutaway(name === 'helm');
-      inspectionLight.intensity = name === 'exterior' ? 0 : 1.55;
+      inspectionLight.color.setHex(name === 'deck' ? 0xffcb91 : 0xe0edf2);
+      inspectionLight.intensity = name === 'exterior' ? 0 : name === 'deck' ? .8 : 1.55;
     }
     function orbit(position,target) {
       const offset = position.clone().sub(target);
@@ -945,7 +968,8 @@ async function start() {
       camera.lookAt(aim);
       const reveal = smooth(Math.min(1,Math.max(0,(fraction-.12)/.88)));
       setCutaway(cameraMove.cutaway + (Number(view === 'helm')-cameraMove.cutaway)*reveal);
-      inspectionLight.intensity = cameraMove.light + ((view === 'exterior' ? 0 : 1.55)-cameraMove.light)*eased;
+      const targetLight = view === 'exterior' ? 0 : view === 'deck' ? .8 : 1.55;
+      inspectionLight.intensity = cameraMove.light + (targetLight-cameraMove.light)*eased;
     }
     placeCamera(view);
 
