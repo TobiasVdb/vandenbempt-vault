@@ -3224,6 +3224,7 @@ if (bobCoop) {
 app.use('/nyc-follow', express.static(path.join(distDir, 'nyc-follow')), (_request, response) => response.sendStatus(404))
 app.use('/haw', express.static(path.join(distDir, 'haw')), (_request, response) => response.sendStatus(404))
 app.use('/spacelake', express.static(path.join(distDir, 'spacelake')), (_request, response) => response.sendStatus(404))
+app.use('/belgiannavy', express.static(path.join(distDir, 'belgiannavy')), (_request, response) => response.sendStatus(404))
 app.use(registerRootAccess(app))
 
 if (fs.existsSync(distDir)) {
