@@ -280,6 +280,18 @@
   .hero-stage .hero-chart { margin-top:-28px; }
   .hero-stage .sea-frame { height:clamp(285px,calc(100vh - 278px),560px); aspect-ratio:auto; }
 }
+@media screen and (min-width:1920px), screen and (min-width:1600px) and (min-aspect-ratio:2/1) {
+  .hero-stage {
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr);
+    height:calc(100svh - 68px);
+    min-height:520px;
+  }
+  .hero-stage .hero { margin-block:0; }
+  .hero-stage .hero-chart { display:flex; flex-direction:column; min-height:0; }
+  .hero-stage .sea-frame { flex:1; min-height:0; height:auto; aspect-ratio:auto; }
+  .hero-stage .sea-frame img { object-position:center bottom; }
+}
 @media (max-width:760px) {
   .hero-stage .hero { padding-top:68px; }
   .hero-bearing { display:none; }
@@ -532,6 +544,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=36"></script>
+<script type="module" src="./sea-scene.mjs?v=41"></script>
 </body>
 </html>

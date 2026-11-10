@@ -107,6 +107,35 @@ function addHelmInstrumentTextures(ship, { MeshBasicMaterial, SRGBColorSpace, Te
   });
 }
 
+function animateEnsign(ship) {
+  const flag = ship.getObjectByName('Belgian_Navy_ensign');
+  if (!flag?.isMesh) return () => {};
+  const geometry = flag.geometry;
+  const positions = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv');
+  const rest = positions.clone();
+  let lastTime;
+  return time => {
+    if (time === lastTime) return;
+    lastTime = time;
+    for (let i = 0; i < positions.count; i++) {
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      // Waves travel towards the fly, while the hoist remains pinned to the staff.
+      const phase = 10*u-9*time;
+      const gust = .85+.15*Math.sin(time*2.1);
+      const ripple = u*gust*(.33*Math.sin(phase+v*.75)+.13*Math.sin(phase*1.87-v*1.6));
+      const x = rest.getX(i)-.19*Math.sin(8*u)*u+ripple;
+      const y = rest.getY(i)+u*.16*Math.sin(phase*.82+v*1.2);
+      const z = rest.getZ(i)-u*.20*Math.pow(Math.sin(phase*.5),2);
+      positions.setXYZ(i,x,y,z);
+    }
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+  };
+}
+
 function refinePolluxMaterials(vessel) {
   const tuned = new Set();
   const finishes = {
@@ -194,12 +223,19 @@ function eveningSky(sky, sun) {
       float highCover=smoothstep(.42,.68,cloudField(highPoint))*smoothstep(.008,.09,above);
       sky=mix(sky,vec3(.062,.088,.112)+warm*pow(toward,11.)*.13,highCover*.46);
       vec2 p=vec2(atan(d.z,-d.x)*8.5,above*26.)+vec2(12.8,8.2);
-      float density=cloudField(p);
-      float cover=smoothstep(.38,.57,density)*smoothstep(.004,.038,above);
+      float baseDensity=cloudField(p);
+      // Break up the cloud silhouette and lighting at scales below the broad banks.
+      vec2 detailPoint=vec2(p.x-p.y*.37,p.y+p.x*.37)*12.3;
+      float footprint=length(fwidth(detailPoint));
+      float detail=(noise(detailPoint)-.5)*.087*(1.-smoothstep(.35,.95,footprint));
+      detail+=(noise(detailPoint*2.37)-.5)*.043*(1.-smoothstep(.16,.44,footprint));
+      detail+=(noise(detailPoint*5.1)-.5)*.021*(1.-smoothstep(.08,.22,footprint));
+      float density=baseDensity+detail;
+      float cover=smoothstep(.405,.545,density)*smoothstep(.004,.038,above);
       float sunAzimuth=atan(sunDirection.z,-sunDirection.x);
       float azimuth=atan(d.z,-d.x);
       vec2 lightStep=normalize(vec2(sin(sunAzimuth-azimuth),sunDirection.y-above-.12))*.32;
-      float litFace=clamp((density-cloudField(p+lightStep))*4.3+.13,0.,1.);
+      float litFace=clamp((baseDensity-cloudField(p+lightStep))*4.3+detail*3.1+.13,0.,1.);
       float thickness=smoothstep(.40,.72,density);
       vec3 cloud=mix(vec3(.052,.082,.105),vec3(.012,.024,.038),thickness);
       cloud+=vec3(.071,.095,.113)*litFace;
@@ -493,31 +529,36 @@ function addTourHardware(ship, engine) {
   display.rotation.x = -.12;
   box([.085,.12,.075],[displayCenter.x,8.055,displayCenter.z-.02],enclosure);
   const pixels = document.createElement('canvas');
-  pixels.width = 512;
-  pixels.height = 288;
+  pixels.width = 1536;
+  pixels.height = 864;
   const ctx = pixels.getContext('2d');
+  ctx.scale(3,3);
   const texture = new CanvasTexture(pixels);
   texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
   const screen = new Mesh(new PlaneGeometry(.39,.20),new MeshBasicMaterial({map:texture,toneMapped:false}));
   screen.position.set(0,0,.0235);
   display.add(screen);
 
   // Read the same status copy and colors used by the page's bridge display.
-  const statuses = [...document.querySelectorAll('#bridge-status .status-panel')].map(panel => ({
+  const readStatus = panel => ({
     color: getComputedStyle(panel).getPropertyValue('--state-color').trim(),
-    heading: panel.querySelector('h3').innerText.split('\n'),
+    heading: panel.querySelector('h3').innerHTML.split(/<br\s*\/?\s*>/i),
     icon: panel.querySelector('.status-icon').textContent.trim(),
     detail: panel.querySelector('p').textContent.trim(),
     response: panel.querySelector('.status-mode strong').textContent.trim(),
     chart: panel.querySelector('.track-chart'),
-  }));
-  let previous = -1;
-  function updateScreen(progress) {
-    const index = Math.min(statuses.length-1,Math.max(0,Math.floor(progress*statuses.length)));
-    if (index === previous || index < 0) return;
-    previous = index;
-    frame.dataset.helmDisplay = statuses[index].chart ? "track" : "status";
-    const {color,heading,icon,detail,response,chart} = statuses[index];
+  });
+  const statuses = {
+    status: readStatus(document.querySelector('#bridge-status [data-tone="verified"]')),
+    track: readStatus(document.querySelector('#bridge-status .status-track')),
+  };
+  let previous;
+  function updateScreen(state) {
+    if (state === previous) return;
+    previous = state;
+    frame.dataset.helmDisplay = state;
+    const {color,heading,icon,detail,response,chart} = statuses[state];
     ctx.fillStyle = '#fff';
     ctx.fillRect(0,0,512,288);
     ctx.fillStyle = '#151c1d';
@@ -529,7 +570,7 @@ function addTourHardware(ship, engine) {
     if (chart) {
       ctx.fillStyle = '#151c1d';
       ctx.fillText('PNT',441,32);
-      ctx.font = 'bold 27px sans-serif';
+      ctx.font = '800 29px "Hanken Grotesk", sans-serif';
       ctx.fillText(heading.join(' '),22,76,468);
       ctx.save();
       ctx.translate(22,85);
@@ -541,12 +582,12 @@ function addTourHardware(ship, engine) {
         ctx.stroke(new Path2D(path.getAttribute('d')));
       }
       ctx.fillStyle = chart.querySelector('g').getAttribute('fill');
-      ctx.font = '11px sans-serif';
+      ctx.font = '600 11px "Hanken Grotesk", sans-serif';
       for (const label of chart.querySelectorAll('text')) {
         ctx.fillText(label.textContent,Number(label.getAttribute('x')),Number(label.getAttribute('y')));
       }
       ctx.restore();
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = '700 13px "Hanken Grotesk", sans-serif';
       let x = 22;
       for (const track of chart.querySelectorAll('[data-track]')) {
         ctx.fillStyle = track.getAttribute('stroke');
@@ -556,7 +597,7 @@ function addTourHardware(ship, engine) {
         ctx.fillText(name,x+15,248);
         x += ctx.measureText(name).width+32;
       }
-      ctx.font = 'bold 16px sans-serif';
+      ctx.font = '750 17px "Hanken Grotesk", sans-serif';
       ctx.fillText(response,22,274,468);
       texture.needsUpdate = true;
       return;
@@ -564,12 +605,13 @@ function addTourHardware(ship, engine) {
     ctx.fillRect(419,65,71,71);
     ctx.fillStyle = '#151c1d';
     ctx.fillText('PNT',441,32);
-    ctx.font = 'bold 42px sans-serif';
+    ctx.font = '800 48px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(icon,454,115);
     ctx.textAlign = 'left';
-    heading.forEach((line,i) => ctx.fillText(line,22,94+i*43,383));
-    ctx.font = '17px sans-serif';
+    ctx.font = '800 53px "Hanken Grotesk", sans-serif';
+    heading.forEach((line,i) => ctx.fillText(line,22,105+i*46,383));
+    ctx.font = '500 17px "Hanken Grotesk", sans-serif';
     let line = '', row = 0;
     for (const word of detail.split(' ')) {
       const next = line ? line+' '+word : word;
@@ -582,12 +624,12 @@ function addTourHardware(ship, engine) {
     ctx.fillRect(22,231,468,2);
     ctx.font = '15px monospace';
     ctx.fillText('WATCH RESPONSE',22,252);
-    ctx.font = 'bold 19px sans-serif';
+    ctx.font = '750 19px "Hanken Grotesk", sans-serif';
     ctx.fillText(response,22,275,468);
     texture.needsUpdate = true;
   }
 
-  updateScreen(0);
+  updateScreen('status');
 
   const sectionWalls = [];
   const wall = new MeshStandardMaterial({color:0x66757a,roughness:.84});
@@ -667,11 +709,11 @@ async function start() {
     renderer.toneMappingExposure = .85;
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     const scene = new Scene();
-    scene.add(new HemisphereLight(0xa7c0db, 0x435561, 1.38));
+    scene.add(new HemisphereLight(0xa7c0db, 0x435561, 1.12));
     const sun = new DirectionalLight(0xffb06a, 4.35);
     sun.position.set(-91, 1.6, 28);
     scene.add(sun);
-    const fill = new DirectionalLight(0xb9d4ea, .58);
+    const fill = new DirectionalLight(0xb9d4ea, .26);
     fill.position.set(27, 23, -13);
     scene.add(fill);
     const bowLight = new DirectionalLight(0xffa964,1.12);
@@ -696,6 +738,7 @@ async function start() {
 
     ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=12', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
+    const updateEnsign = animateEnsign(ship);
     addHelmInstrumentTextures(ship,engine);
     const hardware = addTourHardware(ship,engine);
     const updateNavigationLights = addNavigationLights(ship,engine);
@@ -757,6 +800,7 @@ async function start() {
       camera.position.copy(position);
       aim.copy(target);
       camera.lookAt(aim);
+      if (name === 'exterior' || name === 'helm') hardware.updateScreen('status');
       setCutaway(name === 'helm');
       inspectionLight.intensity = name === 'exterior' ? 0 : 1.55;
     }
@@ -778,15 +822,19 @@ async function start() {
     ]);
     const tourLength = 26;
     const smooth = value => value*value*(3-2*value);
+    const glide = value => {
+      const t = Math.min(1,Math.max(0,value));
+      return t*t*t*(t*(t*6-15)+10);
+    };
     const tourPosition = new Vector3();
     const tourAim = new Vector3();
-    function applyTourPose(position,target) {
+    function applyTourPose(position,target,follow = 1) {
       ship.updateMatrixWorld(true);
-      camera.position.copy(ship.localToWorld(position));
-      aim.copy(ship.localToWorld(target));
+      camera.position.copy(position).lerp(ship.localToWorld(position),follow);
+      aim.copy(target).lerp(ship.localToWorld(target),follow);
       camera.lookAt(aim);
     }
-    function tourOrbit(fromPosition,fromTarget,toPosition,toTarget,progress) {
+    function tourOrbit(fromPosition,fromTarget,toPosition,toTarget,progress,follow) {
       const [fromAngle,fromElevation,fromRadius] = orbit(fromPosition,fromTarget);
       const [toAngle,toElevation,toRadius] = orbit(toPosition,toTarget);
       const turn = Math.atan2(Math.sin(toAngle-fromAngle),Math.cos(toAngle-fromAngle));
@@ -796,7 +844,7 @@ async function start() {
       const horizontal = Math.cos(elevation)*radius;
       tourAim.lerpVectors(fromTarget,toTarget,progress);
       tourPosition.set(Math.sin(angle)*horizontal,Math.sin(elevation)*radius,Math.cos(angle)*horizontal).add(tourAim);
-      applyTourPose(tourPosition,tourAim);
+      applyTourPose(tourPosition,tourAim,follow);
     }
     function animateTour() {
       const elapsed = tourElapsed;
@@ -807,19 +855,17 @@ async function start() {
         placeCamera('exterior');
       } else if (phase < 7) {
         shot = 'bow-approach';
-        const progress = smooth((phase-4)/3);
-        tourOrbit(exteriorPosition,exteriorAim,bowPosition,bowAim,progress);
+        const progress = glide((phase-4)/3);
+        tourOrbit(exteriorPosition,exteriorAim,bowPosition,bowAim,progress,progress);
         inspectionLight.intensity = progress*.9;
         setCutaway(false);
-      } else if (phase < 8) {
-        shot = 'bow-device';
-        applyTourPose(tourPosition.copy(bowPosition),tourAim.copy(bowAim));
       } else if (phase < 12) {
-        shot = 'cable';
-        const progress = smooth((phase-8)/4);
+        shot = phase < 8 ? 'bow-device' : 'cable';
+        const progress = glide((phase-7)/5);
         cableCamera.getPointAt(progress,tourPosition);
         hardware.route.getPointAt(Math.min(1,progress+.055),tourAim);
-        if (progress > .78) tourAim.lerp(helmAim,smooth((progress-.78)/.22));
+        tourAim.lerp(bowAim,1-glide(progress/.23));
+        tourAim.lerp(helmAim,glide((progress-.70)/.30));
         applyTourPose(tourPosition,tourAim);
         setCutaway(smooth(Math.min(1,Math.max(0,(phase-9.75)/2.25))));
         inspectionLight.intensity = .9+progress*.65;
@@ -827,16 +873,16 @@ async function start() {
         shot = 'helm-display';
         const hold = phase-12;
         // Begin the push-in as the track comparison replaces the status cards.
-        const zoom = smooth(Math.min(1,Math.max(0,(hold-2.7)/.65)));
+        const zoom = glide((hold-2.05)/1.5);
         tourPosition.lerpVectors(helmPosition,chartPosition,zoom);
         tourAim.lerpVectors(helmAim,chartAim,zoom);
         applyTourPose(tourPosition,tourAim);
-        hardware.updateScreen(hold < 3 ? hold/3*.8 : .8);
+        hardware.updateScreen(hold < 3 ? 'status' : 'track');
         setCutaway(true);
       } else {
         shot = 'return';
-        const progress = smooth((phase-17)/3);
-        tourOrbit(chartPosition,chartAim,exteriorPosition,exteriorAim,progress);
+        const progress = glide((phase-17)/3);
+        tourOrbit(chartPosition,chartAim,exteriorPosition,exteriorAim,progress,1-progress);
         setCutaway(1-smooth(Math.min(1,Math.max(0,(phase-17.45)/2.4))));
         inspectionLight.intensity = 1.55*(1-progress);
       }
@@ -870,7 +916,7 @@ async function start() {
         placeCamera(view);
         return;
       }
-      const eased = fraction*fraction*(3-2*fraction);
+      const eased = glide(fraction);
       const [position,target] = cameraPose(view);
       const [fromAngle,fromElevation,fromRadius] = cameraMove.orbit;
       const [toAngle,toElevation,toRadius] = orbit(position,target);
@@ -891,6 +937,7 @@ async function start() {
 
     function draw() {
       ocean.update(time);
+      updateEnsign(time);
       if (!paused) ocean.move(ship);
       if (touring && !cameraMove) animateTour();
       updateNavigationLights(camera,cutawayAmount);
@@ -901,8 +948,8 @@ async function start() {
       renderId = undefined;
       if (lastFrame === undefined || now - lastFrame >= 30) {
         if (!paused && lastFrame !== undefined) {
-          const delta = (now-lastFrame)/1000;
-          time += Math.min(delta,.08);
+          const delta = Math.min((now-lastFrame)/1000,.08);
+          time += delta;
           if (touring && !cameraMove) tourElapsed += delta;
         }
         animateCamera(now);
