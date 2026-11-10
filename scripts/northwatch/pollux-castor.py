@@ -335,10 +335,13 @@ for y in (-13.12,-16.18):
 helm_dark = material('Helm charcoal',(.09,.125,.131),.67)
 helm_floor = material('Bridge floor',(.19,.25,.24),.89)
 screen = material('Display glass',(.032,.11,.13),.33)
+console_blue = material('Bridge console blue',(.19,.31,.36),.53)
+instrument_ink = material('Instrument traces',(.12,.48,.39),.58)
 rubber = material('Seat upholstery',(.046,.058,.060),.87)
 ring_body('Helm floor',outline(3.22,-8.86,4.84,1.32),outline(3.22,-8.86,4.84,1.32),7.12,7.20,helm_floor)
 
-# The linked stations follow the forward glazing. Instrument faces sit flush in the sloped fascia.
+# HMS Medway is a visual reference for the sloped panels and physical controls.
+# https://www.navylookout.com/up-close-with-the-royal-navys-newest-ship-hms-medway/
 def console_station(x,y,yaw,width,displays):
     def pos(u,v,z):
         return (x+u*math.cos(yaw)-v*math.sin(yaw),y+u*math.sin(yaw)+v*math.cos(yaw),z)
@@ -346,15 +349,29 @@ def console_station(x,y,yaw,width,displays):
         obj=box(name,pos(u,v,z),size,paint,bevel)
         obj.rotation_euler=(tilt,0,yaw)
         return obj
-    part('Integrated console cabinet',0,.18,7.53,(width,.82,.68),helm_dark,.045)
-    part('Sloped instrument fascia',0,.27,8.14,(width,.13,.60),structure,.026,-.35)
-    part('Console worktop',0,-.22,7.94,(width,.63,.11),helm_dark,.029)
+    part('Integrated console cabinet',0,.18,7.53,(width,.82,.68),console_blue,.045)
+    part('Console worktop',0,-.22,7.94,(width,.63,.11),console_blue,.029)
     part('Padded console edge',0,-.53,7.94,(width,.08,.10),rubber,.025)
+    tilt=-.48
+    def panel(name,u,h,depth,size,paint,bevel=.008):
+        return part(name,u,.27+depth*math.cos(tilt)-h*math.sin(tilt),
+                    8.22+depth*math.sin(tilt)+h*math.cos(tilt),size,paint,bevel,tilt)
+    panel('Fascia backing',0,0,.061,(width,.07,.60),helm_dark)
+    for h in (-.25,.25):
+        panel('Fascia horizontal rail',0,h,-.002,(width,.12,.10),console_blue)
+    edge=-width/2
     for center,span in displays:
-        part('Multifunction display bezel',center,.184,8.16,(span,.045,.43),black,.019,-.35)
-        part('Multifunction display',center,.157,8.16,(span-.065,.014,.35),screen,.012,-.35)
+        left=center-span/2
+        panel('Fascia stile',(edge+left)/2,0,-.002,(left-edge,.12,.40),console_blue)
+        panel('Inset display surround',center,0,-.018,(span,.050,.40),black)
+        panel('Inset display glass',center,.022,-.049,(span-.066,.008,.306),screen)
+        for trace in range(3):
+            panel('Instrument trace',center-span*.14,.12-trace*.034,-.054,
+                  (span*(.38-trace*.06),.003,.004),instrument_ink,.001)
         for key in (-.12,0,.12):
-            part('Monitor soft key',center+key,.22,7.97,(.04,.018,.027),white,.005,-.35)
+            panel('Monitor soft key',center+key,-.164,-.048,(.026,.012,.014),white,.003)
+        edge=center+span/2
+    panel('Fascia end stile',(edge+width/2)/2,0,-.002,(width/2-edge,.12,.40),console_blue)
     for key in range(5):
         part('Backlit console key',-.36+key*.071,-.37,8.012,(.043,.045,.023),white,.005)
     part('Trackball bezel',.34,-.33,8.009,(.19,.16,.032),black,.019)
@@ -364,6 +381,9 @@ def console_station(x,y,yaw,width,displays):
     for lever in (.04,.19):
         part('Control lever',lever,-.40,8.055,(.035,.04,.112),black,.011,.18)
         part('Control lever grip',lever,-.415,8.11,(.069,.047,.042),rubber,.014)
+    part('Throttle gate',.116,-.40,8.016,(.29,.24,.035),black,.013)
+    part('Radio handset cradle',-width*.33,-.19,8.014,(.11,.23,.032),black,.011)
+    part('Radio handset',-width*.33,-.19,8.052,(.070,.19,.047),rubber,.018)
 
 console_station(-1.91,3.47,.35,1.62,[(-.41,.65),(.37,.65)])
 console_station(0,3.83,0,2.19,[(-.71,.57),(0,.65),(.71,.57)])
@@ -452,7 +472,7 @@ for name,location,description in anchors:
     anchor['status']='illustrative'
 
 # Bake bevels and batch geometry by material to keep browser draw calls low.
-for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber]:
+for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber,console_blue,instrument_ink]:
     def removable(obj):
         return obj.name.startswith(('Overhanging bridge roof','Lattice mast','Mast cross','Mast diagonal','Radar support',
             'Radar scanner','Whip aerial','Radome','Searchlight','Glazing mullion','Wraparound bridge glazing','Bridge glazing wiper'))

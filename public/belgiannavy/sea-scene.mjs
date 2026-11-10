@@ -584,7 +584,7 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=9', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=10', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
     const hardware = addTourHardware(ship,engine);
     const updateNavigationLights = addNavigationLights(ship,engine);
