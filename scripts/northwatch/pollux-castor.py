@@ -227,6 +227,30 @@ for side in (-1,1):
 for y,x in [(23,0),(20,0),(16.4,-1.4),(15.9,1.3),(-24,-2.4),(-24,2.4)]:
     w,z=interpolated_top(y)
     box('Mooring fitting',(x,y,z+.23),(.60,.76,.44),structure,.075)
+# Mooring and service fittings follow the local deck sheer.
+for y in (12.8, 19.1, 23.9):
+    w,z=interpolated_top(y)
+    for side in (-1,1):
+        x=side*w*.72
+        box('Welded bollard bed',(x,y,z+.035),(.53,.69,.075),structure,.033)
+        for offset in (-.17,.17):
+            rod('Mooring bitt',(x,y+offset,z+.055),(x,y+offset,z+.32),.092,waterline)
+            rod('Bitt head',(x,y+offset,z+.29),(x,y+offset,z+.36),.128,waterline)
+for y in (14.4, 17.2, 21.1):
+    _,z=interpolated_top(y)
+    box('Gasketed inspection plate',(0,y,z+.033),(.78,1.04,.056),waterline,.035)
+    box('Non-slip inspection lid',(0,y,z+.066),(.71,.96,.035),deck,.031)
+    rod('Recessed lid pull',(-.12,y-.23,z+.09),(.12,y-.23,z+.09),.026,structure)
+for side in (-1,1):
+    for y in (-24.6,-21.5,-18.0):
+        w,z=interpolated_top(y)
+        x=side*(w-.6)
+        box('Aft deck lashing plate',(x,y,z+.028),(.29,.32,.055),structure,.021)
+        rod('Lashing bar',(x-.083,y,z+.082),(x+.083,y,z+.082),.029,waterline)
+    for y in (12.3,15.4,18.5,21.5):
+        w,z=interpolated_top(y)
+        box('Bulwark drain recess',(side*(w-.046),y,z+.07),(.063,.28,.07),waterline,.012)
+
 box('Raised forward service platform',(0,10.45,5.02),(4.25,2.18,.18),structure,.065)
 for side in (-1,1):
     rail([(side*2.08,9.68,5.11),(side*2.08,11.47,5.11)],(.38,.77))
@@ -394,6 +418,14 @@ def console_station(x,y,yaw,width,displays):
     panel('Fascia end stile',(edge+width/2)/2,0,-.002,(width/2-edge,.12,.40),console_blue)
     for key in range(5):
         part('Backlit console key',-.36+key*.071,-.37,8.012,(.043,.045,.023),white,.005)
+    for knob in (-.29,-.14):
+        rod('Encoder collar',pos(knob,-.26,8.002),pos(knob,-.26,8.026),.052,black)
+        rod('Rotary encoder',pos(knob,-.26,8.023),pos(knob,-.26,8.074),.036,rubber)
+        part('Encoder index',knob,-.279,8.076,(.011,.022,.004),white,.001)
+    for key in (-.11,-.05,.01):
+        part('Recessed function switch',key,-.47,8.013,(.032,.029,.022),fascia_trim,.004)
+    part('Guarded alarm base',width*.38,-.35,8.011,(.106,.084,.025),black,.008)
+    part('Amber acknowledge key',width*.38,-.35,8.03,(.048,.044,.017),orange,.005)
     part('Trackball bezel',.34,-.33,8.009,(.19,.16,.032),black,.019)
     bpy.ops.mesh.primitive_uv_sphere_add(segments=10,ring_count=6,radius=.052,location=pos(.34,-.33,8.041))
     bpy.context.object.name='Trackball'

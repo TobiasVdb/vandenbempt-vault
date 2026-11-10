@@ -114,6 +114,9 @@ function animateEnsign(ship) {
   const positions = geometry.getAttribute('position');
   const uv = geometry.getAttribute('uv');
   const rest = positions.clone();
+  geometry.computeBoundingSphere();
+  // Bound the maximum flag displacement once instead of scanning every frame.
+  geometry.boundingSphere.radius += .9;
   let lastTime;
   return time => {
     if (time === lastTime) return;
@@ -132,7 +135,6 @@ function animateEnsign(ship) {
     }
     positions.needsUpdate = true;
     geometry.computeVertexNormals();
-    geometry.computeBoundingSphere();
   };
 }
 
@@ -178,9 +180,15 @@ function refinePolluxMaterials(vessel) {
             float plateDistance = abs(fract(plateCoordinate+.5)-.5);
             float aa = max(fwidth(plateCoordinate),.001);
             float plateJoint = (1.-smoothstep(.003,.003+aa,plateDistance)) * (1.-smoothstep(.014,.065,aa));
-            diffuseColor.rgb *= 1. + paintGrain*${finish.grain.toFixed(3)} - plateJoint*${finish.seams.toFixed(3)};`);
+            float strake = vPaintPosition.y / 1.35 + .26;
+            float strakeWidth = max(fwidth(strake),.001);
+            float weld = 1.-smoothstep(.004,.004+strakeWidth,abs(fract(strake+.5)-.5));
+            weld *= 1.-smoothstep(.014,.08,strakeWidth);
+            float paintVariation = sin(vPaintPosition.z*1.36 + sin(vPaintPosition.y*1.7)) * .012;
+            float scuff = sin(vPaintPosition.x*2.8+vPaintPosition.z*.65) * .01;
+            diffuseColor.rgb *= 1. + paintGrain*${finish.grain.toFixed(3)} - (plateJoint + weld*.45)*${finish.seams.toFixed(3)} + paintVariation + scuff;`);
       };
-      material.customProgramCacheKey = () => material.name + ':pollux-paint-v1';
+      material.customProgramCacheKey = () => material.name + ':pollux-paint-v2';
       material.needsUpdate = true;
     }
   });
@@ -393,6 +401,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
   const mesh = new Mesh(geometry, material);
   mesh.frustumCulled = false;
   let last = -1;
+  let lastProbe = -1;
   return { mesh, update(time) {
     uniforms.transit.value = time * 7.8;
     if (last >= 0 && time - last < .060) return;
@@ -402,7 +411,8 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
       uniforms['disp' + i].value = sim.displacement[i];
       uniforms['slope' + i].value = sim.slope[i];
     }
-    if (!pending && !probeFailed) {
+    if (!pending && !probeFailed && (lastProbe < 0 || time - lastProbe >= .095)) {
+      lastProbe = time;
       pending = true;
       probeQuad.render(renderer, probe);
       renderer.readRenderTargetPixelsAsync(probe, 0, 0, 1, 1, bytes).then(([bow,stern,port,starboard]) => {
@@ -433,7 +443,9 @@ let renderer, observer, resizeObserver, renderId;
 let visible = false;
 let paused = reduceMotion.matches;
 let time = 0;
+const frameInterval = 1000 / 30;
 let lastFrame;
+let nextFrame;
 let ship;
 let failed = false;
 
@@ -664,7 +676,7 @@ function addTourHardware(ship, engine) {
 function suspend() {
   cancelAnimationFrame(renderId);
   renderId = undefined;
-  lastFrame = undefined;
+  lastFrame = nextFrame = undefined;
 }
 
 function fallback() {
@@ -707,7 +719,6 @@ async function start() {
     renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.toneMappingExposure = .85;
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     const scene = new Scene();
     scene.add(new HemisphereLight(0xa7c0db, 0x435561, 1.12));
     const sun = new DirectionalLight(0xffb06a, 4.35);
@@ -736,7 +747,7 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=12', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=13', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
     const updateEnsign = animateEnsign(ship);
     addHelmInstrumentTextures(ship,engine);
@@ -820,7 +831,9 @@ async function start() {
       bowPosition, new Vector3(6.6,7.15,-12), new Vector3(7.1,7.4,-4),
       new Vector3(6.7,8.7,2.8), new Vector3(5.2,10.3,2.45), helmPosition
     ]);
-    const tourLength = 26;
+    const tourMotionDuration = 16;
+    const tourSlowdown = 1.35;
+    const tourRest = 10;
     const smooth = value => value*value*(3-2*value);
     const glide = value => {
       const t = Math.min(1,Math.max(0,value));
@@ -848,7 +861,9 @@ async function start() {
     }
     function animateTour() {
       const elapsed = tourElapsed;
-      const phase = elapsed < 4 ? 0 : 4+(elapsed-4)%tourLength;
+      const loopTime = (elapsed-4) % (tourMotionDuration*tourSlowdown+tourRest);
+      // Stretch the moving portion and helm inspection, keeping the exterior rest at ten seconds.
+      const phase = elapsed < 4 ? 0 : 4 + Math.min(loopTime/tourSlowdown,tourMotionDuration);
       const [exteriorPosition,exteriorAim] = cameraPose('exterior');
       let shot = 'exterior';
       if (phase < 4 || phase >= 20) {
@@ -909,7 +924,7 @@ async function start() {
     }
     function animateCamera(now) {
       if (!cameraMove) return;
-      const duration = view === 'helm' || cameraMove.cutaway > 0 ? 1450 : 950;
+      const duration = view === 'helm' || cameraMove.cutaway > 0 ? 2050 : 1400;
       const fraction = Math.min(1, (now-cameraMove.start)/duration);
       if (fraction >= 1 || reduceMotion.matches) {
         cameraMove = undefined;
@@ -946,7 +961,11 @@ async function start() {
 
     function render(now) {
       renderId = undefined;
-      if (lastFrame === undefined || now - lastFrame >= 30) {
+      if (nextFrame === undefined || now + 1 >= nextFrame) {
+        // Keep the cadence aligned to refreshes and drop missed slots instead of catching up.
+        nextFrame = nextFrame === undefined || now >= nextFrame + frameInterval
+          ? now + frameInterval
+          : nextFrame + frameInterval;
         if (!paused && lastFrame !== undefined) {
           const delta = Math.min((now-lastFrame)/1000,.08);
           time += delta;
@@ -957,7 +976,7 @@ async function start() {
         lastFrame = now;
       }
       if (!paused || cameraMove) renderId = requestAnimationFrame(render);
-      else lastFrame = undefined;
+      else lastFrame = nextFrame = undefined;
     }
 
     function sync() {
@@ -979,7 +998,9 @@ async function start() {
       distance = camera.aspect < 1.65 ? 1.33 : 1;
       if (!cameraMove) placeCamera(view);
       camera.updateProjectionMatrix();
-      renderer.setSize(width,height,false);
+      // Keep fullscreen ultrawide views within the same fill budget as the desktop hero.
+      const pixelRatio = Math.min(devicePixelRatio,1.5,Math.sqrt(2_100_000/(width*height)));
+      renderer.setDrawingBufferSize(width,height,pixelRatio);
       draw();
       frame.classList.add('is-ready');
     });
