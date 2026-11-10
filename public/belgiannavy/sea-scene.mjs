@@ -138,27 +138,90 @@ function animateEnsign(ship) {
   };
 }
 
-function refinePolluxMaterials(vessel, { CanvasTexture, RepeatWrapping }) {
-  const tuned = new Set();
-  const grit = document.createElement('canvas');
-  grit.width = grit.height = 256;
-  const context = grit.getContext('2d');
-  const pixels = context.createImageData(256,256);
+function deckSurfaceTextures({ CanvasTexture, RepeatWrapping, SRGBColorSpace }) {
+  const size = 512;
+  const heights = new Float32Array(size*size);
   let seed = 1729;
-  for (let i = 0; i < pixels.data.length; i += 4) {
+  for (let i = 0; i < heights.length; i++) {
     seed = (Math.imul(seed,1664525)+1013904223) >>> 0;
-    const value = 130+(seed >>> 25);
-    pixels.data.set([value,value,value,255],i);
+    heights[i] = (seed >>> 16)/65535;
   }
-  context.putImageData(pixels,0,0);
-  const deckTexture = new CanvasTexture(grit);
-  deckTexture.wrapS = deckTexture.wrapT = RepeatWrapping;
-  deckTexture.repeat.set(4,4);
-  deckTexture.anisotropy = 4;
+  const maps = {};
+  for (const name of ['color','normal','roughness']) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const context = canvas.getContext('2d');
+    const pixels = context.createImageData(size,size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const index = y*size+x;
+        const grain = heights[index]-.5;
+        const u = x/size*Math.PI*2, v = y/size*Math.PI*2;
+        const wet = Math.max(0,Math.sin(u+Math.sin(v*2)*.65)*.55+Math.cos(v*2-u)*.2+.25);
+        const offset = index*4;
+        if (name === 'normal') {
+          const dx = (heights[y*size+(x+1)%size]-heights[y*size+(x+size-1)%size])*.8;
+          const dy = (heights[((y+1)%size)*size+x]-heights[((y+size-1)%size)*size+x])*.8;
+          const length = Math.hypot(dx,dy,1);
+          pixels.data[offset] = 128+127*dx/length;
+          pixels.data[offset+1] = 128+127*dy/length;
+          pixels.data[offset+2] = 128+127/length;
+        } else {
+          const value = name === 'color' ? 211+grain*30-wet*35 : 212+grain*18-wet*155;
+          pixels.data[offset] = pixels.data[offset+1] = pixels.data[offset+2] = value;
+        }
+        pixels.data[offset+3] = 255;
+      }
+    }
+    context.putImageData(pixels,0,0);
+    const texture = new CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = RepeatWrapping;
+    texture.anisotropy = 4;
+    if (name === 'color') texture.colorSpace = SRGBColorSpace;
+    maps[name] = texture;
+  }
+
+  // Bake contact shading and lamp spill once in deck coordinates. Red stores
+  // occlusion and green stores light, so both effects share one texture fetch.
+  const lighting = document.createElement('canvas');
+  lighting.width = 256;
+  lighting.height = 512;
+  const context = lighting.getContext('2d');
+  context.fillStyle = '#ff0000';
+  context.fillRect(0,0,256,512);
+  function pool(x,y,rx,ry,amount,light = false) {
+    context.save();
+    context.translate((x+4.8)/9.6*256,(28-y)/18*512);
+    context.scale(rx/9.6*256,ry/18*512);
+    const gradient = context.createRadialGradient(0,0,.12,0,0,1);
+    gradient.addColorStop(0,light ? `rgba(0,255,0,${amount})` : `rgba(0,0,0,${amount})`);
+    gradient.addColorStop(1,'rgba(0,0,0,0)');
+    context.globalCompositeOperation = light ? 'lighter' : 'source-over';
+    context.fillStyle = gradient;
+    context.fillRect(-1,-1,2,2);
+    context.restore();
+  }
+  pool(-.65,15.7,1.3,.83,.58);
+  pool(0,13.4,1.3,1,.55);
+  pool(0,18,.8,.65,.48);
+  pool(0,20.65,.85,.75,.50);
+  for (const [y,width] of [[12.8,3.80],[19.1,2.63],[23.9,1.19]]) {
+    for (const side of [-1,1]) pool(side*width*.72,y,.46,.58,.56);
+  }
+  for (const [y,width] of [[14.1,3.62],[19.3,2.56],[22.6,1.60]]) {
+    for (const side of [-1,1]) pool(side*(width-.39),y,.86,.65,.82,true);
+  }
+  maps.lighting = new CanvasTexture(lighting);
+  return maps;
+}
+
+function refinePolluxMaterials(vessel, engine) {
+  const tuned = new Set();
+  const deckTextures = deckSurfaceTextures(engine);
   const finishes = {
-    'Naval grey': { color: 0x82919b, roughness: .69, grain: .06, seams: .065 },
-    'Light superstructure': { color: 0x9ba8ae, roughness: .62, grain: .043, seams: .038 },
-    'Non-slip deck': { color: 0x687274, roughness: .85, grain: .055, seams: 0 },
+    'Naval grey': { color: 0x82919b, roughness: .54, grain: .06, seams: .065 },
+    'Light superstructure': { color: 0x9ba8ae, roughness: .43, grain: .043, seams: .038 },
+    'Non-slip deck': { color: 0x89969c, roughness: .92, grain: .055, seams: 0 },
   };
   vessel.traverse(object => {
     if (!object.isMesh) return;
@@ -170,17 +233,22 @@ function refinePolluxMaterials(vessel, { CanvasTexture, RepeatWrapping }) {
         material.roughness = .24;
         continue;
       }
+      if (material.name === 'Boot stripe') {
+        material.roughness = .37;
+        material.metalness = .48;
+      }
       const finish = finishes[material.name];
       if (!finish) continue;
       material.map = null;
       material.color.setHex(finish.color);
       material.roughness = finish.roughness;
+      material.envMapIntensity = 1.15;
       if (material.name === 'Non-slip deck') {
-        material.map = deckTexture;
-        material.bumpMap = deckTexture;
-        material.bumpScale = .004;
-        material.roughnessMap = deckTexture;
-        material.metalness = .16;
+        material.map = deckTextures.color;
+        material.normalMap = deckTextures.normal;
+        material.normalScale.set(.23,.23);
+        material.roughnessMap = deckTextures.roughness;
+        material.metalness = .22;
       }
       material.onBeforeCompile = shader => {
         shader.vertexShader = shader.vertexShader
@@ -208,9 +276,28 @@ function refinePolluxMaterials(vessel, { CanvasTexture, RepeatWrapping }) {
             weld *= 1.-smoothstep(.014,.08,strakeWidth);
             float paintVariation = sin(vPaintPosition.z*1.36 + sin(vPaintPosition.y*1.7)) * .012;
             float scuff = sin(vPaintPosition.x*2.8+vPaintPosition.z*.65) * .01;
-            diffuseColor.rgb *= 1. + paintGrain*${finish.grain.toFixed(3)} - (plateJoint + weld*.45)*${finish.seams.toFixed(3)} + paintVariation + scuff;`);
+            diffuseColor.rgb *= 1. + paintGrain*${finish.grain.toFixed(3)} - (plateJoint + weld*.45)*${finish.seams.toFixed(3)} + paintVariation + scuff;`)
+          .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+            roughnessFactor = clamp(roughnessFactor + paintGrain*.18 + paintVariation*3.,.16,.95);`);
+        if (material.name === 'Non-slip deck') {
+          shader.uniforms.deckLighting = { value: deckTextures.lighting };
+          shader.fragmentShader = 'uniform sampler2D deckLighting;\n' + shader.fragmentShader
+            .replace('#include <color_fragment>', `#include <color_fragment>
+              vec2 deckUV = vec2((vPaintPosition.x+4.8)/9.6,(-vPaintPosition.z-10.)/18.);
+              vec2 deckLight = texture2D(deckLighting,deckUV).rg;
+              float onForedeck = step(0.,deckUV.y)*step(deckUV.y,1.);
+              diffuseColor.rgb *= mix(1.,mix(.46,1.,deckLight.r),onForedeck);`)
+            .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+              totalEmissiveRadiance += vec3(1.,.43,.12)*deckLight.g*onForedeck*.38;`)
+            .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+              // Fold unresolved normal detail into roughness to keep moving
+              // highlights stable as the grit becomes smaller than a pixel.
+              vec3 normalDx = dFdx(normal), normalDy = dFdy(normal);
+              float normalVariance = max(dot(normalDx,normalDx),dot(normalDy,normalDy));
+              roughnessFactor = min(.98,sqrt(max(.34*.34,roughnessFactor*roughnessFactor)+normalVariance*.5));`);
+        }
       };
-      material.customProgramCacheKey = () => material.name + ':pollux-paint-v3';
+      material.customProgramCacheKey = () => material.name + ':pollux-paint-v4';
       material.needsUpdate = true;
     }
   });
@@ -540,17 +627,27 @@ function addTourHardware(ship, engine) {
   function box(size, at, material) {
     const part = new Mesh(new BoxGeometry(...size), material);
     part.position.set(...at);
+    part.castShadow = true;
+    part.receiveShadow = true;
     ship.add(part);
     return part;
   }
-  box([.35,.024,.25],[1.18,4.05,-19],metal);
-  box([.32,.08,.22],[1.18,4.10,-19],enclosure);
-  box([.29,.015,.19],[1.18,4.147,-19],enclosure);
+  // The model's sheer is 3.82 m at station 19. Keep the plate, fixings and
+  // cable in ship coordinates so they follow the same motion as the deck.
+  const deviceDeckHeight = 3.82;
+  box([.35,.024,.25],[1.18,deviceDeckHeight+.014,-19],metal);
+  box([.32,.08,.22],[1.18,deviceDeckHeight+.068,-19],enclosure);
+  box([.29,.015,.19],[1.18,deviceDeckHeight+.1155,-19],enclosure);
+  for (const x of [-.168,.168]) {
+    for (const z of [-.115,.115]) {
+      box([.012,.01,.012],[1.18+x,deviceDeckHeight+.031,-19+z],metal);
+    }
+  }
   const label = new MeshBasicMaterial({color:0xa7cb70});
-  box([.067,.004,.012],[1.18,4.156,-18.95],label);
+  box([.067,.004,.012],[1.18,deviceDeckHeight+.127,-18.95],label);
   const displayCenter = new Vector3(2.48,8.21,-2.82);
   const route = new CatmullRomCurve3([
-    [1.34,4.10,-19],[2.08,4.10,-19],[2.30,4.48,-18.6],[2.65,4.54,-17.4],
+    [1.34,deviceDeckHeight+.068,-19],[2.08,deviceDeckHeight+.02,-19],[2.30,4.48,-18.6],[2.65,4.54,-17.4],
     [3.28,4.55,-14],[3.85,4.54,-10],[4.10,4.45,-6],[4.12,4.42,-2],
     [4.06,4.45,1],[3.83,4.65,3.6],[3.60,5.92,3.8],[3.55,7.36,3.7],
     [3.23,7.52,3.45],[2.92,7.56,2.7],[2.98,7.30,-.3],[2.58,7.30,-2.82],
@@ -733,25 +830,35 @@ async function start() {
       viewControls.set(value,control);
       controls.append(control);
     }
-    const engine = await import("./sea-engine.mjs?v=12");
+    const engine = await import("./sea-engine.mjs?v=13");
     const {
       ACESFilmicToneMapping, DirectionalLight, HemisphereLight, PerspectiveCamera,
-      Scene, Vector3, WebGLRenderer, GLTFLoader, Sky, CatmullRomCurve3
+      Scene, Vector3, WebGLRenderer, GLTFLoader, Sky, CatmullRomCurve3,
+      PMREMGenerator, PCFSoftShadowMap
     } = engine;
     renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.toneMappingExposure = .85;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
     const scene = new Scene();
-    scene.add(new HemisphereLight(0xa7c0db, 0x435561, 1.12));
+    scene.add(new HemisphereLight(0xa7c0db, 0x273b46, .78));
     const sun = new DirectionalLight(0xffb06a, 4.35);
     sun.position.set(-91, 1.6, 28);
     scene.add(sun);
     const fill = new DirectionalLight(0xb9d4ea, .26);
     fill.position.set(27, 23, -13);
     scene.add(fill);
-    const bowLight = new DirectionalLight(0xffa964,1.12);
-    bowLight.position.set(6,13,-38);
-    scene.add(bowLight);
+    const bowLight = new DirectionalLight(0xffcb93,2.1);
+    bowLight.position.set(-12,14,-8);
+    bowLight.target.position.set(0,3.7,-18);
+    bowLight.castShadow = true;
+    bowLight.shadow.mapSize.set(512,512);
+    Object.assign(bowLight.shadow.camera,{left:-8,right:8,top:12,bottom:-12,near:.5,far:60});
+    bowLight.shadow.normalBias = .04;
+    bowLight.shadow.bias = -.0012;
+    scene.add(bowLight,bowLight.target);
     const inspectionLight = new DirectionalLight(0xe0edf2,0);
     inspectionLight.position.set(10,22,14);
     scene.add(inspectionLight);
@@ -765,12 +872,26 @@ async function start() {
     atmosphere.mieDirectionalG.value = .81;
     atmosphere.sunPosition.value.copy(sun.position).normalize();
     eveningSky(sky, sun);
+    // Bake the sky into a small filtered reflection map once. The main sky
+    // continues to use its full-resolution shader during camera movement.
+    const environmentScene = new Scene();
+    environmentScene.add(sky);
+    const environmentGenerator = new PMREMGenerator(renderer);
+    const environment = environmentGenerator.fromScene(environmentScene,.025,.1,1600,{size:128});
+    scene.environment = environment.texture;
+    scene.environmentIntensity = 1.35;
+    environmentGenerator.dispose();
     scene.add(sky);
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
     ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=15', import.meta.url).href)).scene;
     refinePolluxMaterials(ship,engine);
+    ship.traverse(object => {
+      if (!object.isMesh) return;
+      object.castShadow = true;
+      object.receiveShadow = true;
+    });
     const updateEnsign = animateEnsign(ship);
     addHelmInstrumentTextures(ship,engine);
     const hardware = addTourHardware(ship,engine);
@@ -844,7 +965,7 @@ async function start() {
     }
 
     // Follow the routed cable from outside the rail before entering the bridge cutaway.
-    const bowAim = new Vector3(1.55,4.37,-18.9);
+    const bowAim = new Vector3(1.35,3.94,-19);
     const helmAim = new Vector3(1.65,8.24,-2.9);
     const bowPosition = new Vector3(6.2,7.1,-17.65);
     const helmPosition = new Vector3(3.34,9.61,.40);
@@ -973,14 +1094,29 @@ async function start() {
     }
     placeCamera(view);
 
-
+    // Warm material and shadow variants before the tour reveals the deck or helm.
+    await renderer.compileAsync(scene,camera);
+    const shadowInverse = ship.matrixWorld.clone();
+    let deckShadowProjection;
     function draw() {
       ocean.update(time);
       updateEnsign(time);
       if (!paused) ocean.move(ship);
       if (touring && !cameraMove) animateTour();
       updateNavigationLights(camera,cutawayAmount);
+      // Foredeck fittings are rigid. Bake their shadow once and transform its
+      // projection with the ship, avoiding both stepped refreshes and redraws.
+      ship.updateMatrixWorld(true);
+      if (deckShadowProjection) {
+        shadowInverse.copy(ship.matrixWorld).invert();
+        bowLight.shadow.matrix.copy(deckShadowProjection).multiply(shadowInverse);
+      } else {
+        renderer.shadowMap.needsUpdate = true;
+      }
       renderer.render(scene, camera);
+      if (!deckShadowProjection) {
+        deckShadowProjection = bowLight.shadow.matrix.clone().multiply(ship.matrixWorld);
+      }
     }
 
     function render(now) {
