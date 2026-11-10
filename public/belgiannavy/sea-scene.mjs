@@ -63,29 +63,41 @@ function eveningSky(sky, sun) {
       f=f*f*(3.-2.*f);
       return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);
     }
-    float clouds(vec2 p) {
-      return .51*noise(p)+.25*noise(p*2.07)+.13*noise(p*4.15)+.07*noise(p*8.33)+.04*noise(p*16.7);
+    float cloudField(vec2 p) {
+      vec2 bend=vec2(noise(p*.48),noise(p*.48+vec2(7.3,4.1)))-.5;
+      p+=bend*.93;
+      mat2 turn=mat2(.8,.6,-.6,.8);
+      vec2 q=turn*p*2.06;
+      vec2 r=turn*q*2.09;
+      return .54*noise(p)+.25*noise(q)+.13*noise(r)+.055*noise(r*2.1)+.025*noise(r*4.3);
     }
     void main() {
       vec3 d=normalize(vWorldPosition-cameraPosition);
       float above=max(0.,d.y);
       float toward=max(0.,dot(d,sunDirection));
-      vec3 horizon=vec3(.128,.166,.197);
-      vec3 warm=vec3(1.12,.43,.12);
+      vec3 horizon=vec3(.069,.105,.138);
+      vec3 warm=vec3(1.30,.46,.105);
       vec3 sky=mix(horizon,vec3(.021,.045,.066),smoothstep(0.,.44,above));
-      sky+=warm*pow(toward,21.)*exp(-above*4.);
-      vec2 p=vec2(atan(d.z,-d.x)*9.,above*23.)+vec2(12.3,8.4);
-      p += .72*vec2(noise(p*.54),noise(p*.54+7.));
-      float density=clouds(p);
-      float lowBand=clouds(p*vec2(1.19,1.55)+vec2(4.2,5.4));
-      density=max(density,lowBand*.86+.06);
-      float cover=smoothstep(.40,.58,density)*smoothstep(.004,.054,above);
-      float edge=clamp((density-clouds(p+vec2(.17,-.12)))*5.+.25,0.,1.);
-      vec3 cloud=mix(vec3(.020,.032,.043),vec3(.116,.147,.170),edge);
-      cloud+=warm*edge*pow(toward,11.)*.85;
+      sky+=warm*pow(toward,29.)*exp(-above*14.);
+      // Project onto horizontal layers so distant banks compress toward the sea horizon.
+      vec2 plane=d.xz/(above+.20);
+      vec2 highPoint=plane*vec2(.63,.99)+vec2(6.1,12.8);
+      float highCover=smoothstep(.42,.68,cloudField(highPoint))*smoothstep(.008,.09,above);
+      sky=mix(sky,vec3(.062,.088,.112)+warm*pow(toward,11.)*.13,highCover*.46);
+      vec2 p=vec2(atan(d.z,-d.x)*8.5,above*26.)+vec2(12.8,8.2);
+      float density=cloudField(p);
+      float cover=smoothstep(.38,.57,density)*smoothstep(.004,.038,above);
+      float sunAzimuth=atan(sunDirection.z,-sunDirection.x);
+      float azimuth=atan(d.z,-d.x);
+      vec2 lightStep=normalize(vec2(sin(sunAzimuth-azimuth),sunDirection.y-above-.12))*.32;
+      float litFace=clamp((density-cloudField(p+lightStep))*4.3+.13,0.,1.);
+      float thickness=smoothstep(.40,.72,density);
+      vec3 cloud=mix(vec3(.052,.082,.105),vec3(.012,.024,.038),thickness);
+      cloud+=vec3(.071,.095,.113)*litFace;
+      cloud+=warm*pow(litFace,1.7)*pow(toward,7.)*(1.-thickness*.72)*.93;
       sky=mix(sky,cloud,cover);
-      float disc=smoothstep(.99989,.99997,toward);
-      sky+=vec3(1.,.52,.16)*pow(toward,230.)*1.10;
+      float disc=smoothstep(.99995,.99999,toward);
+      sky+=vec3(1.,.34,.055)*pow(toward,290.)*1.86;
       sky+=vec3(1.,.56,.19)*disc*(1.-cover*.47)*10.;
       gl_FragColor=vec4(sky,1.);
       #include <tonemapping_fragment>
@@ -147,22 +159,22 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
       float shoulderTrain=exp(-abs(diverging)*.39)
         *smoothstep(-1.,3.,bowDistance)*(1.-smoothstep(28.,52.,bowDistance));
       float wakeSpread=3.6+aft*.34+sin(aft*.23+transit*.19)*min(1.9,aft*.085);
-      float wakeEnvelope=exp(-abs(x-wakeSpread)/(1.4+aft*.055))
-        *smoothstep(0.,6.,aft)*(1.-smoothstep(53.,133.,aft));
+      float wakeEnvelope=exp(-abs(x-wakeSpread)/(1.75+aft*.062))
+        *smoothstep(0.,4.,aft)*(1.-smoothstep(61.,138.,aft));
       float irregular=.84*sin(x*.83+p.y*.26)+.56*sin(p.x*1.51-p.y*.51);
       float bowPhase=diverging*1.5-bowDistance*.47+irregular;
-      float wakePhase=x*.74-aft*.96+irregular+sin(transit*.72)*.31;
+      float wakePhase=x*.74-aft*.96+irregular+sin(transit*.54-aft*.19)*.38;
       float sternDrift=sin(aft*.28-transit*.41)*min(1.5,aft*.12);
-      float sternCentre=exp(-pow((p.x-sternDrift)/(2.25+aft*.11),2.))
-        *smoothstep(.5,3.5,aft)*(1.-smoothstep(33.,85.,aft));
+      float sternCentre=exp(-pow((p.x-sternDrift)/(2.45+aft*.105),2.))
+        *smoothstep(0.,2.6,aft)*(1.-smoothstep(40.,94.,aft));
       float pump=.86+.14*sin(transit*1.12+p.y*.41);
-      float height=(bowCrest*.76+contact*.28)*pump
+      float height=(bowCrest*.93+contact*.31)*pump
         + shoulderTrain*sin(bowPhase)*.20
-        + wakeEnvelope*sin(wakePhase)*.29
+        + wakeEnvelope*sin(wakePhase)*.43
         + sternCentre*sin(aft*1.65-transit*1.3+irregular)*.12;
-      float breaking=(bowCrest*.98+contact*.72)*pump
+      float breaking=(bowCrest*1.18+contact*.89)*pump
         + shoulderTrain*smoothstep(.53,.97,sin(bowPhase))*.60
-        + wakeEnvelope*smoothstep(.32,.91,sin(wakePhase))*.89;
+        + wakeEnvelope*smoothstep(.08,.81,sin(wakePhase))*1.30;
       return vec3(height,breaking,sternCentre);
     }
   `;
@@ -184,7 +196,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
         float clearance = max(abs(p.x)-4.6,abs(p.y)-25.);
         float freeWave = smoothstep(.25,9.,clearance);
         float distant = 1.-smoothstep(210.,700.,length(p));
-        world = position + d * vec3(.34,.28,.34) * freeWave * distant;
+        world = position + d * vec3(.41,.47,.41) * freeWave * distant;
         world.y += (hull.x+hull.y*p.y+hull.z*p.x) * (1.-freeWave);
         wakeHeight = hullWave(p,transit).x;
         world.y += wakeHeight;
@@ -210,7 +222,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
         vec2 wakeSlope = abs(determinant) > .00001
           ? vec2(riseAcross*down.y-riseDown*across.y,across.x*riseDown-down.x*riseAcross)/determinant
           : vec2(0.);
-        vec3 n = normalize(vec3(-slope.x*.56-wakeSlope.x,1.,-slope.y*.56-wakeSlope.y));
+        vec3 n = normalize(vec3(-slope.x*.67-wakeSlope.x,1.,-slope.y*.67-wakeSlope.y));
         vec3 v = normalize(cameraPosition-world);
         float fresnel = .02 + .98 * pow(1.-clamp(dot(v,n),0.,1.),5.);
         vec3 reflection = reflect(-v,n);
@@ -223,9 +235,9 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
 
         vec2 eddies=texture2D(slope2,vec2(p.x*.075,p.y*.065-transit*.047)).xy;
         float breakup=smoothstep(.17,.85,grain*.62+length(eddies)*1.9);
-        float froth=smoothstep(.26,.72,breakup+grain*.34);
-        foam=clamp(foam+nearHull.y*(.15+1.10*froth)+nearHull.z*(.25+.85*froth),0.,.96);
-        vec3 color = mix(sea+glint*vec3(1.,.47,.16),vec3(.77,.83,.85),foam);
+        float froth=smoothstep(.19,.73,breakup+grain*.37);
+        foam=clamp(foam+nearHull.y*(.19+1.18*froth)+nearHull.z*(.22+1.24*froth),0.,.96);
+        vec3 color = mix(sea+glint*vec3(1.,.47,.16),vec3(.69,.79,.85),foam);
         color = mix(color, vec3(.112,.151,.175),smoothstep(140.,820.,distance(cameraPosition,world)));
         gl_FragColor = vec4(color,1.);
         #include <tonemapping_fragment>
@@ -237,7 +249,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
   mesh.frustumCulled = false;
   let last = -1;
   return { mesh, update(time) {
-    uniforms.transit.value = time * 6.6;
+    uniforms.transit.value = time * 7.8;
     if (last >= 0 && time - last < .060) return;
     sim.update(last < 0 ? 0 : time - last);
     last = time;
@@ -356,26 +368,28 @@ function addTourHardware(ship, engine) {
   box([.29,.015,.19],[1.18,4.147,-19],enclosure);
   const label = new MeshBasicMaterial({color:0xa7cb70});
   box([.067,.004,.012],[1.18,4.156,-18.95],label);
+  const displayCenter = new Vector3(2.48,8.21,-2.82);
   const route = new CatmullRomCurve3([
     [1.34,4.10,-19],[2.08,4.10,-19],[2.30,4.48,-18.6],[2.65,4.54,-17.4],
     [3.28,4.55,-14],[3.85,4.54,-10],[4.10,4.45,-6],[4.12,4.42,-2],
     [4.06,4.45,1],[3.83,4.65,3.6],[3.60,5.92,3.8],[3.55,7.36,3.7],
-    [3.23,7.52,3.45],[2.92,7.56,2.7],[2.98,7.30,-.3],[2.47,7.30,-2.8],[2.30,8.36,-2.88]
+    [3.23,7.52,3.45],[2.92,7.56,2.7],[2.98,7.30,-.3],[2.58,7.30,-2.82],
+    [displayCenter.x,8.11,displayCenter.z-.045]
   ].map(point => new Vector3(...point)), false, 'centripetal');
   const cable = new Mesh(new TubeGeometry(route, 120,.009,7,false),
     new MeshStandardMaterial({color:0xbd8b3f,roughness:.76}));
   ship.add(cable);
-  const display = box([.85,.48,.085],[2.27,8.58,-2.88],enclosure);
+  const display = box([.425,.24,.0425],displayCenter.toArray(),enclosure);
   display.rotation.x = -.12;
-  box([.17,.42,.15],[2.27,8.16,-2.97],enclosure);
+  box([.085,.12,.075],[displayCenter.x,8.055,displayCenter.z-.02],enclosure);
   const pixels = document.createElement('canvas');
   pixels.width = 512;
   pixels.height = 288;
   const ctx = pixels.getContext('2d');
   const texture = new CanvasTexture(pixels);
   texture.colorSpace = SRGBColorSpace;
-  const screen = new Mesh(new PlaneGeometry(.78,.40),new MeshBasicMaterial({map:texture,toneMapped:false}));
-  screen.position.set(0,0,.047);
+  const screen = new Mesh(new PlaneGeometry(.39,.20),new MeshBasicMaterial({map:texture,toneMapped:false}));
+  screen.position.set(0,0,.0235);
   display.add(screen);
 
   // Read the same status copy and colors used by the page's bridge display.
@@ -492,7 +506,7 @@ function addTourHardware(ship, engine) {
   sectionWalls.push(box([3.97,.09,.12],[0,8.57,-4.94],cutEdge));
   setCutaway(false);
 
-  return { route, updateScreen, setCutaway };
+  return { route, displayCenter, updateScreen, setCutaway };
 }
 
 function suspend() {
@@ -543,13 +557,16 @@ async function start() {
     renderer.toneMappingExposure = .85;
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     const scene = new Scene();
-    scene.add(new HemisphereLight(0xa7c0db, 0x536974, 1.72));
-    const sun = new DirectionalLight(0xffae65, 4.0);
-    sun.position.set(-91, 3.2, 31);
+    scene.add(new HemisphereLight(0xa7c0db, 0x435561, 1.38));
+    const sun = new DirectionalLight(0xffb06a, 4.35);
+    sun.position.set(-91, 1.6, 28);
     scene.add(sun);
     const fill = new DirectionalLight(0xb9d4ea, .58);
     fill.position.set(27, 23, -13);
     scene.add(fill);
+    const bowLight = new DirectionalLight(0xffa964,1.12);
+    bowLight.position.set(6,13,-38);
+    scene.add(bowLight);
     const inspectionLight = new DirectionalLight(0xe0edf2,0);
     inspectionLight.position.set(10,22,14);
     scene.add(inspectionLight);
@@ -583,7 +600,7 @@ async function start() {
     function cameraPose(name) {
       if (name === 'deck') return [new Vector3(29*distance,38*distance,48*distance),new Vector3(0,3.1,3.5)];
       if (name === 'helm') return [new Vector3(10*distance,8+12*distance,13*distance),new Vector3(0,7.4,2)];
-      return [new Vector3(43,15.5,-37).multiplyScalar(distance),new Vector3(0,4.9,1)];
+      return [new Vector3(43,10.6,-39).multiplyScalar(distance),new Vector3(-1.4,6.2,-.4)];
     }
     let cutaway = false;
     function setCutaway(enabled) {
@@ -607,11 +624,11 @@ async function start() {
 
     // Follow the routed cable from outside the rail before entering the bridge cutaway.
     const bowAim = new Vector3(1.55,4.37,-18.9);
-    const helmAim = new Vector3(2.23,8.46,-2.91);
+    const helmAim = new Vector3(1.65,8.24,-2.9);
     const bowPosition = new Vector3(6.2,7.1,-17.65);
     const helmPosition = new Vector3(3.34,9.61,.40);
-    const chartAim = new Vector3(2.27,8.59,-2.83);
-    const chartPosition = new Vector3(2.47,8.83,-1.61);
+    const chartAim = hardware.displayCenter.clone().add(new Vector3(0,.005,.025));
+    const chartPosition = chartAim.clone().add(new Vector3(.10,.12,.61));
     const cableCamera = new CatmullRomCurve3([
       bowPosition, new Vector3(6.6,7.15,-12), new Vector3(7.1,7.4,-4),
       new Vector3(6.7,8.7,2.8), new Vector3(5.2,10.3,2.45), helmPosition

@@ -237,11 +237,15 @@
 .pollux-views button { font-family:inherit; cursor:pointer; background:#151c1d; border:1px solid #a6b0a4; color:#fff; text-decoration:none; padding:6px 10px; font-size:13px; }
 .pollux-views button[aria-pressed="true"] { background:#e9efe3; color:#151c1d; }
 .hero-stage { position:relative; isolation:isolate; overflow:hidden; background:#101e26; }
-.hero-stage .hero { position:relative; z-index:2; padding-block:clamp(80px,10.6vw,155px) 0; pointer-events:none; }
-.hero-stage .hero a { pointer-events:auto; }
+.hero-stage .hero { position:relative; z-index:2; padding-block:clamp(76px,8vw,120px) 0; pointer-events:none; }
+.hero-stage h1 { margin-bottom:28px; }
+.hero-stage .hero a { pointer-events:auto; border-radius:8px; }
+.hero-bearing { position:absolute; z-index:1; pointer-events:none; width:min(50vw,720px); height:auto; right:0; top:32px; color:#9fb9c3; opacity:.34; }
+.hero-stage .sea-control,.hero-stage .pollux-views button { border-radius:8px; }
+.hero-stage .hero-meta .lede { border-left:1px solid #52636c; padding-left:clamp(12px,2.4vw,36px); }
 .hero-stage .hero-meta > .label { border-left:2px solid #b8df88; padding-left:16px; }
-.hero-stage .hero-chart { position:relative; background:transparent; margin-top:clamp(-46px,-2.4vw,-18px); }
-.hero-stage .sea-frame { aspect-ratio:1.98; background:#101e26; }
+.hero-stage .hero-chart { position:relative; background:transparent; margin-top:clamp(-68px,-4.7vw,-30px); }
+.hero-stage .sea-frame { aspect-ratio:1.79; background:#101e26; }
 .hero-stage .sea-frame::after { content:""; position:absolute; inset:0; pointer-events:none;
   background:linear-gradient(180deg,#101e26 0%,rgba(16,30,38,.72) 5%,rgba(16,30,38,.18) 13%,transparent 23%); }
 .hero-stage .sea-control,.hero-stage .pollux-views { z-index:3; }
@@ -249,6 +253,8 @@
 .hero-stage .hero-chart figcaption { background:#101e26; border-top-color:#394851; }
 @media (max-width:760px) {
   .hero-stage .hero { padding-top:68px; }
+  .hero-bearing { display:none; }
+  .hero-stage .hero-meta .lede { border-left:0; padding-left:0; }
   .hero-stage .hero-chart { margin-top:0; }
   .hero-stage .sea-frame { aspect-ratio:1.15; }
   .hero-stage .pollux-views { inset:auto 10px 51px auto; }
@@ -263,7 +269,7 @@
 <body>
 <div id="top" aria-hidden="true"></div>
 <header class="site-header tone-dark"><div class="wrap"><a class="brand" href="#top"><svg class="brand-mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true" focusable="false"><rect x="1" y="1" width="30" height="30" rx="5" fill="#151d20" stroke="#7b9085" stroke-width="2"/><path d="M16 5 25 23 16 19 7 23Z" fill="#b8df88"/><path d="M16 13v6l9 4Z" fill="#7ba858"/><path d="M16 23v4" stroke="#b8df88" stroke-width="2"/></svg> Northwatch</a><nav aria-label="Project sections"><a href="#watch">Watch decisions</a><a href="#installation">Installation</a><a href="#hardware">Hardware</a><a href="#software">Software</a><a href="#bridge-status">Bridge display</a><a href="#trial">Trial</a><a href="#ais">AIS</a><a href="#decision">Pilot intake</a></nav></div></header>
-<div class="hero-stage tone-dark" id="sea-hero"><section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Flag signs of suspected GNSS jamming or spoofing and identify when to use an independent fix.</p><div><a class="button" href="#bridge-status">View bridge states ↓</a></div></div></section>
+<div class="hero-stage tone-dark" id="sea-hero"><svg class="hero-bearing" viewBox="0 0 650 370" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor"><path d="M14 291A335 335 0 0 1 647 182" stroke-dasharray="2 5"/><path d="M110 327A232 232 0 0 1 557 220" stroke-dasharray="1 5"/><path d="M87 64h14m-7-7v14M338 32h20m-10-10v20M477 167h30m-15-15v30M218 239h14m-7-7v14"/></g></svg><section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Flag signs of suspected GNSS jamming or spoofing and identify when to use an independent fix.</p><div><a class="button" href="#bridge-status">View bridge states ↓</a></div></div></section>
 <figure class="chart hero-chart">
   <div class="sea-frame">
     <img src="./pollux-poster.jpg?v=10" alt="Stylized view of BNS Pollux, pennant P902, at sea">
@@ -426,6 +432,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=21"></script>
+<script type="module" src="./sea-scene.mjs?v=30"></script>
 </body>
 </html>
