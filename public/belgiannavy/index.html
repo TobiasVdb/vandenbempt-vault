@@ -78,11 +78,54 @@
 .status-mode span { color: var(--muted); }
 @media(max-width: 680px) { .status-grid { grid-template-columns: 1fr; } }
 @media print { .status-panel { break-inside: avoid; } }
+/* Section rhythm */
+#brief > section {
+  padding-inline: max(clamp(17px, 3.5vw, 56px), calc((100% - 1380px) / 2));
+  scroll-margin-top: 12px;
+}
+#brief > .facts { margin: 30px auto 0; }
+#brief > .procurement-note { padding-bottom: 20px; }
+@media screen {
+  .tone-dark {
+    color-scheme: dark;
+    --ink: #f1f4ef;
+    --muted: #bdc7c4;
+    --line: #495453;
+    --paper: #141b1d;
+    --green: #b8df88;
+    --signal: #f4cf82;
+    color: var(--ink);
+    background: var(--paper);
+  }
+  .tone-dark .callout { background: #222c2c; }
+  .tone-dark .status-panel {
+    --ink: #151715;
+    --muted: #515650;
+    --line: #d2d6cf;
+    color: var(--ink);
+    color-scheme: light;
+  }
+}
+@media (hover: hover) {
+  .button:hover { background: var(--green); color: var(--paper); }
+  nav a:hover, .copy a:not(.button):hover { color: var(--green); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .button {
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+  .button:active { transform: translateY(2px); }
+  nav a, .copy a:not(.button) { transition: color 160ms ease; }
+}
+@media print {
+  #brief > section { padding-inline: 0; }
+}
 </style>
 </head>
 <body id="top">
-<header><div class="wrap"><a class="brand" href="#top"><span aria-hidden="true">◈</span> Northwatch</a><nav aria-label="Project sections"><a href="#bridge-status">Bridge display</a><a href="#watch">Watch decisions</a><a href="#installation">Installation</a><a href="#hardware">Hardware</a><a href="#software">Software</a><a href="#trial">Trial</a><a href="#ais">AIS</a><a href="#decision">Pilot intake</a></nav></div></header>
-<section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Identify when GPS needs an independent check and when to fall back to approved navigation methods, including celestial fixes.</p><div><a class="button" href="#bridge-status">View bridge states ↓</a></div></div></section>
+<header class="tone-dark"><div class="wrap"><a class="brand" href="#top"><span aria-hidden="true">◈</span> Northwatch</a><nav aria-label="Project sections"><a href="#bridge-status">Bridge display</a><a href="#watch">Watch decisions</a><a href="#installation">Installation</a><a href="#hardware">Hardware</a><a href="#software">Software</a><a href="#trial">Trial</a><a href="#ais">AIS</a><a href="#decision">Pilot intake</a></nav></div></header>
+<div class="tone-dark"><section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Identify when GPS needs an independent check and when to fall back to approved navigation methods, including celestial fixes.</p><div><a class="button" href="#bridge-status">View bridge states ↓</a></div></div></section></div>
 <figure class="chart"><svg viewBox="0 0 1440 590" role="img" aria-labelledby="plot-title plot-desc" xmlns="http://www.w3.org/2000/svg">
 <title id="plot-title">Concept illustration of the Northwatch receiver and gateway in a single enclosure</title><desc id="plot-desc">An angular dark enclosure with mounting feet, status lamps, antenna input and an isolated Ethernet service port.</desc>
 <defs><linearGradient id="deck" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#334044"/><stop offset=".8" stop-color="#171e21"/></linearGradient><linearGradient id="lid" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#606a67"/><stop offset="1" stop-color="#2d3736"/></linearGradient><linearGradient id="face" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#303936"/><stop offset="1" stop-color="#151d1d"/></linearGradient><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#a3aaa4" stroke-opacity=".12"/></pattern></defs>
@@ -96,9 +139,9 @@
 <g fill="none" stroke="#a0aca4" stroke-width="1"><path d="M521 268H395l-44-43h-85M586 285l-55 116H266M1048 296l94-65h77"/></g>
 <g fill="#e1e6df" font-family="monospace" font-size="13" letter-spacing="1"><text x="266" y="210">01 / GNSS RF IN</text><text x="266" y="422">02 / LOCAL ETHERNET</text><text x="1097" y="215">03 / ENCLOSURE</text></g>
 </svg><figcaption><div class="wrap">NW–01 / Concept illustration · final enclosure subject to installation review</div></figcaption></figure>
-<main class="wrap" id="brief">
-<dl class="facts"><div><dt>Core hardware / unit</dt><dd>€1,660–€2,170</dd></div><div><dt>Build estimate</dt><dd>5–8 engineer days</dd></div><div><dt>First sea trial</dt><dd>One passive passage</dd></div></dl>
-<section class="status-section" id="bridge-status" aria-labelledby="status-title">
+<main id="brief">
+<dl class="facts wrap"><div><dt>Core hardware / unit</dt><dd>€1,660–€2,170</dd></div><div><dt>Build estimate</dt><dd>5–8 engineer days</dd></div><div><dt>First sea trial</dt><dd>One passive passage</dd></div></dl>
+<section class="status-section tone-dark" id="bridge-status" aria-labelledby="status-title">
   <p class="section-no">Bridge display / PNT</p>
   <h2 id="status-title">On the bridge</h2>
   <p class="status-intro">Four example states from the NORTHWATCH helm display.</p>
@@ -137,7 +180,7 @@
 <p class="callout"><strong>First trial is passive.</strong> The helm display shows silent status while the unit monitors its own receiver and logs advisory candidates for the debrief. A clean reading can coexist with a false bridge fix. The watch retains the navigation decision.</p>
 <p>Jamming can remove a fix. Spoofing can leave a believable but wrong position. Shifted chart overlays and distorted raw radar echoes are separate symptoms. Capture which one occurred before assigning a cause.</p>
 </div></section>
-<section class="section" id="installation">
+<section class="section tone-dark" id="installation">
   <div><p class="section-no">PoC / Vessel installation</p><h2>Antenna to helm</h2></div>
   <div class="copy rows">
     <div><h3>Outdoor antenna</h3><p>Mount the GNSS antenna outside with an open sky view at a crew-approved location. Run short coax to the Septentrio receiver. Place the receiver and CloudGate in a dry protected location near the antenna, or use a vessel-approved weatherproof enclosure if exposed.</p></div>
@@ -157,8 +200,8 @@
 </tbody><tfoot><tr><td>Standalone CloudGate prototype</td><td>€1,660–€2,170</td></tr></tfoot></table>
 <p class="note">Rounded estimates checked 10 November 2026. Confirm stock and lead time. Before ordering coax, confirm connector variants, antenna bias, cable length and RF loss with the installer.</p>
 <p class="note">Labour example at €750/day gives €3,750–€6,000 for 5–8 engineering days after hardware compatibility is established. Hardware plus that labour comes to about €5,410–€8,170. Quote the helm screen, mount, vessel-length cable and optional PoE hardware separately, along with freight, installation, lab time and vessel time. This is a planning budget.</p></div></section>
-<p class="note"><strong>Bench first.</strong> Bring up one CloudGate and one Septentrio before expanding. A four-unit batch requires four gateways and four receivers. If one receiver is already available, the other three are a follow-on procurement option.</p>
-<section class="section" id="software"><div><p class="section-no">03 / Engineering</p><h2>What we build</h2></div><div class="copy rows"><div><h3>CloudGate application and receiver link</h3><p>Bench-check the exact CloudGate SKU and firmware for SDK deployment, startup, storage, and USB host support for the receiver. Use USB if supported. Otherwise use an electrically compatible serial interface through the appropriate expansion hardware. Use <a href="https://github.com/semuconsulting/pysbf2">pysbf2</a> as the bench reference decoder and package a small native SBF reader with the CloudGate SDK if the selected image cannot run Python. Log <code>RFStatus</code>, <code>PVTGeodetic</code> and <code>ReceiverStatus</code>. Check configured message cadence, timestamp samples on arrival and use a monotonic clock for stale-data detection.</p></div><div><h3>On-device web server and UI</h3><p>The gateway boots into monitoring and serves the UI from its local Ethernet port. A browser on an approved tablet or laptop is only a viewer. Logging continues with no viewer connected. Bundle the page and assets on the gateway and keep LTE, remote management and Wi-Fi disabled for the first trial. Separate read-only status from authenticated export and configuration. </p><p>Distinguish possible spoofing, suspected interference, fix unavailable, monitor unavailable and no anomaly detected. Show the reason and data age. Test alert persistence and recovery, boot into monitor unavailable until inputs arrive, and capture crew observations with a single incident button. Keep the first passage silent.</p></div><div><h3>Logging and replay</h3><p>Record raw SBF messages, host UTC and monotonic timestamps, state transitions, receiver configuration and crew markers. Rotate logs and surface storage failures. Replay the same stream through the same rules. Raw SBF is receiver output. Controlled RF recordings or a simulator are needed to test receiver detection itself.</p></div><div><h3>Position comparison and recovery</h3><p>The PoC records the position reported by its own receiver and can flag suspected interference or spoofing. Given a timely independent fix, the debrief can plot both positions with timestamps, source labels and uncertainty. Without that fix, the actual position and off-course distance are unknown. Bridge data integration and track recovery require a separate phase.</p></div></div></section>
+<p class="note wrap procurement-note"><strong>Bench first.</strong> Bring up one CloudGate and one Septentrio before expanding. A four-unit batch requires four gateways and four receivers. If one receiver is already available, the other three are a follow-on procurement option.</p>
+<section class="section tone-dark" id="software"><div><p class="section-no">03 / Engineering</p><h2>What we build</h2></div><div class="copy rows"><div><h3>CloudGate application and receiver link</h3><p>Bench-check the exact CloudGate SKU and firmware for SDK deployment, startup, storage, and USB host support for the receiver. Use USB if supported. Otherwise use an electrically compatible serial interface through the appropriate expansion hardware. Use <a href="https://github.com/semuconsulting/pysbf2">pysbf2</a> as the bench reference decoder and package a small native SBF reader with the CloudGate SDK if the selected image cannot run Python. Log <code>RFStatus</code>, <code>PVTGeodetic</code> and <code>ReceiverStatus</code>. Check configured message cadence, timestamp samples on arrival and use a monotonic clock for stale-data detection.</p></div><div><h3>On-device web server and UI</h3><p>The gateway boots into monitoring and serves the UI from its local Ethernet port. A browser on an approved tablet or laptop is only a viewer. Logging continues with no viewer connected. Bundle the page and assets on the gateway and keep LTE, remote management and Wi-Fi disabled for the first trial. Separate read-only status from authenticated export and configuration. </p><p>Distinguish possible spoofing, suspected interference, fix unavailable, monitor unavailable and no anomaly detected. Show the reason and data age. Test alert persistence and recovery, boot into monitor unavailable until inputs arrive, and capture crew observations with a single incident button. Keep the first passage silent.</p></div><div><h3>Logging and replay</h3><p>Record raw SBF messages, host UTC and monotonic timestamps, state transitions, receiver configuration and crew markers. Rotate logs and surface storage failures. Replay the same stream through the same rules. Raw SBF is receiver output. Controlled RF recordings or a simulator are needed to test receiver detection itself.</p></div><div><h3>Position comparison and recovery</h3><p>The PoC records the position reported by its own receiver and can flag suspected interference or spoofing. Given a timely independent fix, the debrief can plot both positions with timestamps, source labels and uncertainty. Without that fix, the actual position and off-course distance are unknown. Bridge data integration and track recovery require a separate phase.</p></div></div></section>
 <section class="section" id="trial"><div><p class="section-no">04 / Field procedure</p><h2>From bench to bridge</h2></div><div class="copy"><ol class="steps">
 <li><strong>Agree scope and owners.</strong> Operator sponsors the trial, the master approves onboard activity and stop criteria, a vessel technician owns installation, and an engineer owns logging and recovery. Obtain one sanitised incident summary and distinguish raw radar failure from overlay displacement.</li>
 <li><strong>Bench test.</strong> Record a clean baseline. Replay fix loss, jumps and slow drift through the application. Check receiver disconnect/reconnect, cold boot after power loss, stale messages, low storage and clock steps. Unplug the helm cable and verify the screen marks live data unavailable while the powered recorder keeps logging. Reconnect and verify recovery. Verify that an unavailable monitor cannot appear healthy.</li>
@@ -167,7 +210,7 @@
 <li><strong>Run one silent passage.</strong> The watch follows normal procedures. When workload allows, record the time and observation, affected displays, any independent fix and its uncertainty. Suspend the trial if the mount, cable, power or equipment creates a hazard or distracts the watch.</li>
 <li><strong>Debrief and decide.</strong> Match crew markers and independently timed observations to receiver logs. Export only the operator-approved dataset. Remove the kit or agree a follow-on trial and apply the agreed retention policy.</li>
 </ol></div></section>
-<section class="section" id="decision"><div><p class="section-no">05 / Pilot intake</p><h2>What we need to start</h2></div><div class="copy"><p><strong>One naval vessel, one approved passage, and one officer of the watch for a short debrief.</strong> Confirm antenna and enclosure locations, the crew member responsible for the cable, power at both endpoints, the helm mount and which independent fixes can be logged. Ask where the watch would see an alert and whether it should sound or require acknowledgement. Agree defence approval, emissions restrictions and whether logs can be retained or exported. Keep vessel identifiers, tracks and raw incident files off this public brief.</p><div class="rows"><div><h3>Before boarding</h3><p>Sign off on safe temporary installation, no bridge-system integration, offline operation, and demonstrated detection of missing or stale inputs on the bench. Agree permitted log contents, access, retention and deletion before capture.</p></div><div><h3>Measure with a known reference</h3><p>Track time to advisory, position error at advisory, missed events by scenario, nuisance alerts per watch, and logging coverage. Mark position error as unknown when a usable reference is absent. Agree acceptable thresholds with the operator for the intended waters before evaluating results.</p></div><div><h3>Gate for a visible advisory</h3><p>Review the lab results and passage data with the master and operator. A quiet passage establishes a baseline. A visible advisory needs evidence against the agreed scenarios and a reviewed crew response. Operational integration requires a separate approval path.</p></div></div></div></section>
+<section class="section tone-dark" id="decision"><div><p class="section-no">05 / Pilot intake</p><h2>What we need to start</h2></div><div class="copy"><p><strong>One naval vessel, one approved passage, and one officer of the watch for a short debrief.</strong> Confirm antenna and enclosure locations, the crew member responsible for the cable, power at both endpoints, the helm mount and which independent fixes can be logged. Ask where the watch would see an alert and whether it should sound or require acknowledgement. Agree defence approval, emissions restrictions and whether logs can be retained or exported. Keep vessel identifiers, tracks and raw incident files off this public brief.</p><div class="rows"><div><h3>Before boarding</h3><p>Sign off on safe temporary installation, no bridge-system integration, offline operation, and demonstrated detection of missing or stale inputs on the bench. Agree permitted log contents, access, retention and deletion before capture.</p></div><div><h3>Measure with a known reference</h3><p>Track time to advisory, position error at advisory, missed events by scenario, nuisance alerts per watch, and logging coverage. Mark position error as unknown when a usable reference is absent. Agree acceptable thresholds with the operator for the intended waters before evaluating results.</p></div><div><h3>Gate for a visible advisory</h3><p>Review the lab results and passage data with the master and operator. A quiet passage establishes a baseline. A visible advisory needs evidence against the agreed scenarios and a reviewed crew response. Operational integration requires a separate approval path.</p></div></div></div></section>
 <section class="section" id="ais">
   <div><p class="section-no">Optional / Traffic cross-check</p><h2>AIS and radar</h2></div>
   <div class="copy rows">
@@ -177,8 +220,37 @@
     <div><p><a href="https://www.imo.org/en/ourwork/safety/pages/ais.aspx">IMO guidance on onboard AIS use</a></p></div>
   </div>
 </section>
-<section class="section" id="references"><div><p class="section-no">06 / References</p><h2>Source notes</h2></div><div class="copy"><ul class="steps"><li><a href="https://www.gov.uk/government/publications/mgn-719-mf-operating-in-gnss-denied-and-degraded-environments">MCA MGN 719 — Operating in GNSS denied and degraded environments</a></li><li><a href="https://www.iala.int/product/g1180-resilient-pnt/?download=true">IALA G1180 — Resilient position, navigation and timing</a></li><li><a href="https://www.admiralty.co.uk/news/jamming-and-spoofing">UK Hydrographic Office — GNSS and AIS interference</a></li><li><a href="https://docs.sparkfun.com/SparkFun_GNSS_mosaic-X5/assets/component_documentation/firmware/mosaic-X5_Firmware_v4.15.0_Reference_Guide.pdf">Septentrio mosaic-X5 — Receiver and SBF reference guide</a></li></ul></div></section>
+<section class="section tone-dark" id="references"><div><p class="section-no">06 / References</p><h2>Source notes</h2></div><div class="copy"><ul class="steps"><li><a href="https://www.gov.uk/government/publications/mgn-719-mf-operating-in-gnss-denied-and-degraded-environments">MCA MGN 719 — Operating in GNSS denied and degraded environments</a></li><li><a href="https://www.iala.int/product/g1180-resilient-pnt/?download=true">IALA G1180 — Resilient position, navigation and timing</a></li><li><a href="https://www.admiralty.co.uk/news/jamming-and-spoofing">UK Hydrographic Office — GNSS and AIS interference</a></li><li><a href="https://docs.sparkfun.com/SparkFun_GNSS_mosaic-X5/assets/component_documentation/firmware/mosaic-X5_Firmware_v4.15.0_Reference_Guide.pdf">Septentrio mosaic-X5 — Receiver and SBF reference guide</a></li></ul></div></section>
 </main>
 <footer class="wrap"><p>Northwatch · Independent naval pilot proposal · November 2026</p></footer>
+<script>
+  if ('IntersectionObserver' in window && 'animate' in Element.prototype) {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const activeReveals = new Set();
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer.unobserve(entry.target);
+        if (reduceMotion.matches || entry.target.matches(':focus-within')) continue;
+
+        const reveal = entry.target.animate(
+          [{ opacity: 0.65, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 420, easing: 'cubic-bezier(.2,.65,.25,1)' }
+        );
+        activeReveals.add(reveal);
+        const clearReveal = () => activeReveals.delete(reveal);
+        reveal.onfinish = clearReveal;
+        reveal.oncancel = clearReveal;
+      }
+    }, { threshold: 0, rootMargin: '0px 0px -36px 0px' });
+
+    document.querySelectorAll('.hero > *, .chart svg, #brief > section > *')
+      .forEach(element => observer.observe(element));
+
+    reduceMotion.addEventListener('change', event => {
+      if (event.matches) activeReveals.forEach(reveal => reveal.cancel());
+    });
+  }
+</script>
 </body>
 </html>
