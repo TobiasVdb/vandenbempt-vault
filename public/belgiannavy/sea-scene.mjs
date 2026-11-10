@@ -326,13 +326,15 @@ function addTourHardware(ship, engine) {
     icon: panel.querySelector('.status-icon').textContent.trim(),
     detail: panel.querySelector('p').textContent.trim(),
     response: panel.querySelector('.status-mode strong').textContent.trim(),
+    chart: panel.querySelector('.track-chart'),
   }));
   let previous = -1;
   function updateScreen(progress) {
     const index = Math.min(statuses.length-1,Math.max(0,Math.floor(progress*statuses.length)));
     if (index === previous || index < 0) return;
     previous = index;
-    const {color,heading,icon,detail,response} = statuses[index];
+    frame.dataset.helmDisplay = statuses[index].chart ? "track" : "status";
+    const {color,heading,icon,detail,response,chart} = statuses[index];
     ctx.fillStyle = '#fff';
     ctx.fillRect(0,0,512,288);
     ctx.fillStyle = '#151c1d';
@@ -341,6 +343,41 @@ function addTourHardware(ship, engine) {
     ctx.fillRect(22,44,468,2);
     ctx.fillStyle = color;
     ctx.fillRect(432,12,58,25);
+    if (chart) {
+      ctx.fillStyle = '#151c1d';
+      ctx.fillText('PNT',441,32);
+      ctx.font = 'bold 27px sans-serif';
+      ctx.fillText(heading.join(' '),22,76,468);
+      ctx.save();
+      ctx.translate(22,85);
+      for (const path of chart.querySelectorAll('path')) {
+        ctx.strokeStyle = path.getAttribute('stroke');
+        ctx.lineWidth = Number(path.getAttribute('stroke-width')) || 1;
+        ctx.lineCap = path.getAttribute('stroke-linecap') || 'butt';
+        ctx.setLineDash((path.getAttribute('stroke-dasharray') || '').split(' ').filter(Boolean).map(Number));
+        ctx.stroke(new Path2D(path.getAttribute('d')));
+      }
+      ctx.fillStyle = chart.querySelector('g').getAttribute('fill');
+      ctx.font = '11px sans-serif';
+      for (const label of chart.querySelectorAll('text')) {
+        ctx.fillText(label.textContent,Number(label.getAttribute('x')),Number(label.getAttribute('y')));
+      }
+      ctx.restore();
+      ctx.font = 'bold 12px sans-serif';
+      let x = 22;
+      for (const track of chart.querySelectorAll('[data-track]')) {
+        ctx.fillStyle = track.getAttribute('stroke');
+        ctx.fillRect(x,241,10,4);
+        ctx.fillStyle = '#151c1d';
+        const name = track.dataset.track;
+        ctx.fillText(name,x+15,248);
+        x += ctx.measureText(name).width+32;
+      }
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(response,22,274,468);
+      texture.needsUpdate = true;
+      return;
+    }
     ctx.fillRect(419,65,71,71);
     ctx.fillStyle = '#151c1d';
     ctx.fillText('PNT',441,32);
@@ -558,7 +595,9 @@ async function start() {
       } else if (phase < 17) {
         shot = 'helm-display';
         applyTourPose(tourPosition.copy(helmPosition),tourAim.copy(helmAim));
-        hardware.updateScreen((phase-12)/5);
+        // Hold the track comparison longer so there is time to read it.
+        const hold = phase-12;
+        hardware.updateScreen(hold < 3 ? hold/3*.8 : .8);
         setCutaway(true);
       } else {
         shot = 'return';

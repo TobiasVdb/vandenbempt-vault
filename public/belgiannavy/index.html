@@ -16,6 +16,10 @@
   padding: clamp(36px, 6vw, 72px) 0;
   border-bottom: 1px solid var(--line);
 }
+.status-track { grid-column: 1 / -1; }
+.track-chart { display: block; width: 100%; max-width: 740px; height: auto; }
+.track-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; padding: 0; margin: 12px 0 18px; font-size: .86rem; }
+.track-legend li::before { content: ""; display: inline-block; width: 12px; height: 4px; margin: 0 6px 3px 0; background: var(--track-color); border: 1px solid #52636a; }
 .status-intro { color: var(--muted); margin-bottom: 24px; }
 .status-grid {
   display: grid;
@@ -303,7 +307,7 @@
 <section class="status-section tone-dark" id="bridge-status" aria-labelledby="status-title">
   <p class="section-no">Bridge display / PNT</p>
   <h2 id="status-title">On the bridge</h2>
-  <p class="status-intro">Four example states from the NORTHWATCH helm display.</p>
+  <p class="status-intro">Example states from the NORTHWATCH helm display.</p>
   <div class="status-grid">
     <article class="status-panel" data-tone="verified">
       <div class="status-top"><strong>NORTHWATCH</strong><span>PNT</span></div>
@@ -329,6 +333,32 @@
       <p>Receiver data is unavailable or the helm link is down. Verify position independently.</p>
       <div class="status-mode"><span>WATCH RESPONSE</span><strong>Independent verification</strong></div>
     </article>
+
+    <article class="status-panel status-track" data-tone="caution">
+      <div class="status-top"><strong>NORTHWATCH</strong><span>PNT</span></div>
+      <div class="status-message"><h3>Track disagreement</h3><span class="status-icon" aria-hidden="true">!</span></div>
+      <p>Illustrative combined event. The independent fixes show where the vessel was observed. The reported GNSS track has fix gaps during suspected jamming and drifts away from the independent fixes during suspected spoofing.</p>
+      <svg class="track-chart" viewBox="0 0 460 143" role="img" aria-labelledby="track-chart-title track-chart-desc">
+        <title id="track-chart-title">Intended, independently observed and suspect GNSS tracks</title>
+        <desc id="track-chart-desc">Time runs left to right. The green intended route and blue independent fixes remain close. The amber GNSS track has gaps during suspected jamming, then diverges during mild and stronger suspected spoofing.</desc>
+        <path d="M16 32H444 M16 64H444 M16 96H444 M16 124H444" stroke="#dbe3e0" fill="none"/>
+        <path data-track="Intended route" d="M18 108 Q186 89 442 85" stroke="#33704a" stroke-width="3" fill="none"/>
+        <path data-track="Independent fixes" d="M18 113 Q123 91 229 99 T442 94" stroke="#176b90" stroke-width="3" stroke-dasharray="2 6" stroke-linecap="round" fill="none"/>
+        <path data-track="GNSS reported" d="M18 110 Q51 101 74 101 M104 97 L118 96 M165 93 Q224 88 294 66 Q360 44 442 23" stroke="#a94c0b" stroke-width="3" fill="none"/>
+        <g fill="#34454b" font-size="11" font-family="sans-serif">
+          <text x="78" y="67">Suspected jamming</text><text x="78" y="79">fix loss</text>
+          <text x="198" y="59">Suspect drift</text><text x="339" y="20">Stronger divergence</text>
+          <text x="404" y="136">Time →</text>
+        </g>
+      </svg>
+      <ul class="track-legend" aria-label="Track colors">
+        <li style="--track-color:#33704a">Intended route</li>
+        <li style="--track-color:#176b90">Independent fixes</li>
+        <li style="--track-color:#a94c0b">GNSS reported</li>
+      </ul>
+      <div class="status-mode"><span>WATCH RESPONSE</span><strong>Use approved independent navigation</strong></div>
+    </article>
+
   </div>
 </section>
 <section class="section" id="trial"><div><p class="section-no">04 / Field procedure</p><h2>From bench to bridge</h2></div><div class="copy"><ol class="steps">
@@ -396,6 +426,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=15"></script>
+<script type="module" src="./sea-scene.mjs?v=18"></script>
 </body>
 </html>
