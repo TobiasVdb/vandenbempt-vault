@@ -53,15 +53,51 @@ const helmChartArtwork = `<svg xmlns="http://www.w3.org/2000/svg" width="512" he
   </g>
 </svg>`;
 
+const helmTelemetryArtwork = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="288">
+  <rect width="512" height="288" fill="#081c26"/>
+  <path d="M0 0H512V29H0Z" fill="#243e49"/>
+  <g fill="#b0cacc" font-family="monospace" font-size="14">
+    <text x="14" y="20">VESSEL TELEMETRY</text><text x="414" y="20">CONNING</text>
+    <text x="24" y="57">HEADING</text><text x="189" y="57">SPEED</text><text x="357" y="57">DEPTH</text>
+    <text x="24" y="88" font-size="24" fill="#e3f4ec">037°</text>
+    <text x="189" y="88" font-size="24" fill="#e3f4ec">15.2 kn</text>
+    <text x="357" y="88" font-size="24" fill="#e3f4ec">68 m</text>
+    <text x="24" y="134">DEPTH TREND</text><text x="24" y="271">60 S</text>
+  </g>
+  <path d="M24 151H488V247H24Z M24 183H488M24 215H488M140 151V247M256 151V247M372 151V247" fill="none" stroke="#31525d"/>
+  <path d="M24 177L52 180 82 174 111 185 141 188 169 183 198 196 227 194 256 203 285 198 315 209 343 206 373 218 401 211 431 215 459 211 488 222V247H24Z" fill="#32616d" stroke="#78aeb1" stroke-width="2"/>
+</svg>`;
+
+const helmCommsArtwork = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="288">
+  <rect width="512" height="288" fill="#091b23"/>
+  <path d="M0 0H512V29H0Z" fill="#263e49"/>
+  <path d="M22 49H490V146H22Z" fill="#143744" stroke="#53727a"/>
+  <path d="M22 179H490M22 219H490M22 252H490" stroke="#35535b"/>
+  <g fill="#b8d1cf" font-family="monospace" font-size="14">
+    <text x="14" y="20">BRIDGE COMMS / VHF</text><text x="424" y="20">WATCH</text>
+    <text x="38" y="74">ACTIVE CHANNEL</text><text x="38" y="124" font-size="44" fill="#e0f6ee">16</text>
+    <text x="155" y="111" font-size="18">CALLING / DISTRESS</text>
+    <text x="385" y="74" fill="#a8d5a1">RX READY</text>
+    <text x="24" y="203">DUAL WATCH</text><text x="418" y="203">ON</text>
+    <text x="24" y="242">SQUELCH</text><text x="418" y="242">04</text>
+  </g>
+</svg>`;
+
 function addHelmInstrumentTextures(ship, { MeshBasicMaterial, SRGBColorSpace, TextureLoader }) {
   const loader = new TextureLoader();
   const materials = new Map();
+  const artworkByMaterial = new Map([
+    ['Helm radar face', helmRadarArtwork],
+    ['Helm chart face', helmChartArtwork],
+    ['Helm telemetry face', helmTelemetryArtwork],
+    ['Helm comms face', helmCommsArtwork],
+  ]);
   ship.traverse(object => {
     if (!object.isMesh) return;
     const name = object.material.name;
-    if (name !== 'Helm radar face' && name !== 'Helm chart face') return;
+    const artwork = artworkByMaterial.get(name);
+    if (!artwork) return;
     if (!materials.has(name)) {
-      const artwork = name === 'Helm radar face' ? helmRadarArtwork : helmChartArtwork;
       const map = loader.load('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(artwork));
       map.colorSpace = SRGBColorSpace;
       map.flipY = false;
@@ -657,7 +693,7 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=11', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=12', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
     addHelmInstrumentTextures(ship,engine);
     const hardware = addTourHardware(ship,engine);

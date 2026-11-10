@@ -335,9 +335,16 @@ for y in (-13.12,-16.18):
 helm_dark = material('Helm charcoal',(.09,.125,.131),.67)
 helm_floor = material('Bridge floor',(.19,.25,.24),.89)
 screen = material('Display glass',(.032,.11,.13),.33)
-console_blue = material('Bridge console blue',(.19,.31,.36),.53)
+console_blue = material('Bridge console blue',(.069,.10,.13),.42)
+fascia_trim = material('Bridge satin trim',(.22,.28,.34),.32)
+task_strip = material('Warm bridge task lighting',(.95,.43,.12),.4)
+task_shader = task_strip.node_tree.nodes.get('Principled BSDF')
+task_shader.inputs['Emission Color'].default_value = (1,.48,.16,1)
+task_shader.inputs['Emission Strength'].default_value = 3
 radar_face = material('Helm radar face',(.032,.11,.13),.33)
 chart_face = material('Helm chart face',(.032,.11,.13),.33)
+telemetry_face = material('Helm telemetry face',(.032,.11,.13),.33)
+comms_face = material('Helm comms face',(.032,.11,.13),.33)
 rubber = material('Seat upholstery',(.046,.058,.060),.87)
 ring_body('Helm floor',outline(3.22,-8.86,4.84,1.32),outline(3.22,-8.86,4.84,1.32),7.12,7.20,helm_floor)
 
@@ -353,15 +360,19 @@ def console_station(x,y,yaw,width,displays):
     part('Integrated console cabinet',0,.18,7.53,(width,.82,.68),console_blue,.045)
     part('Console worktop',0,-.22,7.94,(width,.63,.11),console_blue,.029)
     part('Padded console edge',0,-.53,7.94,(width,.08,.10),rubber,.025)
+    part('Warm worktop strip',0,-.548,7.886,(width-.04,.018,.014),task_strip,.004)
+    part('Cabinet kick light',0,-.237,7.238,(width-.08,.018,.014),task_strip,.004)
+    for seam in (-width*.24,width*.24):
+        part('Cabinet door seam',seam,-.232,7.55,(.009,.006,.54),helm_dark,.002)
     tilt=-.48
     def panel(name,u,h,depth,size,paint,bevel=.008):
         return part(name,u,.27+depth*math.cos(tilt)-h*math.sin(tilt),
                     8.22+depth*math.sin(tilt)+h*math.cos(tilt),size,paint,bevel,tilt)
     panel('Fascia backing',0,0,.061,(width,.07,.60),helm_dark)
     for h in (-.25,.25):
-        panel('Fascia horizontal rail',0,h,-.002,(width,.12,.10),console_blue)
+        panel('Fascia horizontal rail',0,h,-.002,(width,.12,.10),fascia_trim,.017)
     edge=-width/2
-    for index,(center,span) in enumerate(displays):
+    for center,span,display_material in displays:
         left=center-span/2
         panel('Fascia stile',(edge+left)/2,0,-.002,(left-edge,.12,.40),console_blue)
         panel('Inset display surround',center,0,-.018,(span,.050,.40),black)
@@ -370,7 +381,7 @@ def console_station(x,y,yaw,width,displays):
         face=mesh('Inset instrument picture',
                   [(-half_width,0,-.153),(half_width,0,-.153),
                    (half_width,0,.153),(-half_width,0,.153)],
-                  [(0,1,2,3)],radar_face if index%2==0 else chart_face)
+                  [(0,1,2,3)],display_material)
         face.location=pos(center,.27-.054*math.cos(tilt)-.022*math.sin(tilt),
                           8.22-.054*math.sin(tilt)+.022*math.cos(tilt))
         face.rotation_euler=(tilt,0,yaw)
@@ -394,11 +405,11 @@ def console_station(x,y,yaw,width,displays):
     part('Radio handset cradle',-width*.33,-.19,8.014,(.11,.23,.032),black,.011)
     part('Radio handset',-width*.33,-.19,8.052,(.070,.19,.047),rubber,.018)
 
-console_station(-1.91,3.47,.35,1.62,[(-.41,.65),(.37,.65)])
-console_station(0,3.83,0,2.19,[(-.71,.57),(0,.65),(.71,.57)])
-console_station(1.91,3.47,-.35,1.62,[(-.38,.64),(.38,.64)])
-console_station(-2.75,-.91,-math.pi/2,1.36,[(-.29,.50),(.30,.50)])
-console_station(2.75,-1.39,math.pi/2,1.36,[(-.29,.50),(.30,.50)])
+console_station(-1.91,3.47,.35,1.62,[(-.41,.65,telemetry_face),(.37,.65,radar_face)])
+console_station(0,3.83,0,2.19,[(-.71,.57,chart_face),(0,.65,comms_face),(.71,.57,telemetry_face)])
+console_station(1.91,3.47,-.35,1.62,[(-.38,.64,radar_face),(.38,.64,telemetry_face)])
+console_station(-2.75,-.91,-math.pi/2,1.36,[(-.29,.50,comms_face),(.30,.50,radar_face)])
+console_station(2.75,-1.39,math.pi/2,1.36,[(-.29,.50,chart_face),(.30,.50,comms_face)])
 
 for x,y in [(-1.65,1.79),(1.64,1.73)]:
     box('Seat floor plate',(x,y,7.235),(.49,.51,.072),helm_dark,.033)
@@ -481,7 +492,8 @@ for name,location,description in anchors:
     anchor['status']='illustrative'
 
 # Bake bevels and batch geometry by material to keep browser draw calls low.
-for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber,console_blue,radar_face,chart_face]:
+for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber,
+              console_blue,fascia_trim,task_strip,radar_face,chart_face,telemetry_face,comms_face]:
     def removable(obj):
         return obj.name.startswith(('Overhanging bridge roof','Lattice mast','Mast cross','Mast diagonal','Radar support',
             'Radar scanner','Whip aerial','Radome','Searchlight','Glazing mullion','Wraparound bridge glazing','Bridge glazing wiper'))
