@@ -20,6 +20,29 @@
 .track-chart { display: block; width: 100%; max-width: 740px; height: auto; }
 .track-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; padding: 0; margin: 12px 0 18px; font-size: .86rem; }
 .track-legend li::before { content: ""; display: inline-block; width: 12px; height: 4px; margin: 0 6px 3px 0; background: var(--track-color); border: 1px solid #52636a; }
+
+.status-grid.is-carousel { grid-template-columns: minmax(0, 1fr); background: #fff; isolation: isolate; }
+.status-grid.is-carousel > .status-panel {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 420ms ease;
+}
+.status-grid.is-carousel > .status-panel.is-current { opacity: 1; pointer-events: auto; z-index: 1; }
+.status-controls { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:12px; }
+.status-controls button {
+  padding:7px 10px;
+  border:1px solid var(--line);
+  background:var(--paper);
+  color:var(--ink);
+  font:700 .8rem "Hanken Grotesk",sans-serif;
+  cursor:pointer;
+}
+.status-controls button[aria-pressed="true"] { background:var(--green); color:#151715; }
+.status-controls .status-playback { margin-left:auto; }
+@media (prefers-reduced-motion: reduce) { .status-grid.is-carousel > .status-panel { transition:none; } }
+
 .status-intro { color: var(--muted); margin-bottom: 24px; }
 .status-grid {
   display: grid;
@@ -390,6 +413,76 @@
 <footer class="wrap"><p>Northwatch · Independent naval pilot proposal · November 2026</p></footer>
 <a class="back-to-top" href="#top" hidden>Back to top <span aria-hidden="true">↑</span></a>
 <script>
+
+  const statusGrid = document.querySelector('#bridge-status .status-grid');
+  const slides = [...statusGrid.querySelectorAll('.status-panel')];
+  const statusMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const statusControls = document.createElement('div');
+  statusControls.className = 'status-controls';
+  statusControls.setAttribute('role', 'group');
+  statusControls.setAttribute('aria-label', 'Bridge display states');
+  let statusIndex = 0;
+  let statusTimer;
+  let statusPlaying = !statusMotion.matches;
+  let statusVisible = !('IntersectionObserver' in window);
+
+  const stateButtons = slides.map((slide, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = [...slide.querySelector('h3').childNodes]
+      .map(node => node.nodeName === 'BR' ? ' ' : node.textContent).join('').trim();
+    button.addEventListener('click', () => {
+      statusPlaying = false;
+      showStatus(index);
+      scheduleStatus();
+    });
+    statusControls.append(button);
+    return button;
+  });
+  const statusPlayback = document.createElement('button');
+  statusPlayback.type = 'button';
+  statusPlayback.className = 'status-playback';
+  statusPlayback.addEventListener('click', () => {
+    statusPlaying = !statusPlaying;
+    scheduleStatus();
+  });
+  statusControls.append(statusPlayback);
+
+  function showStatus(index) {
+    statusIndex = index;
+    slides.forEach((slide, i) => {
+      const current = i === index;
+      slide.classList.toggle('is-current', current);
+      slide.setAttribute('aria-hidden', String(!current));
+      stateButtons[i].setAttribute('aria-pressed', String(current));
+    });
+  }
+  function scheduleStatus() {
+    clearTimeout(statusTimer);
+    statusPlayback.textContent = statusPlaying ? 'Pause loop' : 'Play loop';
+    if (!statusPlaying || !statusVisible || document.hidden) return;
+    statusTimer = setTimeout(() => {
+      showStatus((statusIndex + 1) % slides.length);
+      scheduleStatus();
+    }, slides[statusIndex].classList.contains('status-track') ? 8000 : 5200);
+  }
+  showStatus(0);
+  statusGrid.classList.add('is-carousel');
+  statusGrid.after(statusControls);
+  if ('IntersectionObserver' in window) {
+    const statusObserver = new IntersectionObserver(([entry]) => {
+      statusVisible = entry.isIntersecting;
+      scheduleStatus();
+    });
+    statusObserver.observe(statusGrid);
+  }
+  document.addEventListener('visibilitychange', scheduleStatus);
+  statusMotion.addEventListener('change', event => {
+    if (event.matches) statusPlaying = false;
+    scheduleStatus();
+  });
+  scheduleStatus();
+
   const siteHeader = document.querySelector('.site-header');
   const backToTop = document.querySelector('.back-to-top');
   function syncHeader() {
@@ -405,13 +498,14 @@
   syncHeader();
 
   if ('IntersectionObserver' in window && 'animate' in Element.prototype) {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // Keep scrolling content out of animated layers on touch and narrow screens.
+    const allowReveals = window.matchMedia('(min-width: 761px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
     const activeReveals = new Set();
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
         observer.unobserve(entry.target);
-        if (reduceMotion.matches || entry.target.matches(':focus-within')) continue;
+        if (!allowReveals.matches || entry.target.matches(':focus-within')) continue;
 
         const reveal = entry.target.animate(
           [{ opacity: 0.65, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
@@ -427,8 +521,8 @@
     document.querySelectorAll('.hero > *, #brief > section > *')
       .forEach(element => observer.observe(element));
 
-    reduceMotion.addEventListener('change', event => {
-      if (event.matches) activeReveals.forEach(reveal => reveal.cancel());
+    allowReveals.addEventListener('change', event => {
+      if (!event.matches) activeReveals.forEach(reveal => reveal.cancel());
     });
   }
 </script>
