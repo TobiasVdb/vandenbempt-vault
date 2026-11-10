@@ -9,3 +9,4 @@ export { WebGLRenderTarget } from 'three';
 export { FullscreenQuad, rawPass } from './ultra/engine/fullscreen.js';
 export { BoxGeometry, CanvasTexture, CatmullRomCurve3, MeshBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TubeGeometry } from 'three';
 export { PMREMGenerator, PCFSoftShadowMap } from 'three';
+export { InstancedMesh, Matrix4 } from 'three';

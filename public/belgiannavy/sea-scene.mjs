@@ -621,7 +621,8 @@ function addNavigationLights(ship, { BoxGeometry, Mesh, MeshBasicMaterial, MeshS
 
 function addTourHardware(ship, engine) {
   const { BoxGeometry, CanvasTexture, CatmullRomCurve3, Mesh, MeshBasicMaterial,
-    MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } = engine;
+    MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3,
+    InstancedMesh, Matrix4 } = engine;
   const enclosure = new MeshStandardMaterial({ color: 0x141b1d, roughness: .62 });
   const metal = new MeshStandardMaterial({ color: 0x68777b, metalness: .48, roughness: .48 });
   function box(size, at, material) {
@@ -635,27 +636,102 @@ function addTourHardware(ship, engine) {
   // The model's sheer is 3.82 m at station 19. Keep the plate, fixings and
   // cable in ship coordinates so they follow the same motion as the deck.
   const deviceDeckHeight = 3.82;
-  box([.35,.024,.25],[1.18,deviceDeckHeight+.014,-19],metal);
-  box([.32,.08,.22],[1.18,deviceDeckHeight+.068,-19],enclosure);
-  box([.29,.015,.19],[1.18,deviceDeckHeight+.1155,-19],enclosure);
+  const deviceX = 0;
+  const deviceCenter = new Vector3(deviceX,deviceDeckHeight+.068,-19);
+  box([.35,.024,.25],[deviceX,deviceDeckHeight+.014,-19],metal);
+  box([.32,.08,.22],deviceCenter.toArray(),enclosure);
+  box([.29,.015,.19],[deviceX,deviceDeckHeight+.1155,-19],enclosure);
+  box([.024,.024,.026],[deviceX,deviceDeckHeight+.068,-18.877],metal);
   for (const x of [-.168,.168]) {
     for (const z of [-.115,.115]) {
-      box([.012,.01,.012],[1.18+x,deviceDeckHeight+.031,-19+z],metal);
+      box([.012,.01,.012],[deviceX+x,deviceDeckHeight+.031,-19+z],metal);
     }
   }
   const label = new MeshBasicMaterial({color:0xa7cb70});
-  box([.067,.004,.012],[1.18,deviceDeckHeight+.127,-18.95],label);
+  box([.067,.004,.012],[deviceX,deviceDeckHeight+.127,-18.95],label);
   const displayCenter = new Vector3(2.48,8.21,-2.82);
+  // Match the model's sheer stations. Dense samples keep the cable inside
+  // the bulwark corner instead of smoothing it out through the hull.
+  const edgeStations = [[19,2.65,3.82],[14,3.64,3.64],[8,4.42,3.47],[-2,4.60,3.35],[-10.7,4.60,3.28]];
+  function deckCorner(station) {
+    const index = edgeStations.findIndex(point => point[0] <= station);
+    if (index <= 0) return new Vector3(2.625,3.831,-19);
+    const [start,width,height] = edgeStations[index-1];
+    const [end,nextWidth,nextHeight] = edgeStations[index];
+    const progress = (station-start)/(end-start);
+    return new Vector3(width+(nextWidth-width)*progress-.025,
+      height+(nextHeight-height)*progress+.011,-station);
+  }
+  const cornerPoints = [];
+  for (let station = 18.5; station >= -7; station -= .5) cornerPoints.push(deckCorner(station));
+  cornerPoints.push(deckCorner(-7.2));
+  const aftDeckHeight = deckCorner(-7.4).y;
+  const wallRoute = [
+    [4.565,aftDeckHeight,7.30],[4.53,aftDeckHeight,7.37],[4.45,aftDeckHeight,7.4],
+    [3.70,aftDeckHeight,7.4],[3.565,3.43,7.4],[3.565,5.95,7.4],
+    [3.565,6.08,7.4],[3.865,6.10,7.4],[3.865,6.15,7.4],
+    [3.64,6.51,7.4],[3.27,7.10,7.4],[3.34,7.27,7.4],
+    [3.18,7.28,7.4],[3.155,7.211,7.2],[3.155,7.211,2.7],
+    [3.155,7.211,-2.82],[displayCenter.x,7.211,-2.82],
+    [displayCenter.x,7.96,displayCenter.z-.045],[displayCenter.x,8.11,displayCenter.z-.045],
+  ].map(point => new Vector3(...point));
   const route = new CatmullRomCurve3([
-    [1.34,deviceDeckHeight+.068,-19],[2.08,deviceDeckHeight+.02,-19],[2.30,4.48,-18.6],[2.65,4.54,-17.4],
-    [3.28,4.55,-14],[3.85,4.54,-10],[4.10,4.45,-6],[4.12,4.42,-2],
-    [4.06,4.45,1],[3.83,4.65,3.6],[3.60,5.92,3.8],[3.55,7.36,3.7],
-    [3.23,7.52,3.45],[2.92,7.56,2.7],[2.98,7.30,-.3],[2.58,7.30,-2.82],
-    [displayCenter.x,8.11,displayCenter.z-.045]
-  ].map(point => new Vector3(...point)), false, 'centripetal');
-  const cable = new Mesh(new TubeGeometry(route, 120,.009,7,false),
-    new MeshStandardMaterial({color:0xbd8b3f,roughness:.76}));
+    new Vector3(deviceX,deviceDeckHeight+.068,-18.864),
+    new Vector3(deviceX,deviceDeckHeight+.068,-18.79),
+    new Vector3(.04,deckCorner(18.7).y,-18.7),
+    new Vector3(.15,deckCorner(18.6).y,-18.6),
+    new Vector3(.40,deckCorner(18.6).y,-18.6),
+    new Vector3(2.35,deckCorner(18.6).y,-18.6),
+    new Vector3(2.58,deckCorner(18.6).y,-18.6),
+    new Vector3(2.65,deckCorner(18.6).y,-18.6),
+    ...cornerPoints,...wallRoute,
+  ],false,'centripetal');
+  const cable = new Mesh(new TubeGeometry(route,240,.0045,6,false),
+    new MeshStandardMaterial({color:0x9b783f,roughness:.76}));
   ship.add(cable);
+  box([.045,.12,.15],[3.31,7.27,7.4],metal);
+
+  const up = new Vector3(0,1,0);
+  const clipLocations = [.55,1.2,1.85,2.4].map(x => ({
+    point:new Vector3(x,deckCorner(18.6).y,-18.6),tangent:new Vector3(1,0,0),normal:up,
+  }));
+  for (let i = 1; i < cornerPoints.length-1; i += 2) {
+    const tangent = cornerPoints[i+1].clone().sub(cornerPoints[i-1]).normalize();
+    const across = up.clone().cross(tangent).normalize();
+    clipLocations.push({point:cornerPoints[i],tangent,normal:tangent.clone().cross(across).normalize()});
+  }
+  for (const height of [3.8,4.6,5.4]) {
+    clipLocations.push({point:new Vector3(3.565,height,7.4),tangent:up,normal:new Vector3(1,0,0)});
+  }
+  for (const z of [5.5,4,2,0,-2]) {
+    clipLocations.push({point:new Vector3(3.155,7.211,z),tangent:new Vector3(0,0,-1),normal:up});
+  }
+  clipLocations.push({point:new Vector3(3.64,6.51,7.4),
+    tangent:new Vector3(-.53,.85,0).normalize(),normal:new Vector3(.85,.53,0).normalize()});
+  const saddleParts = [
+    {size:[.025,.005,.018],x:0,y:.009},
+    {size:[.005,.018,.018],x:-.012,y:-.002},
+    {size:[.005,.018,.018],x:.012,y:-.002},
+    {size:[.014,.006,.018],x:-.016,y:-.008},
+    {size:[.014,.006,.018],x:.016,y:-.008},
+  ];
+  // All saddle pieces share one instanced draw, including the wall fixings.
+  const clips = new InstancedMesh(new BoxGeometry(1,1,1),metal,clipLocations.length*saddleParts.length);
+  const basis = new Matrix4(), transform = new Matrix4();
+  const clipPosition = new Vector3(), clipScale = new Vector3();
+  let instance = 0;
+  for (const {point,tangent,normal} of clipLocations) {
+    const across = normal.clone().cross(tangent).normalize();
+    basis.makeBasis(across,normal,tangent);
+    for (const part of saddleParts) {
+      clipPosition.copy(point).addScaledVector(across,part.x).addScaledVector(normal,part.y);
+      transform.copy(basis).scale(clipScale.fromArray(part.size)).setPosition(clipPosition);
+      clips.setMatrixAt(instance++,transform);
+    }
+  }
+  clips.instanceMatrix.needsUpdate = true;
+  clips.receiveShadow = true;
+  ship.add(clips);
   const display = box([.425,.24,.0425],displayCenter.toArray(),enclosure);
   display.rotation.x = -.12;
   box([.085,.12,.075],[displayCenter.x,8.055,displayCenter.z-.02],enclosure);
@@ -789,7 +865,7 @@ function addTourHardware(ship, engine) {
   sectionWalls.push(box([3.97,.09,.12],[0,8.57,-4.94],cutEdge));
   setCutaway(false);
 
-  return { route, displayCenter, updateScreen, setCutaway };
+  return { route, deviceCenter, displayCenter, updateScreen, setCutaway };
 }
 
 function suspend() {
@@ -830,7 +906,7 @@ async function start() {
       viewControls.set(value,control);
       controls.append(control);
     }
-    const engine = await import("./sea-engine.mjs?v=13");
+    const engine = await import("./sea-engine.mjs?v=14");
     const {
       ACESFilmicToneMapping, DirectionalLight, HemisphereLight, PerspectiveCamera,
       Scene, Vector3, WebGLRenderer, GLTFLoader, Sky, CatmullRomCurve3,
@@ -964,16 +1040,17 @@ async function start() {
       return [Math.atan2(offset.x,offset.z),Math.atan2(offset.y,Math.hypot(offset.x,offset.z)),offset.length()];
     }
 
-    // Follow the routed cable from outside the rail before entering the bridge cutaway.
-    const bowAim = new Vector3(1.35,3.94,-19);
+    // Follow inside the bulwark so the toe-level cable remains visible, then
+    // rise outside the bridge wall before entering the cutaway.
+    const bowAim = hardware.deviceCenter.clone().add(new Vector3(0,.04,0));
     const helmAim = new Vector3(1.65,8.24,-2.9);
-    const bowPosition = new Vector3(6.2,7.1,-17.65);
+    const bowPosition = hardware.deviceCenter.clone().add(new Vector3(-1.55,2.05,2.1));
     const helmPosition = new Vector3(3.34,9.61,.40);
     const chartAim = hardware.displayCenter.clone().add(new Vector3(0,.005,.025));
     const chartPosition = chartAim.clone().add(new Vector3(.10,.12,.61));
     const cableCamera = new CatmullRomCurve3([
-      bowPosition, new Vector3(6.6,7.15,-12), new Vector3(7.1,7.4,-4),
-      new Vector3(6.7,8.7,2.8), new Vector3(5.2,10.3,2.45), helmPosition
+      bowPosition, new Vector3(3.3,6.4,-12), new Vector3(4.02,6.7,-4),
+      new Vector3(4.04,7.1,6.4), new Vector3(5.2,10.3,7.4), helmPosition
     ]);
     const tourMotionDuration = 16;
     const tourSlowdown = 1.35;
