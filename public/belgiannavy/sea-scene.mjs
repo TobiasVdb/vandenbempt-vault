@@ -281,6 +281,65 @@ let ship;
 let failed = false;
 
 
+
+function addNavigationLights(ship, { BoxGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, ShaderMaterial, Vector3 }) {
+  const baseMaterial = new MeshStandardMaterial({color:0x20292d,roughness:.65});
+  const baseGeometry = new BoxGeometry(.28,.14,.23);
+  const lensGeometry = new BoxGeometry(.18,.19,.16);
+  const haloGeometry = new PlaneGeometry(1.15,1.15);
+  const radians = Math.PI/180;
+  const lamps = [
+    { name:'Port sidelight', at:[-3.72,8.43,-2.8], color:0xff4248, center:-56.25, width:112.5, roof:true },
+    { name:'Starboard sidelight', at:[3.72,8.43,-2.8], color:0x5dff92, center:56.25, width:112.5, roof:true },
+    { name:'Forward masthead light', at:[0,9.7,-4.4], color:0xfff6dc, center:0, width:225, roof:true },
+    { name:'Aft masthead light', at:[0,15.4,8.35], color:0xfff6dc, center:0, width:225, roof:true },
+    { name:'Sternlight', at:[0,2.05,26.62], color:0xfff6dc, center:180, width:135, roof:false },
+  ].map(spec => {
+    const base = new Mesh(baseGeometry,baseMaterial);
+    base.name = spec.name + ' housing';
+    base.position.set(...spec.at);
+    const lens = new Mesh(lensGeometry,new MeshBasicMaterial({color:spec.color,toneMapped:false}));
+    lens.name = spec.name;
+    lens.position.y = .135;
+    const halo = new Mesh(haloGeometry,new ShaderMaterial({
+      transparent:true, depthWrite:false, toneMapped:false,
+      uniforms:{ lightColor:{value:lens.material.color} },
+      vertexShader:`
+        varying vec2 glowUV;
+        void main() {
+          glowUV = uv;
+          vec4 origin = modelViewMatrix * vec4(0.,0.,0.,1.);
+          gl_Position = projectionMatrix * (origin + vec4(position.xy,0.,0.));
+        }`,
+      fragmentShader:`
+        varying vec2 glowUV;
+        uniform vec3 lightColor;
+        void main() {
+          float radius = length(glowUV - .5) * 2.;
+          float glow = pow(max(0.,1.-radius),3.) * .55;
+          gl_FragColor = vec4(lightColor,glow);
+          #include <colorspace_fragment>
+        }`,
+    }));
+    halo.position.y = .135;
+    base.add(lens,halo);
+    ship.add(base);
+    return {...spec,base,lens,halo};
+  });
+  const localCamera = new Vector3();
+  return (camera,cutaway) => {
+    localCamera.copy(camera.position);
+    ship.worldToLocal(localCamera);
+    for (const {base,lens,halo,center,width,roof} of lamps) {
+      base.visible = !roof || !cutaway;
+      const bearing = Math.atan2(localCamera.x-base.position.x,base.position.z-localCamera.z);
+      const angle = bearing-center*radians;
+      const inSector = Math.abs(Math.atan2(Math.sin(angle),Math.cos(angle))) <= width*radians/2;
+      lens.visible = halo.visible = inSector;
+    }
+  };
+}
+
 function addTourHardware(ship, engine) {
   const { BoxGeometry, CanvasTexture, CatmullRomCurve3, Mesh, MeshBasicMaterial,
     MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } = engine;
@@ -308,7 +367,7 @@ function addTourHardware(ship, engine) {
   ship.add(cable);
   const display = box([.85,.48,.085],[2.27,8.58,-2.88],enclosure);
   display.rotation.x = -.12;
-  box([.17,.22,.15],[2.27,8.27,-2.97],enclosure);
+  box([.17,.42,.15],[2.27,8.16,-2.97],enclosure);
   const pixels = document.createElement('canvas');
   pixels.width = 512;
   pixels.height = 288;
@@ -424,6 +483,13 @@ function addTourHardware(ship, engine) {
   function setCutaway(enabled) {
     for (const wall of sectionWalls) wall.visible = enabled;
   }
+  // Leave the forward window frames in the cutaway to show the bridge enclosure.
+  for (const x of [-1.94,-.65,.65,1.94]) {
+    const post = box([.062,.88,.085],[x,8.13,-4.86],wall);
+    post.rotation.x = -.17;
+    sectionWalls.push(post);
+  }
+  sectionWalls.push(box([3.97,.09,.12],[0,8.57,-4.94],cutEdge));
   setCutaway(false);
 
   return { route, updateScreen, setCutaway };
@@ -501,9 +567,10 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=8', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=9', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
     const hardware = addTourHardware(ship,engine);
+    const updateNavigationLights = addNavigationLights(ship,engine);
 
     const roof = ship.getObjectByName('Bridge_roof_and_mast');
     const windows = ship.getObjectByName('Bridge_glazing_and_mullions');
@@ -518,7 +585,9 @@ async function start() {
       if (name === 'helm') return [new Vector3(10*distance,8+12*distance,13*distance),new Vector3(0,7.4,2)];
       return [new Vector3(43,15.5,-37).multiplyScalar(distance),new Vector3(0,4.9,1)];
     }
+    let cutaway = false;
     function setCutaway(enabled) {
+      cutaway = enabled;
       hardware.setCutaway(enabled);
       if (roof) roof.visible = !enabled;
       if (windows) windows.visible = !enabled;
@@ -541,6 +610,8 @@ async function start() {
     const helmAim = new Vector3(2.23,8.46,-2.91);
     const bowPosition = new Vector3(6.2,7.1,-17.65);
     const helmPosition = new Vector3(3.34,9.61,.40);
+    const chartAim = new Vector3(2.27,8.59,-2.83);
+    const chartPosition = new Vector3(2.47,8.83,-1.61);
     const cableCamera = new CatmullRomCurve3([
       bowPosition, new Vector3(6.6,7.15,-12), new Vector3(7.1,7.4,-4),
       new Vector3(6.7,8.7,2.8), new Vector3(5.2,10.3,2.45), helmPosition
@@ -594,15 +665,18 @@ async function start() {
         inspectionLight.intensity = .9+progress*.65;
       } else if (phase < 17) {
         shot = 'helm-display';
-        applyTourPose(tourPosition.copy(helmPosition),tourAim.copy(helmAim));
-        // Hold the track comparison longer so there is time to read it.
         const hold = phase-12;
+        // Begin the push-in as the track comparison replaces the status cards.
+        const zoom = smooth(Math.min(1,Math.max(0,(hold-2.7)/.65)));
+        tourPosition.lerpVectors(helmPosition,chartPosition,zoom);
+        tourAim.lerpVectors(helmAim,chartAim,zoom);
+        applyTourPose(tourPosition,tourAim);
         hardware.updateScreen(hold < 3 ? hold/3*.8 : .8);
         setCutaway(true);
       } else {
         shot = 'return';
         const progress = smooth((phase-17)/3);
-        tourOrbit(helmPosition,helmAim,exteriorPosition,exteriorAim,progress);
+        tourOrbit(chartPosition,chartAim,exteriorPosition,exteriorAim,progress);
         setCutaway(progress < .52);
         inspectionLight.intensity = 1.55*(1-progress);
       }
@@ -658,6 +732,7 @@ async function start() {
       ocean.update(time);
       if (!paused) ocean.move(ship);
       if (touring && !cameraMove) animateTour();
+      updateNavigationLights(camera,cutaway);
       renderer.render(scene, camera);
     }
 

@@ -329,47 +329,84 @@ for y in (-13.12,-16.18):
     for x in (-.34,-.17,0,.17,.34):
         rod('Grating bar',(x,y-.24,1.876),(x,y+.24,1.876),.015,structure)
 
-# Layout inferred from exterior imagery. Interior and integration points are illustrative.
-helm_dark = material('Helm charcoal',(.037,.054,.061),.67)
-helm_floor = material('Bridge floor',(.18,.23,.22),.89)
-screen = material('Display glass',(.045,.19,.22),.36)
-rubber = material('Seat upholstery',(.055,.077,.081),.94)
+
+# Public Pollux wheelhouse photos inform the shape. Equipment and placement are illustrative.
+# https://www.navalanalyses.com/2020/12/castor-class-coastal-patrol-vessels-of.html
+helm_dark = material('Helm charcoal',(.09,.125,.131),.67)
+helm_floor = material('Bridge floor',(.19,.25,.24),.89)
+screen = material('Display glass',(.032,.11,.13),.33)
+rubber = material('Seat upholstery',(.046,.058,.060),.87)
 ring_body('Helm floor',outline(3.22,-8.86,4.84,1.32),outline(3.22,-8.86,4.84,1.32),7.12,7.20,helm_floor)
 
-for x,y,heading in [(-1.76,3.07,-.15),(0,3.52,0),(1.77,3.07,.15),(-2.48,-1.8,-math.pi/2),(2.44,-1.8,math.pi/2)]:
-    console=box('Helm console',(x,y,7.69),(1.48,.78,.94),helm_dark,.075)
-    console.rotation_euler.z=heading
-    for i in (-.32,.32):
-        center=(x+i*math.cos(heading),y+i*math.sin(heading)-.17,8.21)
-        panel=box('Console instrument bezel',center,(.59,.16,.47),black,.042)
-        panel.rotation_euler=(.23,0,heading)
-        monitor=box('Console display',(center[0]+.084*math.sin(heading),center[1]-.084*math.cos(heading),center[2]),(.49,.018,.34),screen,.021)
-        monitor.rotation_euler=(.23,0,heading)
-    for i in (-.45,-.29,-.13,.15,.31,.47):
-        box('Console control key',(x+i,y-.33,8.179),(.067,.072,.033),structure,.006)
-for x,y in [(-1.68,1.55),(0,1.95),(1.68,1.55)]:
-    rod('Helm seat pedestal',(x,y,7.19),(x,y,7.63),.11,helm_dark)
-    box('Seat cushion',(x,y,7.69),(.62,.57,.18),rubber,.075)
-    back=box('Seat back',(x,y-.25,7.99),(.59,.13,.57),rubber,.055)
-    back.rotation_euler.x=.13
+# The linked stations follow the forward glazing. Instrument faces sit flush in the sloped fascia.
+def console_station(x,y,yaw,width,displays):
+    def pos(u,v,z):
+        return (x+u*math.cos(yaw)-v*math.sin(yaw),y+u*math.sin(yaw)+v*math.cos(yaw),z)
+    def part(name,u,v,z,size,paint,bevel=.02,tilt=0):
+        obj=box(name,pos(u,v,z),size,paint,bevel)
+        obj.rotation_euler=(tilt,0,yaw)
+        return obj
+    part('Integrated console cabinet',0,.18,7.53,(width,.82,.68),helm_dark,.045)
+    part('Sloped instrument fascia',0,.27,8.14,(width,.13,.60),structure,.026,-.35)
+    part('Console worktop',0,-.22,7.94,(width,.63,.11),helm_dark,.029)
+    part('Padded console edge',0,-.53,7.94,(width,.08,.10),rubber,.025)
+    for center,span in displays:
+        part('Multifunction display bezel',center,.184,8.16,(span,.045,.43),black,.019,-.35)
+        part('Multifunction display',center,.157,8.16,(span-.065,.014,.35),screen,.012,-.35)
+        for key in (-.12,0,.12):
+            part('Monitor soft key',center+key,.22,7.97,(.04,.018,.027),white,.005,-.35)
+    for key in range(5):
+        part('Backlit console key',-.36+key*.071,-.37,8.012,(.043,.045,.023),white,.005)
+    part('Trackball bezel',.34,-.33,8.009,(.19,.16,.032),black,.019)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10,ring_count=6,radius=.052,location=pos(.34,-.33,8.041))
+    bpy.context.object.name='Trackball'
+    bpy.context.object.data.materials.append(rubber)
+    for lever in (.04,.19):
+        part('Control lever',lever,-.40,8.055,(.035,.04,.112),black,.011,.18)
+        part('Control lever grip',lever,-.415,8.11,(.069,.047,.042),rubber,.014)
+
+console_station(-1.91,3.47,.35,1.62,[(-.41,.65),(.37,.65)])
+console_station(0,3.83,0,2.19,[(-.71,.57),(0,.65),(.71,.57)])
+console_station(1.91,3.47,-.35,1.62,[(-.38,.64),(.38,.64)])
+console_station(-2.75,-.91,-math.pi/2,1.36,[(-.29,.50),(.30,.50)])
+console_station(2.75,-1.39,math.pi/2,1.36,[(-.29,.50),(.30,.50)])
+
+for x,y in [(-1.65,1.79),(1.64,1.73)]:
+    box('Seat floor plate',(x,y,7.235),(.49,.51,.072),helm_dark,.033)
+    rod('Helm seat pedestal',(x,y,7.25),(x,y,7.60),.115,structure)
+    box('Seat cushion',(x,y,7.67),(.63,.63,.16),rubber,.076)
+    back=box('High backed helm seat',(x,y-.28,8.00),(.60,.16,.72),rubber,.073)
+    back.rotation_euler.x=.12
+    box('Seat headrest',(x,y-.33,8.44),(.41,.17,.23),rubber,.07)
+    box('Seat lumbar pad',(x,y-.18,7.93),(.45,.11,.30),rubber,.045)
     for side in (-1,1):
-        box('Seat armrest',(x+side*.34,y-.02,7.84),(.09,.44,.08),helm_dark,.024)
-# Wheel, hub and spokes provide a clear reference point at the primary helm.
-bpy.ops.mesh.primitive_torus_add(major_segments=18,minor_segments=6,location=(0,3.04,8.16),
-    rotation=(math.pi/2,0,0),major_radius=.16,minor_radius=.025)
+        box('Armrest support',(x+side*.31,y-.14,7.82),(.055,.07,.23),structure,.016)
+        box('Seat armrest',(x+side*.33,y-.015,7.94),(.105,.47,.09),rubber,.035)
+
+# Steering and propulsion controls at the central conning position.
+bpy.ops.mesh.primitive_torus_add(major_segments=20,minor_segments=8,location=(0,3.34,8.04),
+    rotation=(math.pi/2,0,0),major_radius=.145,minor_radius=.023)
 bpy.context.object.name='Steering wheel rim'
 bpy.context.object.data.materials.append(rubber)
-rod('Steering wheel hub',(0,3.02,8.16),(0,3.24,8.16),.059,helm_dark)
+rod('Steering wheel hub',(0,3.30,8.04),(0,3.56,8.04),.058,helm_dark)
 for angle in (0,math.tau/3,math.tau*2/3):
-    rod('Steering wheel spoke',(0,3.035,8.16),(.15*math.cos(angle),3.035,8.16+.15*math.sin(angle)),.014,helm_dark)
-box('Chart table',(-1.73,-5.58,7.69),(1.86,1.23,.99),helm_dark,.06)
-box('Chart table surface',(-1.73,-5.58,8.21),(1.93,1.30,.075),structure,.025)
+    rod('Steering wheel spoke',(0,3.31,8.04),(.136*math.cos(angle),3.31,8.04+.136*math.sin(angle)),.013,helm_dark)
+for x in (-.19,.19):
+    rod('Propulsion lever',(x,3.07,7.98),(x,3.02,8.18),.032,structure)
+    box('Propulsion lever grip',(x,3.02,8.19),(.13,.08,.065),black,.028)
+box('Aft operations workbench',(-1.66,-5.58,7.63),(2.04,1.24,.86),helm_dark,.06)
+box('Operations worktop',(-1.66,-5.58,8.09),(2.12,1.29,.08),structure,.025)
+box('Chart sheet',(-1.26,-5.40,8.137),(.53,.39,.009),white)
+for x in (-2.23,-1.71):
+    box('Operations display bezel',(x,-5.92,8.32),(.46,.10,.37),black,.023)
+    box('Operations display',(x,-5.861,8.32),(.39,.018,.31),screen,.012)
 box('Aft comms cabinet',(2.18,-6.10,7.83),(1.47,.67,1.26),helm_dark,.035)
 for x in (1.8,2.18,2.56):
     box('Comms control face',(x,-5.757,8.12),(.29,.022,.37),screen,.018)
 for side in (-1,1):
     for y in (-7.2,-3.25,1.1):
         rod('Interior window grab rail',(side*3.17,y-.53,7.66),(side*3.17,y+.53,7.66),.037,structure)
+
 
 def ladder(name,x,y,z0,z1,shift):
     for dx in (-.29,.29):
