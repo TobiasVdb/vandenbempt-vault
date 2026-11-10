@@ -9,7 +9,7 @@
 <style>
 :root{color-scheme:light;--ink:#151715;--muted:#515650;--line:#d2d6cf;--paper:#f7f8f4;--green:#344b38;--signal:#8b321b}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.55 "Hanken Grotesk",system-ui,sans-serif}a{color:inherit;text-underline-offset:.23em}a:hover{text-decoration-thickness:2px}a:focus-visible{outline:2px solid var(--signal);outline-offset:5px}.wrap{width:min(1380px,calc(100% - clamp(34px,7vw,112px)));margin:auto}header{border-bottom:1px solid var(--line)}header .wrap{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:18px 0;flex-wrap:wrap}.brand{display:inline-flex;align-items:center;gap:8px;font-size:19px;font-weight:800;letter-spacing:-.055em;text-decoration:none}.brand-mark{display:block;flex:none}nav{display:flex;gap:20px;flex-wrap:wrap}nav a,.label,figcaption,dt,.section-no,.decision-code{font:700 12px/1.45 ui-monospace,monospace;text-transform:uppercase;letter-spacing:.075em}.hero{padding:clamp(70px,12vw,172px) 0 42px}.label,.section-no{color:var(--muted)}h1,h2,h3,p,figure{margin:0}h1{font-size:clamp(3.65rem,10.8vw,10rem);line-height:.87;letter-spacing:-.09em;margin:20px 0 38px}h2{font-size:clamp(2.35rem,5vw,4.8rem);line-height:.98;letter-spacing:-.075em;margin:10px 0 18px}h3{font-size:1.22rem;line-height:1.2;margin-bottom:8px;letter-spacing:-.02em}p+p{margin-top:12px}.hero-meta{display:grid;grid-template-columns:1fr 2.2fr auto;gap:26px;align-items:start}.hero-meta .lede{max-width:68ch;margin:0;color:var(--muted);font-size:14px;text-transform:uppercase}.button{display:inline-block;padding:11px 14px;background:var(--ink);color:var(--paper);font-weight:750;text-decoration:none;font-size:14px}.chart{background:#20292b;color:#e7eae4}.chart svg{display:block;width:100%;height:auto}.chart figcaption{padding:12px 0;color:#c1c9c0;border-top:1px solid #53605d}.facts{display:grid;grid-template-columns:repeat(3,1fr);border-block:1px solid var(--line);margin:30px 0 0}.facts div{padding:17px 12px}.facts div+div{border-left:1px solid var(--line)}dd{margin:4px 0 0;font-weight:750;font-size:clamp(1rem,2.5vw,1.65rem);line-height:1.15}.section{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,2fr);gap:36px;padding:58px 0;border-bottom:1px solid var(--line)}.copy>p,.copy li,.note,.rows p,.decision-row p{color:var(--muted)}.copy strong,li strong{color:var(--ink)}.callout{border-left:3px solid var(--signal);padding:11px 15px;background:#edece5;margin:18px 0}.callout strong{color:var(--signal)}.steps{padding-left:22px;margin:0}.steps li+li{margin-top:15px}.rows>div,.decision-row{padding:15px 0;border-bottom:1px solid var(--line)}.rows>div:first-child{padding-top:0}.decision-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2fr);gap:12px}.decision-code{color:var(--green)}.decision-row:nth-child(2) .decision-code{color:var(--signal)}table{width:100%;border-collapse:collapse;text-align:left}caption{text-align:left;color:var(--muted);padding-bottom:8px}th,td{padding:10px 7px;border-bottom:1px solid var(--line);vertical-align:top}th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{text-align:right;white-space:nowrap;padding-right:0}tfoot{font-weight:750}.note{font-size:.92rem;margin-top:13px}footer{padding:28px 0 50px;color:var(--muted)}
-@media(max-width:760px){.hero-meta,.section{grid-template-columns:1fr;gap:15px}.hero{padding:68px 0 30px}h1{margin-bottom:25px}.section{padding:34px 0}.chart svg{min-height:230px;object-fit:cover}.decision-row{grid-template-columns:1fr;gap:4px}}
+@media(max-width:760px){.hero-meta,.section{grid-template-columns:1fr;gap:15px}.hero{padding:68px 0 30px}h1{margin-bottom:25px}.section{padding:34px 0}.decision-row{grid-template-columns:1fr;gap:4px}}
 @media(max-width:430px){nav{gap:11px}nav a{font-size:10px}.facts div{padding:10px 5px}.facts dt{font-size:10px;letter-spacing:0}th,td{font-size:.88rem}}
 @media print{body{font-size:11pt;background:#fff}.wrap{width:100%}.hero,.section{display:block;padding:18px 0}.hero-meta{display:block}.chart{display:none}.section>div:first-child{break-after:avoid}tr,li,.callout{break-inside:avoid}nav,.button{display:none}}
 .status-section {
@@ -181,6 +181,54 @@
   }
 }
 
+.sea-frame {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 2.35;
+  overflow: hidden;
+  background: linear-gradient(#697f8b, #b3c7cc 23%, #315561);
+}
+.sea-frame img, .sea-frame canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.sea-frame img { object-fit: cover; }
+.sea-frame canvas { opacity: 0; }
+.sea-frame.is-ready canvas { opacity: 1; }
+.sea-frame.is-ready img { opacity: 0; }
+.sea-control {
+  position: absolute;
+  z-index: 1;
+  left: clamp(12px, 3vw, 40px);
+  bottom: 16px;
+  padding: 7px 11px;
+  border: 1px solid #aabdb9;
+  background: #141b1d;
+  color: #f1f4ef;
+  font: 700 13px "Hanken Grotesk", system-ui, sans-serif;
+  cursor: pointer;
+}
+.sea-control:hover { color: #b8df88; }
+@media (max-width: 680px) { .sea-frame { aspect-ratio: 1.35; } }
+.site-header nav a { text-decoration: none; }
+.back-to-top {
+  position: fixed;
+  z-index: 5;
+  right: clamp(12px, 3vw, 40px);
+  bottom: max(16px, env(safe-area-inset-bottom));
+  padding: 9px 13px;
+  border: 1px solid #7b9085;
+  border-radius: 8px;
+  background: #141b1d;
+  color: #f1f4ef;
+  font-size: .85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.back-to-top:hover { color: #b8df88; }
+@media print { .back-to-top { display: none; } }
 </style>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2230%22%20height%3D%2230%22%20rx%3D%225%22%20fill%3D%22%23151d20%22%20stroke%3D%22%237b9085%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M16%205%2025%2023%2016%2019%207%2023Z%22%20fill%3D%22%23b8df88%22%2F%3E%3Cpath%20d%3D%22M16%2013v6l9%204Z%22%20fill%3D%22%237ba858%22%2F%3E%3Cpath%20d%3D%22M16%2023v4%22%20stroke%3D%22%23b8df88%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E">
 </head>
@@ -188,19 +236,14 @@
 <div id="top" aria-hidden="true"></div>
 <header class="site-header tone-dark"><div class="wrap"><a class="brand" href="#top"><svg class="brand-mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true" focusable="false"><rect x="1" y="1" width="30" height="30" rx="5" fill="#151d20" stroke="#7b9085" stroke-width="2"/><path d="M16 5 25 23 16 19 7 23Z" fill="#b8df88"/><path d="M16 13v6l9 4Z" fill="#7ba858"/><path d="M16 23v4" stroke="#b8df88" stroke-width="2"/></svg> Northwatch</a><nav aria-label="Project sections"><a href="#bridge-status">Bridge display</a><a href="#watch">Watch decisions</a><a href="#installation">Installation</a><a href="#hardware">Hardware</a><a href="#software">Software</a><a href="#trial">Trial</a><a href="#ais">AIS</a><a href="#decision">Pilot intake</a></nav></div></header>
 <div class="tone-dark"><section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Identify when GPS needs an independent check and when to fall back to approved navigation methods, including celestial fixes.</p><div><a class="button" href="#bridge-status">View bridge states ↓</a></div></div></section></div>
-<figure class="chart"><svg viewBox="0 0 1440 590" role="img" aria-labelledby="plot-title plot-desc" xmlns="http://www.w3.org/2000/svg">
-<title id="plot-title">Concept illustration of the Northwatch receiver and gateway in a single enclosure</title><desc id="plot-desc">An angular dark enclosure with mounting feet, status lamps, antenna input and an isolated Ethernet service port.</desc>
-<defs><linearGradient id="deck" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#334044"/><stop offset=".8" stop-color="#171e21"/></linearGradient><linearGradient id="lid" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#606a67"/><stop offset="1" stop-color="#2d3736"/></linearGradient><linearGradient id="face" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#303936"/><stop offset="1" stop-color="#151d1d"/></linearGradient><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#a3aaa4" stroke-opacity=".12"/></pattern></defs>
-<rect width="1440" height="590" fill="url(#deck)"/><rect width="1440" height="590" fill="url(#grid)"/>
-<g fill="none" stroke="#8f9d97" stroke-opacity=".33"><circle cx="760" cy="286" r="212"/><circle cx="760" cy="286" r="270"/><path d="M760 12v551M462 286h606M250 468h940M250 117h940"/></g>
-<path d="M402 412l491 115 291-181-512-99z" fill="#0e1517" opacity=".66"/>
-<g stroke="#111a1b" stroke-width="4" stroke-linejoin="round"><path d="M453 352l460 94 132-84-467-88z" fill="#2d3736"/><path d="M453 352v25l460 93v-24z" fill="#121919"/><path d="M913 446v24l132-84v-24z" fill="#212a28"/><path d="M475 227l457 90 141-100-455-84z" fill="url(#lid)"/><path d="M475 227v107l457 96V317z" fill="url(#face)"/><path d="M932 317v113l141-103V217z" fill="#202827"/><path d="M497 244l411 82v77l-411-84z" fill="none" stroke="#697573" stroke-width="1"/></g>
-<g fill="none" stroke="#a1a9a0" opacity=".38"><path d="M494 224l125-81 433 80M934 324l135-96"/><path d="M958 323l92-66m-92 76 92-66m-92 76 92-66m-92 76 92-66m-92 76 92-66" stroke-width="3"/><path d="M539 211l116-76m-98 81 116-76m-97 80 116-76m-96 80 116-76m-96 80 116-76" opacity=".6"/></g>
-<g fill="#121919" stroke="#75807b" stroke-width="2"><ellipse cx="522" cy="269" rx="13" ry="14"/><ellipse cx="522" cy="269" rx="6" ry="7"/><path d="M563 268l45 9v26l-45-9z"/><path d="M569 275l32 6v14l-32-6z" fill="#35403e"/></g>
-<g transform="matrix(1 .205 0 1 658 294)" font-family="monospace" fill="#d5ddd4"><text font-size="22" font-weight="bold" letter-spacing="2">NORTHWATCH</text><text y="21" font-size="10" letter-spacing="2">GNSS INTEGRITY MONITOR</text><circle cx="200" cy="-6" r="4" fill="#bcd39e"/><circle cx="218" cy="-6" r="4" fill="#e6a77a"/></g>
-<g fill="none" stroke="#a0aca4" stroke-width="1"><path d="M521 268H395l-44-43h-85M586 285l-55 116H266M1048 296l94-65h77"/></g>
-<g fill="#e1e6df" font-family="monospace" font-size="13" letter-spacing="1"><text x="266" y="210">01 / GNSS RF IN</text><text x="266" y="422">02 / LOCAL ETHERNET</text><text x="1097" y="215">03 / ENCLOSURE</text></g>
-</svg><figcaption><div class="wrap">NW–01 / Concept illustration · final enclosure subject to installation review</div></figcaption></figure>
+<figure class="chart" id="sea-hero">
+  <div class="sea-frame">
+    <img src="./pollux-poster.jpg?v=4" alt="Stylized view of BNS Pollux, pennant P902, at sea">
+    <canvas aria-hidden="true"></canvas>
+    <button class="sea-control" type="button" hidden>Pause sea motion</button>
+  </div>
+  <figcaption><div class="wrap">NW–01 / BNS Pollux · P902 · stylized Belgian Navy patrol vessel</div></figcaption>
+</figure>
 <main id="brief">
 <dl class="facts wrap"><div><dt>Core hardware / unit</dt><dd>€1,660–€2,170</dd></div><div><dt>Build estimate</dt><dd>5–8 engineer days</dd></div><div><dt>First sea trial</dt><dd>One passive passage</dd></div></dl>
 <section class="status-section tone-dark" id="bridge-status" aria-labelledby="status-title">
@@ -285,11 +328,18 @@
 <section class="section tone-dark" id="references"><div><p class="section-no">06 / References</p><h2>Source notes</h2></div><div class="copy"><ul class="steps"><li><a href="https://www.gov.uk/government/publications/mgn-719-mf-operating-in-gnss-denied-and-degraded-environments">MCA MGN 719 — Operating in GNSS denied and degraded environments</a></li><li><a href="https://www.iala.int/product/g1180-resilient-pnt/?download=true">IALA G1180 — Resilient position, navigation and timing</a></li><li><a href="https://www.admiralty.co.uk/news/jamming-and-spoofing">UK Hydrographic Office — GNSS and AIS interference</a></li><li><a href="https://docs.sparkfun.com/SparkFun_GNSS_mosaic-X5/assets/component_documentation/firmware/mosaic-X5_Firmware_v4.15.0_Reference_Guide.pdf">Septentrio mosaic-X5 — Receiver and SBF reference guide</a></li></ul></div></section>
 </main>
 <footer class="wrap"><p>Northwatch · Independent naval pilot proposal · November 2026</p></footer>
+<a class="back-to-top" href="#top" hidden>Back to top <span aria-hidden="true">↑</span></a>
 <script>
   const siteHeader = document.querySelector('.site-header');
+  const backToTop = document.querySelector('.back-to-top');
   function syncHeader() {
-    siteHeader.classList.toggle('is-floating', window.scrollY > 80);
+    const floating = window.scrollY > 80;
+    siteHeader.classList.toggle('is-floating', floating);
+    backToTop.hidden = !floating;
   }
+  backToTop.addEventListener('click', () => {
+    siteHeader.querySelector('.brand').focus({ preventScroll: true });
+  });
   window.addEventListener('scroll', syncHeader, { passive: true });
   window.addEventListener('pageshow', syncHeader);
   syncHeader();
@@ -314,7 +364,7 @@
       }
     }, { threshold: 0, rootMargin: '0px 0px -36px 0px' });
 
-    document.querySelectorAll('.hero > *, .chart svg, #brief > section > *')
+    document.querySelectorAll('.hero > *, #brief > section > *')
       .forEach(element => observer.observe(element));
 
     reduceMotion.addEventListener('change', event => {
@@ -322,5 +372,6 @@
     });
   }
 </script>
+<script type="module" src="./sea-scene.mjs?v=4"></script>
 </body>
 </html>
