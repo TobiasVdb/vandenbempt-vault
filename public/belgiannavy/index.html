@@ -12,11 +12,92 @@
 @media(max-width:760px){.hero-meta,.section{grid-template-columns:1fr;gap:15px}.hero{padding:68px 0 30px}h1{margin-bottom:25px}.section{padding:34px 0}.chart svg{min-height:230px;object-fit:cover}.decision-row{grid-template-columns:1fr;gap:4px}}
 @media(max-width:430px){nav{gap:11px}nav a{font-size:10px}.facts div{padding:10px 5px}.facts dt{font-size:10px;letter-spacing:0}th,td{font-size:.88rem}}
 @media print{body{font-size:11pt;background:#fff}.wrap{width:100%}.hero,.section{display:block;padding:18px 0}.hero-meta{display:block}.chart{display:none}.section>div:first-child{break-after:avoid}tr,li,.callout{break-inside:avoid}nav,.button{display:none}}
+/* On-device simulator */
+.demo {
+  padding: clamp(34px, 6vw, 72px) 0;
+  border-bottom: 1px solid var(--line);
+}
+.demo-intro {
+  max-width: 62ch;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+.demo-controls {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  min-width: 0;
+}
+.demo-controls legend { margin-bottom: 8px; }
+.demo-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.demo-options label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.demo-options label:has(:checked) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.demo-options input { margin: 0; accent-color: var(--green); }
+.demo-options label:focus-within { outline: 2px solid var(--signal); outline-offset: 2px; }
+.bridge {
+  --status: #c6dfa7;
+  background: #171e20;
+  color: #f0f3ed;
+  padding: clamp(16px, 4vw, 36px);
+  border-top: 4px solid var(--status);
+}
+.bridge[data-state="sextant"] { --status: #ffc297; }
+.bridge[data-state="offline"] { --status: #d2d8de; }
+.bridge-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px 20px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #586264;
+  padding-bottom: 12px;
+  color: #c3cbca;
+}
+.bridge-bar span:last-child { color: var(--status); }
+.bridge-status { margin: 20px 0; }
+.bridge-status h3 {
+  margin-bottom: 9px;
+  color: var(--status);
+  font-size: clamp(1.7rem, 4.6vw, 3.1rem);
+}
+.bridge-status p { max-width: 66ch; }
+.bridge-readings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid #586264;
+  gap: 12px;
+  padding-top: 14px;
+  margin: 0;
+}
+.bridge-readings dt { color: #c3cbca; }
+.bridge-readings dd { font-size: 1rem; line-height: 1.3; }
+.demo-note { color: var(--muted); margin-top: 12px; font-size: .9rem; }
+@media(max-width: 600px) {
+  .demo-options, .bridge-readings { grid-template-columns: 1fr; }
+}
+@media print { .demo { display: none; } }
+
 </style>
 </head>
 <body id="top">
-<header><div class="wrap"><a class="brand" href="#top"><span aria-hidden="true">◈</span> Northwatch</a><nav aria-label="Project sections"><a href="#watch">Watch decisions</a><a href="#hardware">Hardware</a><a href="#software">Software</a><a href="#trial">Trial</a><a href="#decision">Pilot intake</a></nav></div></header>
-<section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Identify when GPS needs an independent check and when to fall back to approved navigation methods, including celestial fixes.</p><div><a class="button" href="#watch">Watch decisions ↓</a></div></div></section>
+<header><div class="wrap"><a class="brand" href="#top"><span aria-hidden="true">◈</span> Northwatch</a><nav aria-label="Project sections"><a href="#demo">Live demo</a><a href="#watch">Watch decisions</a><a href="#hardware">Hardware</a><a href="#software">Software</a><a href="#trial">Trial</a><a href="#decision">Pilot intake</a></nav></div></header>
+<section class="hero wrap" aria-labelledby="title"><p class="label">Sea / Naval navigation assurance</p><h1 id="title">Northwatch</h1><div class="hero-meta"><p class="label">GNSS integrity monitor<br>[ Standalone prototype ]</p><p class="lede">An offline appliance for the naval watch. Identify when GPS needs an independent check and when to fall back to approved navigation methods, including celestial fixes.</p><div><a class="button" href="#demo">Try the bridge display ↓</a></div></div></section>
 <figure class="chart"><svg viewBox="0 0 1440 590" role="img" aria-labelledby="plot-title plot-desc" xmlns="http://www.w3.org/2000/svg">
 <title id="plot-title">Concept illustration of the Northwatch receiver and gateway in a single enclosure</title><desc id="plot-desc">An angular dark enclosure with mounting feet, status lamps, antenna input and an isolated Ethernet service port.</desc>
 <defs><linearGradient id="deck" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#334044"/><stop offset=".8" stop-color="#171e21"/></linearGradient><linearGradient id="lid" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#606a67"/><stop offset="1" stop-color="#2d3736"/></linearGradient><linearGradient id="face" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#303936"/><stop offset="1" stop-color="#151d1d"/></linearGradient><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#a3aaa4" stroke-opacity=".12"/></pattern></defs>
@@ -32,6 +113,37 @@
 </svg><figcaption><div class="wrap">NW–01 / Concept illustration · final enclosure subject to installation review</div></figcaption></figure>
 <main class="wrap" id="brief">
 <dl class="facts"><div><dt>Hardware</dt><dd>€1,680–€2,170</dd></div><div><dt>Build estimate</dt><dd>5–8 engineer days</dd></div><div><dt>First sea trial</dt><dd>One passage</dd></div></dl>
+<section class="demo" id="demo" aria-labelledby="demo-title">
+  <p class="section-no">Simulator / On-device display</p>
+  <h2 id="demo-title">On the bridge</h2>
+  <p class="demo-intro">Choose a scenario to see the watch display change. Each scenario uses simulated readings.</p>
+  <fieldset class="demo-controls" id="demo-controls" hidden>
+    <legend class="label">Scenario</legend>
+    <div class="demo-options">
+      <label><input type="radio" name="bridge-scenario" value="usable" checked> GPS usable</label>
+      <label><input type="radio" name="bridge-scenario" value="sextant"> Switch to sextant</label>
+      <label><input type="radio" name="bridge-scenario" value="offline"> Monitor offline</label>
+    </div>
+  </fieldset>
+  <div class="bridge" id="bridge-display" data-state="usable">
+    <div class="bridge-bar">
+      <span class="label">Northwatch / Local display</span>
+      <span class="label" id="bridge-link">Receiver connected</span>
+    </div>
+    <div class="bridge-status" role="status" aria-atomic="true">
+      <h3 id="bridge-status">GPS usable · corroborated</h3>
+      <p id="bridge-action">Use GPS under the vessel’s procedure. The watch confirmed agreement with a timely independent fix.</p>
+    </div>
+    <dl class="bridge-readings">
+      <div><dt>Receiver assessment</dt><dd id="bridge-assessment">No anomaly detected</dd></div>
+      <div><dt>Watch cross-check</dt><dd id="bridge-check">Independent fix agrees</dd></div>
+      <div><dt>Receiver data</dt><dd id="bridge-freshness">Current</dd></div>
+    </dl>
+  </div>
+  <p class="demo-note">The prototype reports receiver health and anomalies. In the usable scenario, the watch independently corroborated the position.</p>
+  <noscript><p class="demo-note">Enable JavaScript to switch scenarios. All three decisions are described below.</p></noscript>
+</section>
+
 <section class="section" id="watch"><div><p class="section-no">01 / Watch decisions</p><h2>Is GPS usable?</h2></div><div class="copy">
 <div class="decision-row"><p class="decision-code">01 / Corroborated</p><p><strong>Use GPS under the vessel’s procedure.</strong> A timely independent fix agrees within the vessel’s approved limits. Version 1 can only report <em>No anomaly detected</em>. The watch supplies independent confirmation.</p></div>
 <div class="decision-row"><p class="decision-code">02 / Suspect or lost</p><p><strong>Shift to independent navigation under the vessel’s procedure.</strong> Near land, use suitable radar ranges or visual fixes. Offshore, use dead reckoning between fixes and take a sextant sight when the horizon, sky and independent time reference permit.</p></div>
@@ -62,5 +174,48 @@
 <section class="section" id="references"><div><p class="section-no">06 / References</p><h2>Source notes</h2></div><div class="copy"><ul class="steps"><li><a href="https://www.gov.uk/government/publications/mgn-719-mf-operating-in-gnss-denied-and-degraded-environments">MCA MGN 719 — Operating in GNSS denied and degraded environments</a></li><li><a href="https://www.iala.int/product/g1180-resilient-pnt/?download=true">IALA G1180 — Resilient position, navigation and timing</a></li><li><a href="https://www.admiralty.co.uk/news/jamming-and-spoofing">UK Hydrographic Office — GNSS and AIS interference</a></li><li><a href="https://docs.sparkfun.com/SparkFun_GNSS_mosaic-X5/assets/component_documentation/firmware/mosaic-X5_Firmware_v4.15.0_Reference_Guide.pdf">Septentrio mosaic-X5 — Receiver and SBF reference guide</a></li></ul></div></section>
 </main>
 <footer class="wrap"><p>Northwatch · Independent naval pilot proposal · November 2026</p></footer>
+<script>
+  const scenarios = {
+    usable: {
+      link: 'Receiver connected',
+      status: 'GPS usable · corroborated',
+      action: 'Use GPS under the vessel’s procedure. The watch confirmed agreement with a timely independent fix.',
+      assessment: 'No anomaly detected',
+      check: 'Independent fix agrees',
+      freshness: 'Current'
+    },
+    sextant: {
+      link: 'Receiver connected',
+      status: 'GPS suspect · use independent navigation',
+      action: 'Follow the vessel’s fallback procedure. In this offshore scenario, continue by dead reckoning and take a sextant sight when sky, horizon and an independent time reference permit.',
+      assessment: 'Possible spoofing',
+      check: 'Independent fix disagrees',
+      freshness: 'Current'
+    },
+    offline: {
+      link: 'Receiver disconnected',
+      status: 'Monitor offline · GPS integrity unknown',
+      action: 'Verify position independently under the vessel’s procedure. Restore the monitor when workload allows.',
+      assessment: 'Unavailable',
+      check: 'Independent verification required',
+      freshness: 'No current data'
+    }
+  };
+
+  const controls = document.getElementById('demo-controls');
+  const display = document.getElementById('bridge-display');
+  const fields = Object.keys(scenarios.usable).map(key => [key, document.getElementById('bridge-' + key)]);
+
+  function showScenario(name) {
+    display.dataset.state = name;
+    for (const [key, field] of fields) {
+      field.textContent = scenarios[name][key];
+    }
+  }
+
+  controls.addEventListener('change', event => showScenario(event.target.value));
+  showScenario(controls.querySelector(':checked').value);
+  controls.hidden = false;
+</script>
 </body>
 </html>
