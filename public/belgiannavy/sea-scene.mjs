@@ -1,3 +1,21 @@
+function addHelmInstrumentTextures(ship, { MeshBasicMaterial, SRGBColorSpace, TextureLoader }) {
+  const loader = new TextureLoader();
+  const materials = new Map();
+  ship.traverse(object => {
+    if (!object.isMesh) return;
+    const name = object.material.name;
+    if (name !== 'Helm radar face' && name !== 'Helm chart face') return;
+    if (!materials.has(name)) {
+      const file = name === 'Helm radar face' ? 'helm-radar.svg' : 'helm-chart.svg';
+      const map = loader.load(new URL(file, import.meta.url).href);
+      map.colorSpace = SRGBColorSpace;
+      map.flipY = false;
+      materials.set(name, new MeshBasicMaterial({ map, toneMapped: false }));
+    }
+    object.material = materials.get(name);
+  });
+}
+
 function refinePolluxMaterials(vessel) {
   const tuned = new Set();
   const finishes = {
@@ -584,8 +602,9 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=10', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=11', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
+    addHelmInstrumentTextures(ship,engine);
     const hardware = addTourHardware(ship,engine);
     const updateNavigationLights = addNavigationLights(ship,engine);
 

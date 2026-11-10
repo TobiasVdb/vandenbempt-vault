@@ -336,7 +336,8 @@ helm_dark = material('Helm charcoal',(.09,.125,.131),.67)
 helm_floor = material('Bridge floor',(.19,.25,.24),.89)
 screen = material('Display glass',(.032,.11,.13),.33)
 console_blue = material('Bridge console blue',(.19,.31,.36),.53)
-instrument_ink = material('Instrument traces',(.12,.48,.39),.58)
+radar_face = material('Helm radar face',(.032,.11,.13),.33)
+chart_face = material('Helm chart face',(.032,.11,.13),.33)
 rubber = material('Seat upholstery',(.046,.058,.060),.87)
 ring_body('Helm floor',outline(3.22,-8.86,4.84,1.32),outline(3.22,-8.86,4.84,1.32),7.12,7.20,helm_floor)
 
@@ -360,14 +361,22 @@ def console_station(x,y,yaw,width,displays):
     for h in (-.25,.25):
         panel('Fascia horizontal rail',0,h,-.002,(width,.12,.10),console_blue)
     edge=-width/2
-    for center,span in displays:
+    for index,(center,span) in enumerate(displays):
         left=center-span/2
         panel('Fascia stile',(edge+left)/2,0,-.002,(left-edge,.12,.40),console_blue)
         panel('Inset display surround',center,0,-.018,(span,.050,.40),black)
         panel('Inset display glass',center,.022,-.049,(span-.066,.008,.306),screen)
-        for trace in range(3):
-            panel('Instrument trace',center-span*.14,.12-trace*.034,-.054,
-                  (span*(.38-trace*.06),.003,.004),instrument_ink,.001)
+        half_width=(span-.066)/2
+        face=mesh('Inset instrument picture',
+                  [(-half_width,0,-.153),(half_width,0,-.153),
+                   (half_width,0,.153),(-half_width,0,.153)],
+                  [(0,1,2,3)],radar_face if index%2==0 else chart_face)
+        face.location=pos(center,.27-.054*math.cos(tilt)-.022*math.sin(tilt),
+                          8.22-.054*math.sin(tilt)+.022*math.cos(tilt))
+        face.rotation_euler=(tilt,0,yaw)
+        uv=face.data.uv_layers.new(name='Screen')
+        for loop,coord in zip(uv.data,[(0,0),(1,0),(1,1),(0,1)]):
+            loop.uv=coord
         for key in (-.12,0,.12):
             panel('Monitor soft key',center+key,-.164,-.048,(.026,.012,.014),white,.003)
         edge=center+span/2
@@ -472,7 +481,7 @@ for name,location,description in anchors:
     anchor['status']='illustrative'
 
 # Bake bevels and batch geometry by material to keep browser draw calls low.
-for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber,console_blue,instrument_ink]:
+for paint in [hull,structure,deck,waterline,glass,white,orange,black,helm_dark,helm_floor,screen,rubber,console_blue,radar_face,chart_face]:
     def removable(obj):
         return obj.name.startswith(('Overhanging bridge roof','Lattice mast','Mast cross','Mast diagonal','Radar support',
             'Radar scanner','Whip aerial','Radome','Searchlight','Glazing mullion','Wraparound bridge glazing','Bridge glazing wiper'))

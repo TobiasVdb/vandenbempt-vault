@@ -274,6 +274,12 @@
 .hero-stage .sea-control,.hero-stage .pollux-views { z-index:3; }
 .hero-stage .pollux-views { inset:auto 12px 16px auto; }
 .hero-stage .hero-chart figcaption { background:#101e26; border-top-color:#394851; }
+@media screen and (min-width:761px) and (max-height:850px) {
+  .hero-stage .hero { padding-top:clamp(24px,5vh,42px); }
+  .hero-stage h1 { font-size:clamp(3.65rem,min(9vw,12vh),8rem); margin:12px 0 16px; }
+  .hero-stage .hero-chart { margin-top:-28px; }
+  .hero-stage .sea-frame { height:clamp(285px,calc(100vh - 278px),560px); aspect-ratio:auto; }
+}
 @media (max-width:760px) {
   .hero-stage .hero { padding-top:68px; }
   .hero-bearing { display:none; }
@@ -526,6 +532,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=31"></script>
+<script type="module" src="./sea-scene.mjs?v=32"></script>
 </body>
 </html>
