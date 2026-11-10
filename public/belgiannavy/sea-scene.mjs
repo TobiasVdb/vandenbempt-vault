@@ -95,65 +95,6 @@ function eveningSky(sky, sun) {
 
 
 
-function makeSpray({ BufferGeometry, Float32BufferAttribute, Points, ShaderMaterial, Vector3 }, sun) {
-  const count = matchMedia('(max-width: 760px)').matches ? 520 : 1100;
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(count*3),3));
-  geometry.setAttribute('seed', new Float32BufferAttribute(
-    Float32Array.from({length:count},(_,i)=>(i+.5)/count),1));
-  const material = new ShaderMaterial({
-    transparent:true, depthWrite:false,
-    uniforms:{clock:{value:0}, pixelScale:{value:1}, hull:{value:new Vector3()},
-      sun:{value:sun.position.clone().normalize()}},
-    vertexShader:`
-      attribute float seed;
-      uniform float clock,pixelScale;
-      uniform vec3 hull,sun;
-      varying float opacity,warmth;
-      float rand(float n){return fract(sin(n)*43758.5453);}
-      void main(){
-        float a=rand(seed*94.1), b=rand(seed*237.2), c=rand(seed*317.7), d=rand(seed*631.4);
-        float life=fract(clock*mix(.79,1.35,b)+a);
-        float age=life*mix(.48,1.13,c);
-        float side=b<.5?-1.:1.;
-        float bow=1.-step(.43,seed);
-        float stern=step(.77,seed);
-        float station=mix(-17.,17.,d);
-        float x=side*mix(3.5,4.78,smoothstep(-17.,-9.,station));
-        float z=station;
-        if(bow>.5){
-          z=mix(-25.7,-19.2,d);
-          x=side*mix(.36,2.8,d);
-        } else if(stern>.5){
-          x=(d-.5)*8.8;
-          z=mix(26.7,38.,a);
-        }
-        float height=age*(mix(.85,3.25,c)+bow*1.25)-2.45*age*age;
-        x+=side*age*mix(.46,2.75,a);
-        z+=age*mix(2.1,5.1,d);
-        vec3 p=vec3(x,max(-.13,height)+hull.x+hull.y*z+hull.z*x,z);
-        vec4 eye=modelViewMatrix*vec4(p,1.);
-        gl_Position=projectionMatrix*eye;
-        gl_PointSize=clamp(mix(.9,4.7,d)*pixelScale*56./max(1.,-eye.z),1.,8.);
-        opacity=sin(life*3.14159)*smoothstep(-.08,.12,height)*mix(.21,.69,a)*(1.-stern*.32);
-        warmth=pow(max(0.,dot(normalize(p-cameraPosition),sun)),5.);
-      }`,
-    fragmentShader:`
-      varying float opacity,warmth;
-      void main(){
-        float r=length(gl_PointCoord-.5)*2.;
-        float alpha=(1.-smoothstep(.20,.95,r))*opacity;
-        if(alpha<.016) discard;
-        gl_FragColor=vec4(mix(vec3(.68,.79,.86),vec3(1.,.66,.36),warmth*.74),alpha);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`
-  });
-  const points=new Points(geometry,material);
-  points.frustumCulled=false;
-  return points;
-}
-
 function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, WebGLRenderTarget, FullscreenQuad, rawPass, Vector3 }, sun) {
   const gl = renderer.getContext();
   if (!gl.getExtension('EXT_color_buffer_float')) throw new Error('Floating point render targets unavailable');
@@ -164,7 +105,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
     uniforms['disp' + i] = { value: sim.displacement[i] };
     uniforms['slope' + i] = { value: sim.slope[i] };
   }
-  const geometry = new PlaneGeometry(2, 2, 96, 96).rotateX(-Math.PI / 2);
+  const geometry = new PlaneGeometry(2, 2, 112, 112).rotateX(-Math.PI / 2);
   const vertices = geometry.attributes.position;
   for (let i = 0; i < vertices.count; i++) {
     const x = vertices.getX(i), z = vertices.getZ(i);
@@ -192,6 +133,38 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
   const bytes = new Uint8Array(4);
   const targetPose = new Vector3();
   let pending = false, probeFailed = false;
+
+  const shipWave = `
+    vec3 hullWave(vec2 p, float transit) {
+      float x=abs(p.x), bowDistance=p.y+23.8, aft=max(0.,p.y-24.);
+      float bowShoulder=mix(.18,4.45,smoothstep(0.,15.,bowDistance));
+      float along=smoothstep(-1.8,1.,bowDistance)*(1.-smoothstep(12.,28.,bowDistance));
+      float shoulder=x-bowShoulder;
+      float contact=exp(-abs(shoulder-.42)*1.32)*along;
+      float bowCrest=exp(-abs(bowDistance-x*.57+1.0)*1.03)*exp(-x*.31);
+      float diverging=x-(1.1+max(0.,bowDistance)*.43);
+      float shoulderTrain=exp(-abs(diverging)*.39)
+        *smoothstep(-1.,3.,bowDistance)*(1.-smoothstep(28.,52.,bowDistance));
+      float wakeSpread=3.6+aft*.34;
+      float wakeEnvelope=exp(-abs(x-wakeSpread)/(1.4+aft*.055))
+        *smoothstep(0.,6.,aft)*(1.-smoothstep(53.,133.,aft));
+      float irregular=.59*sin(x*.83+p.y*.26)+.32*sin(x*1.51-p.y*.51);
+      float bowPhase=diverging*1.5-bowDistance*.47+irregular;
+      float wakePhase=x*.74-aft*.96+irregular+sin(transit*.72)*.31;
+      float sternCentre=exp(-pow(x/(1.8+aft*.074),2.))
+        *smoothstep(1.,4.,aft)*(1.-smoothstep(25.,58.,aft));
+      float pump=.86+.14*sin(transit*1.12+p.y*.41);
+      float height=(bowCrest*.55+contact*.23)*pump
+        + shoulderTrain*sin(bowPhase)*.20
+        + wakeEnvelope*sin(wakePhase)*.29
+        + sternCentre*sin(aft*1.65-transit*1.3+irregular)*.12;
+      float breaking=(bowCrest*.88+contact*.63)*pump
+        + shoulderTrain*smoothstep(.53,.97,sin(bowPhase))*.60
+        + wakeEnvelope*smoothstep(.32,.91,sin(wakePhase))*.89;
+      return vec3(height,breaking,sternCentre);
+    }
+  `;
+
   const material = new ShaderMaterial({
     uniforms,
     vertexShader: `
@@ -200,6 +173,8 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
       uniform float transit;
       varying vec2 p;
       varying vec3 world;
+      varying float wakeHeight;
+      ${shipWave}
       void main() {
         p = position.xz;
         vec3 d = ${[0,1,2].map(i => sample('disp',i) + '.xyz').join('+')};
@@ -209,13 +184,8 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
         float distant = 1.-smoothstep(210.,700.,length(p));
         world = position + d * vec3(.34,.28,.34) * freeWave * distant;
         world.y += (hull.x+hull.y*p.y+hull.z*p.x) * (1.-freeWave);
-        float lateral = abs(p.x);
-        float bowCrest = exp(-abs(p.y+24.1-lateral*.73)*1.1)*exp(-lateral*.28);
-        float sternTrail = max(p.y-25.,0.);
-        float sternCrest = exp(-abs(lateral-3.5-sternTrail*.34)*.58)
-          * smoothstep(24.,30.,p.y)*(1.-smoothstep(72.,140.,p.y));
-        world.y += bowCrest*(.20+.12*sin(p.x*3.4+transit*.7))
-          + sternCrest*(.11+.08*sin(p.y*1.46-transit*1.7));
+        wakeHeight = hullWave(p,transit).x;
+        world.y += wakeHeight;
         gl_Position = projectionMatrix * viewMatrix * vec4(world,1.);
       }
     `,
@@ -227,9 +197,18 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
       uniform float transit;
       varying vec2 p;
       varying vec3 world;
+      varying float wakeHeight;
+      ${shipWave}
       void main() {
         vec2 slope = ${[0,1,2,3].map(i => sample('slope',i) + '.xy').join('+')};
-        vec3 n = normalize(vec3(-slope.x*.56, 1., -slope.y*.56));
+        vec3 nearHull = hullWave(p,transit);
+        vec2 across = dFdx(p), down = dFdy(p);
+        float determinant = across.x*down.y-across.y*down.x;
+        float riseAcross = dFdx(wakeHeight), riseDown = dFdy(wakeHeight);
+        vec2 wakeSlope = abs(determinant) > .00001
+          ? vec2(riseAcross*down.y-riseDown*across.y,across.x*riseDown-down.x*riseAcross)/determinant
+          : vec2(0.);
+        vec3 n = normalize(vec3(-slope.x*.56-wakeSlope.x,1.,-slope.y*.56-wakeSlope.y));
         vec3 v = normalize(cameraPosition-world);
         float fresnel = .02 + .98 * pow(1.-clamp(dot(v,n),0.,1.),5.);
         vec3 reflection = reflect(-v,n);
@@ -240,30 +219,9 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
         float grain = smoothstep(.10,.50,length(${sample('slope',3)}.xy));
         float foam = (1.-smoothstep(.33,.78,fold)) * (.28 + .52*grain);
 
-        float trail = max(0.,p.y-25.);
-        float lateral = abs(p.x);
-        float wakeLife = smoothstep(24.,28.,p.y)*(1.-smoothstep(72.,148.,p.y));
-        vec2 foamUV = vec2(p.x*.27,p.y*.18-transit*.15);
-        vec2 eddies = texture2D(slope2,foamUV*.21).xy;
-        float patches = smoothstep(.04,.44,length(eddies));
-        float broken = .52+.48*sin(p.y*.87-transit*.85+eddies.x*14.+p.x*.41);
-        float outer = 3.5+trail*.34+.76*sin(trail*.31-transit*.26);
-        float kelvin = exp(-abs(lateral-outer)*(.77/(1.+trail*.018)));
-        float inner = exp(-abs(lateral-(2.+trail*.17))*.87);
-        float propeller = exp(-pow(p.x/(2.+trail*.085),2.));
-        float churn = smoothstep(.22,.82,grain*.54+broken*.26+patches*.69);
-        float wake = wakeLife*(kelvin*.85+inner*.54+propeller*.80)*(.18+.93*churn);
-        float bowRun = clamp((p.y+23.2)/17.,0.,1.);
-        float hullWidth = mix(.18,4.4,smoothstep(0.,1.,bowRun));
-        float surge = .48*sin(p.y*2.7+transit*.8+grain*3.8);
-        float shoulder = exp(-abs(lateral-hullWidth-.75-surge)*1.5)
-          * smoothstep(-24.4,-22.5,p.y)*(1.-smoothstep(-12.,15.,p.y));
-        float crest = exp(-abs(p.y+24.1-lateral*.73)*1.9)*exp(-lateral*.30);
-        float spray = smoothstep(.18,.77,grain+.34*broken);
-        float side = exp(-abs(lateral-5.15)*1.15)*smoothstep(-12.,-5.,p.y)*(1.-smoothstep(17.,27.,p.y));
-        foam = clamp(foam + wake + (crest*1.95+shoulder*1.26)*(.43+.75*spray)
-          + side*(.16+.77*churn),0.,.97);
-
+        vec2 eddies=texture2D(slope2,vec2(p.x*.075,p.y*.065-transit*.047)).xy;
+        float breakup=smoothstep(.17,.85,grain*.62+length(eddies)*1.9);
+        foam=clamp(foam+nearHull.y*(.24+.91*breakup)+nearHull.z*(.17+.67*breakup),0.,.96);
         vec3 color = mix(sea+glint*vec3(1.,.52,.20),vec3(.77,.83,.85),foam);
         color = mix(color, vec3(.112,.151,.175),smoothstep(140.,820.,distance(cameraPosition,world)));
         gl_FragColor = vec4(color,1.);
@@ -275,8 +233,8 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
   const mesh = new Mesh(geometry, material);
   mesh.frustumCulled = false;
   let last = -1;
-  return { mesh, hull: uniforms.hull.value, update(time, underway) {
-    uniforms.transit.value = underway ? time * 6.6 : 0;
+  return { mesh, update(time) {
+    uniforms.transit.value = time * 6.6;
     if (last >= 0 && time - last < .060) return;
     sim.update(last < 0 ? 0 : time - last);
     last = time;
@@ -355,7 +313,7 @@ async function start() {
       viewControls.set(value,control);
       controls.append(control);
     }
-    const engine = await import("./sea-engine.mjs?v=9");
+    const engine = await import("./sea-engine.mjs?v=10");
     const {
       ACESFilmicToneMapping, DirectionalLight, HemisphereLight, PerspectiveCamera,
       Scene, Vector3, WebGLRenderer, GLTFLoader, Sky
@@ -388,8 +346,6 @@ async function start() {
     scene.add(sky);
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
-    const spray = makeSpray(engine,sun);
-    scene.add(spray);
 
     ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=8', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
@@ -466,11 +422,8 @@ async function start() {
 
 
     function draw() {
-      ocean.update(time, true);
+      ocean.update(time);
       if (!paused) ocean.move(ship);
-      spray.material.uniforms.clock.value = time;
-      spray.material.uniforms.hull.value.copy(ocean.hull);
-      spray.material.uniforms.pixelScale.value = renderer.getPixelRatio();
       renderer.render(scene, camera);
     }
 
