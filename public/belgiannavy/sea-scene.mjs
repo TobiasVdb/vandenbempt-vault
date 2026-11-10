@@ -71,9 +71,9 @@ function eveningSky(sky, sun) {
       float above=max(0.,d.y);
       float toward=max(0.,dot(d,sunDirection));
       vec3 horizon=vec3(.128,.166,.197);
-      vec3 warm=vec3(.93,.43,.15);
+      vec3 warm=vec3(1.12,.43,.12);
       vec3 sky=mix(horizon,vec3(.021,.045,.066),smoothstep(0.,.44,above));
-      sky+=warm*pow(toward,18.)*exp(-above*5.);
+      sky+=warm*pow(toward,21.)*exp(-above*4.);
       vec2 p=vec2(atan(d.z,-d.x)*9.,above*23.)+vec2(12.3,8.4);
       p += .72*vec2(noise(p*.54),noise(p*.54+7.));
       float density=clouds(p);
@@ -84,14 +84,75 @@ function eveningSky(sky, sun) {
       vec3 cloud=mix(vec3(.020,.032,.043),vec3(.116,.147,.170),edge);
       cloud+=warm*edge*pow(toward,11.)*.85;
       sky=mix(sky,cloud,cover);
-      float disc=smoothstep(.99978,.99991,toward);
-      sky+=vec3(1.,.72,.39)*disc*(1.-cover*.92)*5.;
+      float disc=smoothstep(.99989,.99997,toward);
+      sky+=vec3(1.,.52,.16)*pow(toward,230.)*1.10;
+      sky+=vec3(1.,.56,.19)*disc*(1.-cover*.47)*10.;
       gl_FragColor=vec4(sky,1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`;
 }
 
+
+
+function makeSpray({ BufferGeometry, Float32BufferAttribute, Points, ShaderMaterial, Vector3 }, sun) {
+  const count = matchMedia('(max-width: 760px)').matches ? 520 : 1100;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(count*3),3));
+  geometry.setAttribute('seed', new Float32BufferAttribute(
+    Float32Array.from({length:count},(_,i)=>(i+.5)/count),1));
+  const material = new ShaderMaterial({
+    transparent:true, depthWrite:false,
+    uniforms:{clock:{value:0}, pixelScale:{value:1}, hull:{value:new Vector3()},
+      sun:{value:sun.position.clone().normalize()}},
+    vertexShader:`
+      attribute float seed;
+      uniform float clock,pixelScale;
+      uniform vec3 hull,sun;
+      varying float opacity,warmth;
+      float rand(float n){return fract(sin(n)*43758.5453);}
+      void main(){
+        float a=rand(seed*94.1), b=rand(seed*237.2), c=rand(seed*317.7), d=rand(seed*631.4);
+        float life=fract(clock*mix(.79,1.35,b)+a);
+        float age=life*mix(.48,1.13,c);
+        float side=b<.5?-1.:1.;
+        float bow=1.-step(.43,seed);
+        float stern=step(.77,seed);
+        float station=mix(-17.,17.,d);
+        float x=side*mix(3.5,4.78,smoothstep(-17.,-9.,station));
+        float z=station;
+        if(bow>.5){
+          z=mix(-25.7,-19.2,d);
+          x=side*mix(.36,2.8,d);
+        } else if(stern>.5){
+          x=(d-.5)*8.8;
+          z=mix(26.7,38.,a);
+        }
+        float height=age*(mix(.85,3.25,c)+bow*1.25)-2.45*age*age;
+        x+=side*age*mix(.46,2.75,a);
+        z+=age*mix(2.1,5.1,d);
+        vec3 p=vec3(x,max(-.13,height)+hull.x+hull.y*z+hull.z*x,z);
+        vec4 eye=modelViewMatrix*vec4(p,1.);
+        gl_Position=projectionMatrix*eye;
+        gl_PointSize=clamp(mix(.9,4.7,d)*pixelScale*56./max(1.,-eye.z),1.,8.);
+        opacity=sin(life*3.14159)*smoothstep(-.08,.12,height)*mix(.21,.69,a)*(1.-stern*.32);
+        warmth=pow(max(0.,dot(normalize(p-cameraPosition),sun)),5.);
+      }`,
+    fragmentShader:`
+      varying float opacity,warmth;
+      void main(){
+        float r=length(gl_PointCoord-.5)*2.;
+        float alpha=(1.-smoothstep(.20,.95,r))*opacity;
+        if(alpha<.016) discard;
+        gl_FragColor=vec4(mix(vec3(.68,.79,.86),vec3(1.,.66,.36),warmth*.74),alpha);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`
+  });
+  const points=new Points(geometry,material);
+  points.frustumCulled=false;
+  return points;
+}
 
 function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, WebGLRenderTarget, FullscreenQuad, rawPass, Vector3 }, sun) {
   const gl = renderer.getContext();
@@ -174,7 +235,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
         vec3 reflection = reflect(-v,n);
         vec3 sky = mix(vec3(.115,.151,.177), vec3(.037,.068,.096), smoothstep(0.,.65,reflection.y));
         vec3 sea = mix(vec3(.009,.027,.043), sky, fresnel);
-        float glint = pow(max(0.,dot(reflection,sun)),110.) * 1.8 + pow(max(0.,dot(reflection,sun)),24.) * .16;
+        float glint = pow(max(0.,dot(reflection,sun)),110.) * 3.1 + pow(max(0.,dot(reflection,sun)),24.) * .16;
         float fold = min(${sample('disp',1)}.a,${sample('disp',2)}.a);
         float grain = smoothstep(.10,.50,length(${sample('slope',3)}.xy));
         float foam = (1.-smoothstep(.33,.78,fold)) * (.28 + .52*grain);
@@ -201,9 +262,9 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
         float spray = smoothstep(.18,.77,grain+.34*broken);
         float side = exp(-abs(lateral-5.15)*1.15)*smoothstep(-12.,-5.,p.y)*(1.-smoothstep(17.,27.,p.y));
         foam = clamp(foam + wake + (crest*1.95+shoulder*1.26)*(.43+.75*spray)
-          + side*(.34+.52*churn),0.,.97);
+          + side*(.16+.77*churn),0.,.97);
 
-        vec3 color = mix(sea+glint*vec3(1.,.61,.27),vec3(.77,.83,.85),foam);
+        vec3 color = mix(sea+glint*vec3(1.,.52,.20),vec3(.77,.83,.85),foam);
         color = mix(color, vec3(.112,.151,.175),smoothstep(140.,820.,distance(cameraPosition,world)));
         gl_FragColor = vec4(color,1.);
         #include <tonemapping_fragment>
@@ -214,7 +275,7 @@ function openOcean(renderer, { OceanSim, Mesh, ShaderMaterial, PlaneGeometry, We
   const mesh = new Mesh(geometry, material);
   mesh.frustumCulled = false;
   let last = -1;
-  return { mesh, update(time, underway) {
+  return { mesh, hull: uniforms.hull.value, update(time, underway) {
     uniforms.transit.value = underway ? time * 6.6 : 0;
     if (last >= 0 && time - last < .060) return;
     sim.update(last < 0 ? 0 : time - last);
@@ -294,7 +355,7 @@ async function start() {
       viewControls.set(value,control);
       controls.append(control);
     }
-    const engine = await import("./sea-engine.mjs?v=8");
+    const engine = await import("./sea-engine.mjs?v=9");
     const {
       ACESFilmicToneMapping, DirectionalLight, HemisphereLight, PerspectiveCamera,
       Scene, Vector3, WebGLRenderer, GLTFLoader, Sky
@@ -305,8 +366,8 @@ async function start() {
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     const scene = new Scene();
     scene.add(new HemisphereLight(0xa7c0db, 0x536974, 1.72));
-    const sun = new DirectionalLight(0xffbe7c, 2.7);
-    sun.position.set(-91, 5.8, 31);
+    const sun = new DirectionalLight(0xffbd78, 3.6);
+    sun.position.set(-91, 3.2, 31);
     scene.add(sun);
     const fill = new DirectionalLight(0xb9d4ea, .58);
     fill.position.set(27, 23, -13);
@@ -327,6 +388,8 @@ async function start() {
     scene.add(sky);
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
+    const spray = makeSpray(engine,sun);
+    scene.add(spray);
 
     ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=8', import.meta.url).href)).scene;
     refinePolluxMaterials(ship);
@@ -405,6 +468,9 @@ async function start() {
     function draw() {
       ocean.update(time, true);
       if (!paused) ocean.move(ship);
+      spray.material.uniforms.clock.value = time;
+      spray.material.uniforms.hull.value.copy(ocean.hull);
+      spray.material.uniforms.pixelScale.value = renderer.getPixelRatio();
       renderer.render(scene, camera);
     }
 

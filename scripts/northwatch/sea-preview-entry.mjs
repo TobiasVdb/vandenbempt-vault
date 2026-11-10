@@ -7,3 +7,4 @@ export { Mesh, ShaderMaterial } from 'three';
 export { OceanSim } from './ultra/water/OceanSim.js';
 export { WebGLRenderTarget } from 'three';
 export { FullscreenQuad, rawPass } from './ultra/engine/fullscreen.js';
+export { BufferGeometry, Float32BufferAttribute, Points } from 'three';
