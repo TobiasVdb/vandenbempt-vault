@@ -713,11 +713,47 @@ async function start() {
       return [new Vector3(43,10.6,-39).multiplyScalar(distance),new Vector3(-1.4,6.2,-.4)];
     }
     let cutaway = false;
-    function setCutaway(enabled) {
-      cutaway = enabled;
-      hardware.setCutaway(enabled);
-      if (roof) roof.visible = !enabled;
-      if (windows) windows.visible = !enabled;
+    let cutawayAmount = 0;
+    const shellFade = { value: 0 };
+    const shellReturning = { value: false };
+    for (const shell of [roof, windows]) {
+      shell?.traverse(mesh => {
+        if (!mesh.isMesh) return;
+        // Keep the dissolve off materials shared with the rest of the ship.
+        const materials = [].concat(mesh.material).map(original => {
+          const material = original.clone();
+          material.onBeforeCompile = shader => {
+            shader.uniforms.shellFade = shellFade;
+            shader.uniforms.shellReturning = shellReturning;
+            shader.vertexShader = 'varying float vShellHeight;\n' + shader.vertexShader.replace(
+              '#include <begin_vertex>',
+              '#include <begin_vertex>\nvShellHeight = (modelMatrix * vec4(transformed, 1.0)).y;'
+            );
+            shader.fragmentShader = 'uniform float shellFade;\nuniform bool shellReturning;\nvarying float vShellHeight;\n' +
+              shader.fragmentShader.replace('#include <alphatest_fragment>', `
+                #include <alphatest_fragment>
+                if (shellFade > 0.0) {
+                  float edge = mix(18.0, 6.2, shellReturning ? 1.0-shellFade : shellFade);
+                  float aboveEdge = smoothstep(edge - 0.75, edge + 0.75, vShellHeight);
+                  float coverage = shellReturning ? aboveEdge : 1.0-aboveEdge;
+                  float grain = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+                  if (coverage <= grain) discard;
+                }`);
+          };
+          return material;
+        });
+        mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
+      });
+    }
+    function setCutaway(amount) {
+      if (cutawayAmount === 1 && amount < 1) shellReturning.value = true;
+      if (cutawayAmount === 0 && amount > 0) shellReturning.value = false;
+      cutawayAmount = Number(amount);
+      shellFade.value = cutawayAmount;
+      cutaway = cutawayAmount > .8;
+      hardware.setCutaway(cutaway);
+      if (roof) roof.visible = cutawayAmount < 1;
+      if (windows) windows.visible = cutawayAmount < 1;
     }
     function placeCamera(name) {
       const [position,target] = cameraPose(name);
@@ -788,7 +824,7 @@ async function start() {
         hardware.route.getPointAt(Math.min(1,progress+.055),tourAim);
         if (progress > .78) tourAim.lerp(helmAim,smooth((progress-.78)/.22));
         applyTourPose(tourPosition,tourAim);
-        setCutaway(progress > .78);
+        setCutaway(smooth(Math.min(1,Math.max(0,(progress-.72)/.28))));
         inspectionLight.intensity = .9+progress*.65;
       } else if (phase < 17) {
         shot = 'helm-display';
@@ -804,7 +840,7 @@ async function start() {
         shot = 'return';
         const progress = smooth((phase-17)/3);
         tourOrbit(chartPosition,chartAim,exteriorPosition,exteriorAim,progress);
-        setCutaway(progress < .52);
+        setCutaway(1-smooth(Math.min(1,Math.max(0,(progress-.24)/.46))));
         inspectionLight.intensity = 1.55*(1-progress);
       }
       frame.dataset.tourShot = shot;
@@ -824,7 +860,7 @@ async function start() {
         placeCamera(view);
       } else {
         cameraMove = { start: performance.now(), aim: aim.clone(), orbit: orbit(camera.position,aim),
-          light: inspectionLight.intensity };
+          light: inspectionLight.intensity, cutaway: cutawayAmount };
       }
       sync();
     }
@@ -848,8 +884,8 @@ async function start() {
       aim.lerpVectors(cameraMove.aim,target,eased);
       camera.position.set(Math.sin(angle)*horizontal,Math.sin(elevation)*radius,Math.cos(angle)*horizontal).add(aim);
       camera.lookAt(aim);
-      if (view === 'helm' && fraction > .55) setCutaway(true);
-      if (view !== 'helm' && fraction > .40) setCutaway(false);
+      const reveal = smooth(Math.min(1,Math.max(0,(fraction-.28)/.72)));
+      setCutaway(cameraMove.cutaway + (Number(view === 'helm')-cameraMove.cutaway)*reveal);
       inspectionLight.intensity = cameraMove.light + ((view === 'exterior' ? 0 : 1.55)-cameraMove.light)*eased;
     }
     placeCamera(view);
