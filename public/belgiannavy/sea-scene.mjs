@@ -1,3 +1,58 @@
+const helmRadarArtwork = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="288" viewBox="0 0 512 288">
+  <rect width="512" height="288" fill="#091a1a"/>
+  <rect width="512" height="28" fill="#203b3b"/>
+  <g fill="#a3c9c3" font-family="monospace" font-size="13">
+    <text x="12" y="19">RADAR / X-BAND</text><text x="384" y="19">HEAD UP</text>
+    <text x="354" y="60">RANGE</text><text x="354" y="83" font-size="20">6.0 NM</text>
+    <text x="354" y="125">HEADING</text><text x="354" y="148" font-size="20">037°</text>
+    <text x="354" y="190">TARGETS</text><text x="354" y="213" font-size="20">03</text>
+    <text x="354" y="263" fill="#779891">DEMO</text>
+  </g>
+  <path d="M332 40V274" stroke="#335454"/>
+  <g transform="translate(173 154)">
+    <circle r="111" fill="#0b2924" stroke="#6c9a86"/>
+    <path d="M0 0V-110A110 110 0 0 1 84 -71Z" fill="#1a503a"/>
+    <g fill="none" stroke="#548572">
+      <circle r="28"/><circle r="55"/><circle r="83"/>
+      <path d="M-111 0H111M0-111V111M-78-78 78 78M-78 78 78-78" stroke-dasharray="4 5"/>
+    </g>
+    <path d="M0 0V-106" stroke="#a9ead2" stroke-width="2"/>
+    <path d="m-76-39 7-4 8 1 7 6-11 4zm107 62 4-7 8 2 4 6-7 6zm24-77 4-3 5 2-2 5-5 1z" fill="#8ae5a5"/>
+    <g fill="none" stroke="#c5eab2" stroke-width="2">
+      <circle cx="38" cy="24" r="8"/><circle cx="59" cy="-54" r="7"/>
+      <path d="m38 24 16 11m5-89 12-10"/>
+    </g>
+    <path d="m0-6 5 11-5-2-5 2z" fill="#d9f8f2"/>
+  </g>
+</svg>`;
+
+const helmChartArtwork = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="288" viewBox="0 0 512 288">
+  <rect width="512" height="288" fill="#0d333f"/>
+  <g fill="none" stroke="#416773" opacity=".75">
+    <path d="M0 79H366M0 130H366M0 181H366M0 232H366M70 28V288M140 28V288M210 28V288M280 28V288"/>
+  </g>
+  <path d="M0 28H124L111 52 129 72 96 92 106 124 76 144 84 163 43 196 52 216 23 244 32 288H0Z" fill="#b0a47a" stroke="#e1d6a7" stroke-width="2"/>
+  <path d="M145 28 140 63 157 75 126 103 136 133 109 153 112 178 67 212 76 232 57 253 61 288M167 28 165 61 181 81 154 112 160 143 136 165 133 196 93 230 98 257 83 288" fill="none" stroke="#69969c" stroke-width="1.5"/>
+  <path d="M129 277 176 212 226 162 259 111 302 57" fill="none" stroke="#e89bcf" stroke-width="3"/>
+  <g fill="#d9aed2" stroke="#492a50" stroke-width="2">
+    <circle cx="176" cy="212" r="5"/><circle cx="259" cy="111" r="5"/><circle cx="302" cy="57" r="5"/>
+  </g>
+  <path d="m226 152 5 18-6-4-7 1z" fill="#fff6cc" stroke="#142d35" stroke-width="2"/>
+  <g fill="#afc9c7" font-family="monospace" font-size="12">
+    <text x="186" y="103">18</text><text x="246" y="221">27</text><text x="303" y="160">32</text>
+    <text x="131" y="185">12</text><text x="277" y="99">WP 02</text>
+  </g>
+  <rect x="366" width="146" height="288" fill="#10272d"/>
+  <rect width="512" height="28" fill="#29494d"/>
+  <g fill="#c1d7d2" font-family="monospace" font-size="13">
+    <text x="12" y="19">NAVIGATION / CHART</text><text x="384" y="19">NORTH UP</text>
+    <text x="382" y="61">COG</text><text x="382" y="84" font-size="20">037°</text>
+    <text x="382" y="125">SOG</text><text x="382" y="148" font-size="20">15.2 kn</text>
+    <text x="382" y="190">NEXT WP</text><text x="382" y="213" font-size="20">02</text>
+    <text x="382" y="263" fill="#829f9b">DEMO CHART</text>
+  </g>
+</svg>`;
+
 function addHelmInstrumentTextures(ship, { MeshBasicMaterial, SRGBColorSpace, TextureLoader }) {
   const loader = new TextureLoader();
   const materials = new Map();
@@ -6,8 +61,8 @@ function addHelmInstrumentTextures(ship, { MeshBasicMaterial, SRGBColorSpace, Te
     const name = object.material.name;
     if (name !== 'Helm radar face' && name !== 'Helm chart face') return;
     if (!materials.has(name)) {
-      const file = name === 'Helm radar face' ? 'helm-radar.svg' : 'helm-chart.svg';
-      const map = loader.load(new URL(file, import.meta.url).href);
+      const artwork = name === 'Helm radar face' ? helmRadarArtwork : helmChartArtwork;
+      const map = loader.load('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(artwork));
       map.colorSpace = SRGBColorSpace;
       map.flipY = false;
       materials.set(name, new MeshBasicMaterial({ map, toneMapped: false }));
