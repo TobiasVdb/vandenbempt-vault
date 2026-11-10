@@ -659,15 +659,16 @@ function addTourHardware(ship, engine) {
     const [start,width,height] = edgeStations[index-1];
     const [end,nextWidth,nextHeight] = edgeStations[index];
     const progress = (station-start)/(end-start);
-    return new Vector3(width+(nextWidth-width)*progress-.025,
+    const railInset = .025+.18*Math.min(1,Math.max(0,(12-station)/2));
+    return new Vector3(width+(nextWidth-width)*progress-railInset,
       height+(nextHeight-height)*progress+.011,-station);
   }
   const cornerPoints = [];
   for (let station = 18.5; station >= -7; station -= .5) cornerPoints.push(deckCorner(station));
   cornerPoints.push(deckCorner(-7.2));
   const aftDeckHeight = deckCorner(-7.4).y;
-  const wallRoute = [
-    [4.565,aftDeckHeight,7.30],[4.53,aftDeckHeight,7.37],[4.45,aftDeckHeight,7.4],
+  const wallCorners = [
+    [4.385,aftDeckHeight,7.30],[4.35,aftDeckHeight,7.37],[4.27,aftDeckHeight,7.4],
     [3.70,aftDeckHeight,7.4],[3.565,3.43,7.4],[3.565,5.95,7.4],
     [3.565,6.08,7.4],[3.865,6.10,7.4],[3.865,6.15,7.4],
     [3.64,6.51,7.4],[3.27,7.10,7.4],[3.34,7.27,7.4],
@@ -675,6 +676,14 @@ function addTourHardware(ship, engine) {
     [3.155,7.211,-2.82],[displayCenter.x,7.211,-2.82],
     [displayCenter.x,7.96,displayCenter.z-.045],[displayCenter.x,8.11,displayCenter.z-.045],
   ].map(point => new Vector3(...point));
+  const wallRoute = [wallCorners[0]];
+  for (let i = 1; i < wallCorners.length; i++) {
+    const start = wallCorners[i-1], end = wallCorners[i];
+    const steps = Math.ceil(start.distanceTo(end)/.15);
+    for (let step = 1; step <= steps; step++) {
+      wallRoute.push(new Vector3().lerpVectors(start,end,step/steps));
+    }
+  }
   const route = new CatmullRomCurve3([
     new Vector3(deviceX,deviceDeckHeight+.068,-18.864),
     new Vector3(deviceX,deviceDeckHeight+.068,-18.79),
@@ -995,7 +1004,11 @@ async function start() {
         // Keep the dissolve off materials shared with the rest of the ship.
         const materials = [].concat(mesh.material).map(original => {
           const material = original.clone();
+          const surfaceProgramKey = original.customProgramCacheKey();
+          material.customProgramCacheKey = () => surfaceProgramKey +
+            (shell === roof ? ':bridge-roof-fade' : ':bridge-glazing-fade');
           material.onBeforeCompile = shader => {
+            original.onBeforeCompile(shader,renderer);
             shader.uniforms.shellFade = shellFade;
             shader.vertexShader = 'varying float vShellHeight;\n' + shader.vertexShader.replace(
               '#include <begin_vertex>',
@@ -1040,26 +1053,113 @@ async function start() {
       return [Math.atan2(offset.x,offset.z),Math.atan2(offset.y,Math.hypot(offset.x,offset.z)),offset.length()];
     }
 
-    // Follow inside the bulwark so the toe-level cable remains visible, then
-    // rise outside the bridge wall before entering the cutaway.
     const bowAim = hardware.deviceCenter.clone().add(new Vector3(0,.04,0));
     const helmAim = new Vector3(1.65,8.24,-2.9);
-    const bowPosition = hardware.deviceCenter.clone().add(new Vector3(-1.55,2.05,2.1));
     const helmPosition = new Vector3(3.34,9.61,.40);
     const chartAim = hardware.displayCenter.clone().add(new Vector3(0,.005,.025));
     const chartPosition = chartAim.clone().add(new Vector3(.10,.12,.61));
-    const cableCamera = new CatmullRomCurve3([
-      bowPosition, new Vector3(3.3,6.4,-12), new Vector3(4.02,6.7,-4),
-      new Vector3(4.04,7.1,6.4), new Vector3(5.2,10.3,7.4), helmPosition
-    ]);
-    const tourMotionDuration = 16;
-    const tourSlowdown = 1.35;
+    const [deckPosition,deckAim] = cameraPose('deck');
+    const inspectionPositions = [deckPosition,new Vector3(.7,5.7,-15.8)];
+    const inspectionTargets = [deckAim,bowAim.clone()];
+    // One spline joins the deck push-in, device orbit and cable flight. Target
+    // knots use the same parameter so framing stays aligned with the camera.
+    for (const angle of [-35,-95,-155,-215,-265,-300]) {
+      const radians = angle*Math.PI/180;
+      inspectionPositions.push(hardware.deviceCenter.clone().add(
+        new Vector3(Math.sin(radians)*2,1.55,Math.cos(radians)*2)));
+      inspectionTargets.push(bowAim.clone());
+    }
+    const orbitEnd = inspectionPositions.length-1;
+    inspectionTargets[orbitEnd-1] = hardware.route.getPointAt(.015);
+    inspectionTargets[orbitEnd] = hardware.route.getPointAt(.045);
+    const cableShots = [
+      [.08,[-.65,1.65,.6]],[.16,[-.65,1.65,.6]],
+      [.27,[-.25,2.5,.55]],[.38,[-.25,2.5,.55]],
+      [.50,[-.25,2.5,.55]],[.58,[-.25,2.5,.55]],
+      [.62,[.55,2.35,.45]],[.66,[1.35,2,.5]],
+      [.70,[1.3,1,.4]],[.74,[1.4,1.8,.6],[-.05,.55,-.1]],
+      [.78,[0,1.95,.6],[-.25,.95,-.6]],[.84,[-.45,2.1,1]],
+    ];
+    const revealStart = inspectionPositions.length+6;
+    const revealEnd = inspectionPositions.length+9;
+    for (const [progress,offset,aimOffset] of cableShots) {
+      inspectionPositions.push(hardware.route.getPointAt(progress).add(new Vector3(...offset)));
+      const target = hardware.route.getPointAt(Math.min(1,progress+.015));
+      if (aimOffset) target.add(new Vector3(...aimOffset));
+      inspectionTargets.push(target);
+    }
+    inspectionTargets[revealEnd] = helmAim.clone();
+    inspectionTargets[revealEnd+1] = helmAim.clone();
+    inspectionTargets[inspectionTargets.length-1] = helmAim.clone();
+    inspectionPositions.push(helmPosition);
+    inspectionTargets.push(helmAim);
+    const inspectionCamera = new CatmullRomCurve3(inspectionPositions,false,'catmullrom',.5);
+    const inspectionAim = new CatmullRomCurve3(inspectionTargets,false,'catmullrom',.35);
+    inspectionCamera.arcLengthDivisions = 2048;
+    inspectionCamera.updateArcLengths();
+    // Plan speed from both path curvature and framing. A steady spatial speed
+    // alone can still produce a whip-pan when the look target changes nearby.
+    const flightSamples = 600;
+    const flightStep = inspectionCamera.getLength()/flightSamples;
+    const flightTiming = [];
+    const maximumAcceleration = .7;
+    for (let i = 0; i <= flightSamples; i++) {
+      const parameter = inspectionCamera.getUtoTmapping(i/flightSamples);
+      const position = inspectionCamera.getPoint(parameter);
+      flightTiming.push({
+        direction: inspectionAim.getPoint(parameter).sub(position).normalize(),
+        tangent: inspectionCamera.getTangent(parameter),
+        speed: i === 0 || i === flightSamples ? 0 : 1.55,
+        time: 0,
+      });
+    }
+    for (let i = 1; i < flightSamples; i++) {
+      const before = flightTiming[i-1], after = flightTiming[i+1];
+      const curvature = Math.acos(Math.min(1,before.tangent.dot(after.tangent)))/(2*flightStep);
+      const turnRate = Math.acos(Math.min(1,before.direction.dot(after.direction)))/(2*flightStep);
+      flightTiming[i].speed = Math.min(1.55,Math.sqrt(.6/Math.max(curvature,.001)),.55/Math.max(turnRate,.001));
+    }
+    for (let i = 1; i <= flightSamples; i++) {
+      flightTiming[i].speed = Math.min(flightTiming[i].speed,
+        Math.sqrt(flightTiming[i-1].speed**2+2*maximumAcceleration*flightStep));
+    }
+    for (let i = flightSamples-1; i >= 0; i--) {
+      flightTiming[i].speed = Math.min(flightTiming[i].speed,
+        Math.sqrt(flightTiming[i+1].speed**2+2*maximumAcceleration*flightStep));
+    }
+    for (let i = 1; i <= flightSamples; i++) {
+      flightTiming[i].time = flightTiming[i-1].time+2*flightStep/(flightTiming[i-1].speed+flightTiming[i].speed);
+    }
+    const lastInspectionKnot = inspectionPositions.length-1;
+    const deckLightColor = inspectionLight.color.clone().setHex(0xffcb91);
+    const helmLightColor = inspectionLight.color.clone().setHex(0xe0edf2);
+    const tourApproachDuration = 5;
+    const tourInspectionDuration = flightTiming[flightSamples].time;
+    const tourHelmDuration = 7;
+    const tourReturnDuration = 5;
+    const inspectionStart = 4+tourApproachDuration;
+    const helmStart = inspectionStart+tourInspectionDuration;
+    const returnStart = helmStart+tourHelmDuration;
+    const restStart = returnStart+tourReturnDuration;
     const tourRest = 10;
     const smooth = value => value*value*(3-2*value);
     const glide = value => {
       const t = Math.min(1,Math.max(0,value));
       return t*t*t*(t*(t*6-15)+10);
     };
+    function inspectionParameter(elapsed) {
+      let low = 0, high = flightSamples;
+      while (high-low > 1) {
+        const middle = Math.floor((low+high)/2);
+        if (flightTiming[middle].time <= elapsed) low = middle;
+        else high = middle;
+      }
+      const start = flightTiming[low], end = flightTiming[high];
+      const duration = end.time-start.time;
+      const timeInStep = Math.min(duration,Math.max(0,elapsed-start.time));
+      const distance = start.speed*timeInStep+(end.speed-start.speed)/duration*timeInStep*timeInStep*.5;
+      return inspectionCamera.getUtoTmapping(Math.min(1,(low+distance/flightStep)/flightSamples));
+    }
     const tourPosition = new Vector3();
     const tourAim = new Vector3();
     function applyTourPose(position,target,follow = 1) {
@@ -1082,32 +1182,32 @@ async function start() {
     }
     function animateTour() {
       const elapsed = tourElapsed;
-      const loopTime = (elapsed-4) % (tourMotionDuration*tourSlowdown+tourRest);
-      // Stretch the moving portion and helm inspection, keeping the exterior rest at ten seconds.
-      const phase = elapsed < 4 ? 0 : 4 + Math.min(loopTime/tourSlowdown,tourMotionDuration);
+      const phase = elapsed < 4 ? 0 : 4+(elapsed-4)%(restStart-4+tourRest);
       const [exteriorPosition,exteriorAim] = cameraPose('exterior');
       let shot = 'exterior';
-      if (phase < 4 || phase >= 20) {
+      if (phase < 4 || phase >= restStart) {
         placeCamera('exterior');
-      } else if (phase < 7) {
-        shot = 'bow-approach';
-        const progress = glide((phase-4)/3);
-        tourOrbit(exteriorPosition,exteriorAim,bowPosition,bowAim,progress,progress);
-        inspectionLight.intensity = progress*.9;
+      } else if (phase < inspectionStart) {
+        shot = 'deck-approach';
+        const progress = glide((phase-4)/tourApproachDuration);
+        tourOrbit(exteriorPosition,exteriorAim,deckPosition,deckAim,progress,progress);
+        inspectionLight.color.copy(helmLightColor).lerp(deckLightColor,progress);
+        inspectionLight.intensity = progress*.8;
         setCutaway(false);
-      } else if (phase < 12) {
-        shot = phase < 8 ? 'bow-device' : 'cable';
-        const progress = glide((phase-7)/5);
-        cableCamera.getPointAt(progress,tourPosition);
-        hardware.route.getPointAt(Math.min(1,progress+.055),tourAim);
-        tourAim.lerp(bowAim,1-glide(progress/.23));
-        tourAim.lerp(helmAim,glide((progress-.70)/.30));
+      } else if (phase < helmStart) {
+        const parameter = inspectionParameter(phase-inspectionStart);
+        const knot = parameter*lastInspectionKnot;
+        shot = knot <= orbitEnd ? 'antenna-orbit' : 'cable';
+        inspectionCamera.getPoint(parameter,tourPosition);
+        inspectionAim.getPoint(parameter,tourAim);
         applyTourPose(tourPosition,tourAim);
-        setCutaway(smooth(Math.min(1,Math.max(0,(phase-9.75)/2.25))));
-        inspectionLight.intensity = .9+progress*.65;
-      } else if (phase < 17) {
+        const reveal = glide((knot-revealStart)/(revealEnd-revealStart));
+        setCutaway(reveal);
+        inspectionLight.color.copy(deckLightColor).lerp(helmLightColor,reveal);
+        inspectionLight.intensity = .8+reveal*.75;
+      } else if (phase < returnStart) {
         shot = 'helm-display';
-        const hold = phase-12;
+        const hold = phase-helmStart;
         // Begin the push-in as the track comparison replaces the status cards.
         const zoom = glide((hold-2.05)/1.5);
         tourPosition.lerpVectors(helmPosition,chartPosition,zoom);
@@ -1115,11 +1215,13 @@ async function start() {
         applyTourPose(tourPosition,tourAim);
         hardware.updateScreen(hold < 3 ? 'status' : 'track');
         setCutaway(true);
+        inspectionLight.color.copy(helmLightColor);
+        inspectionLight.intensity = 1.55;
       } else {
         shot = 'return';
-        const progress = glide((phase-17)/3);
+        const progress = glide((phase-returnStart)/tourReturnDuration);
         tourOrbit(chartPosition,chartAim,exteriorPosition,exteriorAim,progress,1-progress);
-        setCutaway(1-smooth(Math.min(1,Math.max(0,(phase-17.45)/2.4))));
+        setCutaway(1-glide((progress-.08)/.84));
         inspectionLight.intensity = 1.55*(1-progress);
       }
       frame.dataset.tourShot = shot;

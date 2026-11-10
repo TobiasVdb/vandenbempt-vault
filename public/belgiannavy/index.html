@@ -191,7 +191,7 @@
     padding-inline: 18px;
     background: var(--paper);
     border-color: var(--line);
-    border-radius: 12px;
+    border-radius: 999px;
     box-shadow: 0 8px 25px #0003;
     transform: translateY(8px);
   }
@@ -200,7 +200,8 @@
   html { scroll-padding-top: 155px; }
   .site-header .wrap { padding-block: 10px; gap: 7px 12px; }
   .site-header nav { gap: 6px 12px; }
-  .site-header.is-floating .wrap { padding-inline: 12px; }
+  .site-header.is-floating .wrap { padding-inline: 28px; justify-content: center; }
+  .site-header.is-floating nav { justify-content: center; }
 }
 @media screen and (prefers-reduced-motion: no-preference) {
   .site-header .wrap {
@@ -544,6 +545,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=53"></script>
+<script type="module" src="./sea-scene.mjs?v=54"></script>
 </body>
 </html>
