@@ -17,8 +17,9 @@
   border-bottom: 1px solid var(--line);
 }
 .status-track { grid-column: 1 / -1; }
-.track-chart { display: block; width: 100%; max-width: 740px; height: auto; }
+.track-chart { display: block; width: 100%; max-width: none; height: auto; }
 .track-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; padding: 0; margin: 12px 0 18px; font-size: .86rem; }
+.track-legend li:nth-child(2)::before { width: 6px; height: 6px; border: 0; border-radius: 50%; }
 .track-legend li::before { content: ""; display: inline-block; width: 12px; height: 4px; margin: 0 6px 3px 0; background: var(--track-color); border: 1px solid #52636a; }
 
 .status-grid.is-carousel { grid-template-columns: minmax(0, 1fr); background: #fff; isolation: isolate; }
@@ -391,14 +392,17 @@
       <svg class="track-chart" viewBox="0 0 460 143" role="img" aria-labelledby="track-chart-title track-chart-desc">
         <title id="track-chart-title">Intended, independently observed and suspect GNSS tracks</title>
         <desc id="track-chart-desc">Time runs left to right. The green intended route and blue independent fixes remain close. The amber GNSS track has gaps during suspected jamming, then diverges during mild and stronger suspected spoofing.</desc>
-        <path d="M16 32H444 M16 64H444 M16 96H444 M16 124H444" stroke="#dbe3e0" fill="none"/>
-        <path data-track="Intended route" d="M18 108 Q186 89 442 85" stroke="#33704a" stroke-width="3" fill="none"/>
-        <path data-track="Independent fixes" d="M18 113 Q123 91 229 99 T442 94" stroke="#176b90" stroke-width="3" stroke-dasharray="2 6" stroke-linecap="round" fill="none"/>
-        <path data-track="GNSS reported" d="M18 110 Q51 101 74 101 M104 97 L118 96 M165 93 Q224 88 294 66 Q360 44 442 23" stroke="#a94c0b" stroke-width="3" fill="none"/>
-        <g fill="#34454b" font-size="11" font-family="sans-serif">
-          <text x="78" y="67">Suspected jamming</text><text x="78" y="79">fix loss</text>
-          <text x="198" y="59">Suspect drift</text><text x="339" y="20">Stronger divergence</text>
-          <text x="404" y="136">Time →</text>
+        <path d="M8 4H61 Q49 7 46 15 T35 20 Q31 18 29 25 T18 30 Q14 26 11 34 T8 42Z M404 138Q417 135 422 128 T436 119 Q442 121 446 114 T454 105V138Z" fill="#f4f6f7" stroke="#c7d1d6" stroke-width=".5"/>
+        <path d="M28 4V138 M86 4V138 M147 4V138 M207 4V138 M267 4V138 M322 4V138 M383 4V138 M425 4V138 M8 22H454 M8 51H454 M8 92H454 M8 123H454" stroke="#edf1f3" stroke-width=".5" fill="none"/>
+        <path d="M9 83Q72 52 146 51T452 22 M9 123Q91 84 201 92T452 70 M28 128Q116 97 240 95T450 91" stroke="#ccd8df" stroke-width=".5" stroke-dasharray="2 2" fill="none"/>
+        <path data-track="Intended route" d="M48 105Q111 94 190 91T415 70" stroke="#2e794e" stroke-width="1.3" fill="none"/>
+        <path data-track="Independent fixes" d="M53 106Q128 91 195 94T415 71" stroke="#076b91" stroke-width="1.8" stroke-dasharray=".1 8" stroke-linecap="round" fill="none"/>
+        <path data-track="GNSS reported" d="M48 104Q72 99 116 97 M147 94L160 93 M173 93Q237 92 294 77T415 25" stroke="#bd5409" stroke-width="1.3" fill="none"/>
+        <path d="M42 105L48 104 51 105 48 107 42 108Z" stroke="#151c1d" stroke-width=".7" fill="#fff"/>
+        <path d="M107 76V73H155V76 M214 66V63H270V66 M361 20L376 41 M375 39L376 41 374 40" stroke="#34454b" stroke-width=".35" fill="none"/>
+        <g fill="#151c1d" font-size="6" font-family="Hanken Grotesk, sans-serif">
+          <text x="104" y="67">Suspected jamming</text>
+          <text x="226" y="57">Suspect drift</text><text x="337" y="15">Stronger divergence</text>
         </g>
       </svg>
       <ul class="track-legend" aria-label="Track colors">
@@ -547,6 +551,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=57"></script>
+<script type="module" src="./sea-scene.mjs?v=58"></script>
 </body>
 </html>

@@ -797,18 +797,40 @@ function addTourHardware(ship, engine) {
       ctx.fillStyle = '#151c1d';
       ctx.fillText('PNT',441,32);
       ctx.font = '800 29px "Hanken Grotesk", sans-serif';
-      ctx.fillText(heading.join(' '),22,76,468);
+      ctx.fillText(heading.join(' '),22,76,420);
+      ctx.fillStyle = color;
+      ctx.fillRect(460,56,30,30);
+      ctx.fillStyle = '#151c1d';
+      ctx.font = '800 24px sans-serif';
+      ctx.fillText('!',471,80);
+      ctx.font = '500 8px "Hanken Grotesk", sans-serif';
+      let description = '', descriptionRow = 0;
+      for (const word of detail.split(' ')) {
+        const next = description ? description+' '+word : word;
+        if (ctx.measureText(next).width > 468) {
+          ctx.fillText(description,22,94+descriptionRow++*11);
+          description = word;
+        } else description = next;
+      }
+      ctx.fillText(description,22,94+descriptionRow*11);
       ctx.save();
-      ctx.translate(22,85);
+      ctx.translate(22,112);
+      ctx.scale(1,.83);
       for (const path of chart.querySelectorAll('path')) {
         ctx.strokeStyle = path.getAttribute('stroke');
         ctx.lineWidth = Number(path.getAttribute('stroke-width')) || 1;
         ctx.lineCap = path.getAttribute('stroke-linecap') || 'butt';
         ctx.setLineDash((path.getAttribute('stroke-dasharray') || '').split(' ').filter(Boolean).map(Number));
-        ctx.stroke(new Path2D(path.getAttribute('d')));
+        const shape = new Path2D(path.getAttribute('d'));
+        const fill = path.getAttribute('fill');
+        if (fill && fill !== 'none') {
+          ctx.fillStyle = fill;
+          ctx.fill(shape);
+        }
+        ctx.stroke(shape);
       }
       ctx.fillStyle = chart.querySelector('g').getAttribute('fill');
-      ctx.font = '600 11px "Hanken Grotesk", sans-serif';
+      ctx.font = '500 6px "Hanken Grotesk", sans-serif';
       for (const label of chart.querySelectorAll('text')) {
         ctx.fillText(label.textContent,Number(label.getAttribute('x')),Number(label.getAttribute('y')));
       }
@@ -817,7 +839,9 @@ function addTourHardware(ship, engine) {
       let x = 22;
       for (const track of chart.querySelectorAll('[data-track]')) {
         ctx.fillStyle = track.getAttribute('stroke');
-        ctx.fillRect(x,241,10,4);
+        if (track.dataset.track === 'Independent fixes') {
+          ctx.beginPath(); ctx.arc(x+5,243,2,0,Math.PI*2); ctx.fill();
+        } else ctx.fillRect(x,242,10,1.5);
         ctx.fillStyle = '#151c1d';
         const name = track.dataset.track;
         ctx.fillText(name,x+15,248);
