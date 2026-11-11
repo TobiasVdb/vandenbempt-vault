@@ -854,13 +854,15 @@ function fallback() {
   frame.querySelector('.pollux-views')?.remove();
 }
 
-async function start() {
+export async function start(modelBytes) {
+  failed = false;
   try {
     const query = new URLSearchParams(location.search);
 
     let view = ['deck','helm'].includes(query.get('view')) ? query.get('view') : 'exterior';
     let touring = view === 'exterior' && !reduceMotion.matches;
     let tourElapsed = 0;
+    let tourStartedAt;
     const viewControls = new Map();
     const controls = document.createElement('div');
     controls.className = 'pollux-views';
@@ -930,7 +932,7 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=19', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().parseAsync(modelBytes,new URL('./',import.meta.url).href)).scene;
     refinePolluxMaterials(ship,engine);
     ship.traverse(object => {
       if (!object.isMesh) return;
@@ -1188,7 +1190,7 @@ async function start() {
       applyTourPose(tourPosition,tourAim,follow);
     }
     function animateTour() {
-      const elapsed = tourElapsed;
+      const elapsed = tourElapsed + (tourStartedAt === undefined ? 0 : (performance.now()-tourStartedAt)/1000);
       const phase = elapsed < inspectionStart ? 0 :
         inspectionStart+(elapsed-inspectionStart)%(restStart-inspectionStart+tourRest);
       const [exteriorPosition,exteriorAim] = cameraPose('exterior');
@@ -1232,6 +1234,7 @@ async function start() {
       if (failed || (!touring && next === view) || (touring && next === 'tour')) return;
       touring = next === 'tour' && !reduceMotion.matches;
       tourElapsed = 0;
+      tourStartedAt = undefined;
       view = next === 'tour' ? 'exterior' : next;
       screenSelect.hidden = view !== 'helm';
       delete frame.dataset.tourShot;
@@ -1314,9 +1317,9 @@ async function start() {
         if (!paused && lastFrame !== undefined) {
           const delta = Math.min((now-lastFrame)/1000,.08);
           time += delta;
-          if (touring && !cameraMove) tourElapsed += delta;
         }
         animateCamera(now);
+        syncTourClock(now);
         draw();
         lastFrame = now;
       }
@@ -1324,8 +1327,18 @@ async function start() {
       else lastFrame = nextFrame = undefined;
     }
 
+    function syncTourClock(now) {
+      const playing = touring && !paused && !cameraMove && visible && !document.hidden;
+      if (playing && tourStartedAt === undefined) tourStartedAt = now;
+      if (!playing && tourStartedAt !== undefined) {
+        tourElapsed += (now-tourStartedAt)/1000;
+        tourStartedAt = undefined;
+      }
+    }
+
     function sync() {
       if (failed) return;
+      syncTourClock(performance.now());
       toggle.textContent = motionLabel();
       if ((!paused || cameraMove) && visible && !document.hidden) {
         if (renderId === undefined) renderId = requestAnimationFrame(render);
@@ -1366,18 +1379,10 @@ async function start() {
     });
     document.addEventListener('visibilitychange', sync);
     canvas.addEventListener('webglcontextlost', fallback, { once: true });
+    return true;
   } catch (error) {
     console.warn('Northwatch sea scene fell back to its still image.', error);
     fallback();
+    return false;
   }
-}
-
-if ('IntersectionObserver' in window && 'ResizeObserver' in window) {
-  const preload = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) {
-      preload.disconnect();
-      start();
-    }
-  }, { rootMargin: '240px' });
-  preload.observe(frame);
 }
