@@ -635,7 +635,7 @@ for paint in [hull,structure,deck,waterline,glass,white,orange,black,deck_lamp,r
     bpy.context.object.name=paint.name
 
 for name,prefixes in [
-    ('Bridge roof and mast',('Overhanging bridge roof','Lattice mast','Mast cross','Mast diagonal','Radar support','Radar scanner','Whip aerial','Radome','Searchlight')),
+    ('Bridge roof and mast',('Overhanging bridge roof','Lattice mast','Mast cross','Mast diagonal','Radar support','Whip aerial','Radome','Searchlight')),
     ('Bridge glazing and mullions',('Glazing mullion','Wraparound bridge glazing','Bridge glazing wiper')),
 ]:
     parts=[obj for obj in bpy.context.scene.objects if obj.type=='MESH' and obj.name.startswith(prefixes)]
