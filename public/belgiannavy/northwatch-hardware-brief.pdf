@@ -1,113 +1,343 @@
-%PDF-1.4
-%“Œ‹ž ReportLab Generated PDF document (opensource)
+%PDF-1.3
+%âãÏÓ
 1 0 obj
 <<
-/F1 2 0 R /F2 3 0 R /F3 4 0 R /F4 5 0 R
+/PageMode /UseNone
+/Pages 2 0 R
+/Type /Catalog
 >>
 endobj
 2 0 obj
 <<
-/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+/Count 2
+/Kids [ 3 0 R 10 0 R ]
+/Type /Pages
 >>
 endobj
 3 0 obj
 <<
-/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+/Annots [ 4 0 R ]
+/Contents 5 0 R
+/MediaBox [ 0 0 595.2756 841.8898 ]
+/Parent 2 0 R
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
 >>
 endobj
 4 0 obj
 <<
-/BaseFont /Courier /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+/A <<
+/S /URI
+/Type /Action
+/URI (https\072\057\057www\056option\056com\057wp\055content\057uploads\0572026\05703\057Option\055CloudGateNXS\055v5\056pdf)
+>>
+/Border [ 0 0 0 ]
+/Rect [ 40 162.3273 185.52 173.8273 ]
+/Subtype /Link
+/Type /Annot
 >>
 endobj
 5 0 obj
 <<
-/BaseFont /Courier-Bold /Encoding /WinAnsiEncoding /Name /F4 /Subtype /Type1 /Type /Font
+/Length 5820
 >>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.960784 .964706 .941176 rg
+n 0 0 595.2756 841.8898 re f*
+.078431 .105882 .113725 rg
+n 0 695.8898 595.2756 146 re f*
+.721569 .87451 .533333 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 40 798.8898 Tm (NORTHWATCH  /  TECHNICAL BRIEF) Tj T* ET
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 772.8898 Tm (01  /  EDGE COMPUTE) Tj T* ET
+1 1 1 rg
+BT /F2 31 Tf 37.2 TL ET
+BT 1 0 0 1 40 735.8898 Tm (Option CloudGate NXS) Tj T* ET
+1 1 1 rg
+BT /F1 10 Tf 12 TL ET
+BT 1 0 0 1 40 715.8898 Tm (LTE variant  |  CN0124-12273  |  Local processing, logging and helm UI) Tj T* ET
+.835294 .862745 .823529 RG
+n 40 49 m 555.2756 49 l S
+.262745 .313725 .313725 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 32 Tm (NORTHWATCH  /  ENGINEERING REFERENCE) Tj T* ET
+.262745 .313725 .313725 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 522.2756 32 Tm (01 / 02) Tj T* ET
+.078431 .105882 .113725 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 40 668.8898 Tm (Gateway specifications) Tj T* ET
+.913725 .933333 .901961 rg
+n 40 634.8898 515.2756 25 re f*
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 643.8898 Tm (Processor) Tj T* ET
+q
+1 0 0 1 151 641.3898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 3 Tm /F1 9.5 Tf 12.5 TL (NXP i.MX 9332, dual Arm Cortex-A55 at 1.7 GHz. Optional neural processing unit.) Tj T* ET
+Q
+Q
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 618.8898 Tm (Memory / storage) Tj T* ET
+q
+1 0 0 1 151 603.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (2 GB LPDDR4, 4 GB pSLC eMMC and internal microSD slot. Vendor-rated microSD ceiling) Tj T* (is 2 TB and 104 MB/s.) Tj T* ET
+Q
+Q
+.913725 .933333 .901961 rg
+n 40 560.8898 515.2756 37 re f*
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 581.8898 Tm (Ethernet / serial) Tj T* ET
+q
+1 0 0 1 151 566.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (Two configurable 1 GbE RJ45 ports. Front serial expansion supports serial/Modbus. USB) Tj T* (requires the Smart Metering expansion card.) Tj T* ET
+Q
+Q
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 544.8898 Tm (Radio hardware) Tj T* ET
+q
+1 0 0 1 151 529.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (Telit LE910C4-WWXD LTE Cat 4, up to 150 Mb/s down and 50 Mb/s up. Two SMA ports for) Tj T* (cellular and diversity/A-GNSS. Optional WLAN/BLE or LoRaWAN expansion.) Tj T* ET
+Q
+Q
+.913725 .933333 .901961 rg
+n 40 486.8898 515.2756 37 re f*
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 507.8898 Tm (Power input) Tj T* ET
+q
+1 0 0 1 151 492.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (9\22650 V DC via 4-position Micro-Fit 3.0, with ignition/sense input. Optional last-gasp battery) Tj T* (card supports up to one hour of limited functionality.) Tj T* ET
+Q
+Q
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 470.8898 Tm (Trust hardware) Tj T* ET
+q
+1 0 0 1 151 455.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (NXP EdgeLock secure enclave and Infineon TPM 2.0. Verify the selected firmware and) Tj T* (application boot path during integration.) Tj T* ET
+Q
+Q
+.913725 .933333 .901961 rg
+n 40 412.8898 515.2756 37 re f*
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 433.8898 Tm (Enclosure) Tj T* ET
+q
+1 0 0 1 151 418.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (Aluminium, 115 \327 106 \327 45 mm, 330 g. Operating range -25 to +75 \260C. Bulkhead mounting) Tj T* (or DIN rail with adapter.) Tj T* ET
+Q
+Q
+.078431 .105882 .113725 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 40 389.8898 Tm (Northwatch integration and bench acceptance) Tj T* ET
+.913725 .933333 .901961 rg
+n 40 331.3898 515.2756 49.5 re f*
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 364.8898 Tm (Receiver ingest) Tj T* ET
+q
+1 0 0 1 151 337.3898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 28 Tm /F1 9.5 Tf 12.5 TL (Use the P6 receiver as the GNSS source. For USB, validate gateway host mode, driver,) Tj T* (power budget and recovery with the selected expansion card. For serial, match electrical) Tj T* (levels, framing and throughput.) Tj T* ET
+Q
+Q
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 315.3898 Tm (Private helm link) Tj T* ET
+q
+1 0 0 1 151 300.3898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (Serve the local read-only status UI over dedicated Ethernet. Verify the link and its power) Tj T* (arrangements separately. Disable cellular and optional radios for the passive trial.) Tj T* ET
+Q
+Q
+.913725 .933333 .901961 rg
+n 40 244.8898 515.2756 49.5 re f*
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 278.3898 Tm (Logging runtime) Tj T* ET
+q
+1 0 0 1 151 250.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 28 Tm /F1 9.5 Tf 12.5 TL (Log raw receiver output, UTC and monotonic receive times, health and transitions. Measure) Tj T* (log bytes/hour, divide usable storage by measured rate, and allow space for rotation.) Tj T* (Measure total draw and endurance on the complete assembly.) Tj T* ET
+Q
+Q
+.078431 .105882 .113725 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 47 228.8898 Tm (Recovery checks) Tj T* ET
+q
+1 0 0 1 151 213.8898 cm
+q
+.078431 .105882 .113725 rg
+BT 1 0 0 1 0 15.5 Tm /F1 9.5 Tf 12.5 TL (Test cold boot, receiver reconnect, stale input and storage pressure. Record time to first) Tj T* (valid status, time to stale indication and logging coverage.) Tj T* ET
+Q
+Q
+.262745 .313725 .313725 rg
+BT /F2 8 Tf 9.6 TL ET
+BT 1 0 0 1 40 184.8898 Tm (VENDOR REFERENCES) Tj T* ET
+q
+1 0 0 1 40 160.3898 cm
+q
+.160784 .364706 .270588 rg
+.160784 .364706 .270588 RG
+n 0 1.9375 m 145.52 1.9375 l S
+BT 1 0 0 1 0 3 Tm /F1 8.5 Tf 11.5 TL (Option CloudGate NXS LTE datasheet) Tj T* ET
+Q
+Q
+ 
+
+endstream
 endobj
 6 0 obj
 <<
-/A <<
-/S /URI /Type /Action /URI (https://www.gov.uk/government/publications/mgn-719-mf-operating-in-gnss-denied-and-degraded-environments)
->> /Border [ 0 0 0 ] /Rect [ 364.28 256.1898 432.07 268.1898 ] /Subtype /Link /Type /Annot
+/F1 7 0 R
+/F2 8 0 R
+/F3 9 0 R
 >>
 endobj
 7 0 obj
 <<
-/Annots [ 6 0 R ] /Contents 12 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 11 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 
-  /Trans <<
-
->> /Type /Page
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
 >>
 endobj
 8 0 obj
 <<
-/Contents 13 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 11 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
-
->> 
-  /Type /Page
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
 >>
 endobj
 9 0 obj
 <<
-/PageMode /UseNone /Pages 11 0 R /Type /Catalog
+/BaseFont /Symbol
+/Name /F3
+/Subtype /Type1
+/Type /Font
 >>
 endobj
 10 0 obj
 <<
-/Author (Northwatch) /CreationDate (D:20261110154201+01'00') /Creator (anonymous) /Keywords () /ModDate (D:20261110154201+01'00') /Producer (ReportLab PDF Library - \(opensource\)) 
-  /Subject (unspecified) /Title (Northwatch | GNSS integrity technical brief) /Trapped /False
+/Annots [ 11 0 R 12 0 R ]
+/Contents 13 0 R
+/MediaBox [ 0 0 595.2756 841.8898 ]
+/Parent 2 0 R
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
 >>
 endobj
 11 0 obj
 <<
-/Count 2 /Kids [ 7 0 R 8 0 R ] /Type /Pages
+/A <<
+/S /URI
+/Type /Action
+/URI (https\072\057\057www\056septentrio\056com\057en\057products\057gnss\055receivers\057gnss\055receiver\055modules\057mosaic\055G5\055P6)
+>>
+/Border [ 0 0 0 ]
+/Rect [ 40 149.8273 218.568 161.3273 ]
+/Subtype /Link
+/Type /Annot
 >>
 endobj
 12 0 obj
 <<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 2046
+/A <<
+/S /URI
+/Type /Action
+/URI (https\072\057\057www\056septentrio\056com\057en\057products\057gnss\055receivers\057gnss\055receiver\055modules\057mosaic\055go\055g5\055p6\055evaluation\055kit)
 >>
-stream
-Gau0DhfI7+&:X(TZ&aSf`g6!O^3d?rS[@G^![NNGc1%I]8g:JkT-^u-^V?$Js(Fu0b4Gs6l:ANjm=+s"DEVt/jdGkM!-j^ClO+4c!m(YZ^^2-/#P7#pM'm0t%0/VFaIV7%&A%BGlKq/WKYock8/+g,)L0PLWg=Q=?Cj.EPk^p_NorhZMOu.(;#N[6R^dNb0CQ<3&b3_0%*g[:64]U5fDhqF5D<bh>"KgWU_S1-8ol]g`7#MIGh1h_pq:n@!?Mlm'<<r=i,nd'Q+Xf!-0K2R5k5AIQ\YOC079.%26eqtY%?nl>!=Q9!g^/GZZl7oEB-Z-+-nTbY<T4&bObO8h45>@3tq"A-k:Q/Y(s#^1(Y=CYH]p7fL->]qUnj872"KVJ%8gf@BiMgQ`ERGci'=Hn6N0C5B:gE2i54Sh*OH5\,%"7YB0Eh5hj%$6a>P\bI#'=nN2":@QedkJZESFWbje&MH]CbWChBM,uB\\Q5Rq9ae5Yf&o(bs=@A-A'pXs>0XtOhZ5cigC$rc'+e2G-B2X47ge\*bi>F.E#,hnf3Sd:unQ2;Z`S+Oedd2]];0+(DI^NZnmEe2r.:^u>\oHYH=qnX)RKZh#Z-a(%oqbWEg?8a'V@>!e>DAl[1[s3JI,4="i5UfO/,n!H8%dK2&>l_W[o[*tO#DL7PP@3*o3uXB.h!EdnLQJ:rksYS9A\&\-&BZl)q%4FCBp5t7g32YOr!p80%sS!I2:l1ie+^03MT*6YEQXR.=f^PHI6^NEAJR.rIZ9a]^T&7]\64o!7g&7TR2b^EVhF^M#Y+7(gtr(d9B6:i3DM0aE@EY-2,EblUFo+<@ic@2MK/!*X#79['N?ZP03`u(StU6L=M"_FFn+@>LSN3VYYEfddMqU3\o'UW>$/F"#JU!+!sD-a=@FHVQ<qG2'nu9-]rC?X,><0>h;g],P9=2Qu[d%Gi2btV'\(8PA>/jIRP#]'uRLYBsShi5hg?'AP[B%9/D,U<sf,"(_trpgP@t.4b<\d+o_W]=q2QA6`c4(1P$_F.JX\(EtF>2)PnrW:)h;tJ?KpBH#>ujoQDN+\%l+614tH6XBBe-S1:\1N1G)(kj#;Gb*7e0an[16E.'*]5&>UT[1;O'')CC8O-oUA`j2Q]8D4o&#,_N@`(MY>I1^;=h?Ye^"HS!a>eCk!a"iNd7W0^$Fe4Qo,D`UV4Iaf#/M++bTXk:U3-H0AhpEY77<3PUeh;I21K4&\!'?J_ORr%TQHR3`3?IVO2*@iUQ5,E:\#m3p"-qSmfGWZJbi%s0i1[Kh"Ys?OHi>E1/`g*5TA&CL(B5B<V*M@T61b&jQc`.ABY]I_$@WM&A+A]'>7)X-<17!Lm+@ac*ld+2aKZr>ZZdnA%Bg.S6DWoWAn3J#A1,>(2Xm-;:(>@qD'P"59Nfrrm$QUYj3KZSc:eb"di#FN=VTo+(;];,`!Jc?*OLDehlPKaE`i&Vi*b(t[u7,c)_@H@G0q>5\E<*Qk2jP6a1/^eZ+`:.O6t:bn-IJkpD.1upe13j-gD4R*Z;]uhUoao4?=r9Y+j9XeH=88pA'K\3hY',?@_DQN_`NGY#^b&'Q=:4'3?8`#Gf'gIb8rd>B=en`I-39WCe:'BQc(aQqJ??D*><P?Yf=C;g[XUednl$>E3-iJQ2A9mW`;(--7W?,9Q&p\D=EqD`h2]mj]\#`&!LLW=P1qK=tEi.,)-heVDOokJ7!#/Li<j?Vfdt`&hC^IXUaA27'npkW++U]!1OZ06(G3^R>+I^F@U#"4q>nbWII8GMn@ZSM8UONk>%^c44>1cr;kZ+2kS2L.rfa%Oioqol3oZ06J98gMu!T!S3'2".;6GJ.]9^VG1\Zd<=mqG,jc[48"@N3a5mc</pNUE2=Tn3JegCNe8p..b63^I=eC7L0\$2&^ZqX1"kW&E1a=e&D7kiD1bc34.7+P*MTGN4NmID&r-0$\`%XFc?at(KD1^*LqMC.*O4qE"%G8r:de[s$eo_q=I-*2UPQ1i,oPFIpU;Pq%3K6Kp#=.7P1=%8%[-Y`gZ@E7Is\M*bV'/Y_o[C1P6Wr~>endstream
+/Border [ 0 0 0 ]
+/Rect [ 40 135.8273 252.1175 147.3273 ]
+/Subtype /Link
+/Type /Annot
+>>
 endobj
 13 0 obj
 <<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 2094
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 2257
 >>
 stream
-Gatm<>C2f2'Re<2fT/&k;Sl.j7r(ia3N[#GUbCnBKSe+W6XbfDhk)cY!bmn;T%'q^R$g*af%QGo(7Fr"qE%6(4tPpgas,$+`B@A,iR6^AN>H5^h`&6"9DEWmZ]AJ&BDM_Q=(eL=h",lImIg<4E%PQR:d^c@hjkYI^ik#6)4'Am.=Q-kL&'OkYA[IJS+Y?]V.X#G^/)baF*eZ?4\,IO(-2Qg#/+cJ6[!sojLCQQ?oH](3gbo?FpGp5CPMpKnbdiIFHOrGoObQ,oR44dIJSj;5A9S)2uiHkTn+uZ)u[ZT#%hB,lP(j_3kQD\<o9,,iF6g`V;ZfN3u^pbj/9>$/%/s['c`h62RZ9uVG+V0U]XrjWCss;&e7'K<M=+'^R:]f(ZXi7cH5<@>0J>2cbBQiP@H)Sc2doQ[I7=ZeaI9#Bu=Xf7WCsM%8$+W[OhD?CG0gSZj$g@\rULS_/&;;FQAljj=7piDc0?)PbAXK-"SX&V:qN;P,Bb@+P+,L4e9n270/GjH*2l/M;'Qs0Yrr!%mqD<EKQ#=f;E#0>>`0]&,1i>+3QOf;_BMZdKbp:'.HQHrbEQ&'LkM,Z`VV9rAT+q+Q,<;lOZngA,.V6r$ljGgB5@JV#laoB0WG8)bt/i;Ug+TAb8UL2#PqI54[a\%R&EW4/+C/Br4)I4s"KkpA*;[h'^B%iF[6!c:i,3G>nnr3[0!iW[n5S7K,h');%UD;6[1:qo3u3c%QjPRrJd'H6993SB4<t7m4YU_+"C2@.2bJbMd^67K?<GT9sME@(&_<B<\^9QCr\MKufTC^ZRUQ"0U';-&]j&MqTg0"cMKR.LK%)ZG;V3H'X:2;Ri^ebt;-:bP<1)U\jFBK)m`dYSFpGJ1Y8+YpbLPfUC:Vqu\,2!e^SF:r<H;ZZtXK$i'6KoP*5$]fu\^3A9E@"^.O(CtMcMW@C5_Z<_&*A-uIUS`UT;b<&2C9tD#i&*Z8i`EI8ELe!G6!Ko:<E[-[KQ^2>`?.^opb6hbZ?eb"D+lC\f&MSXMe#Z5?+(Gl_mO(GER>VMfT\G;h[fp\BBX<>oX]^sBgTWG1S'Am+k6Cn&Gt'e%,>kCsWgq'`^pTn"8eF,:<[t6])Q>jCPNG^,C;UUUC**R`0$C?Q!$S7VYX"L.;8Q:6N&V<ikZanOB<bW/kt8RQo+toq`!0rQa225]l"O$.=]bYPAEiJjUqK>fMQ2t36'J&\%@Lb6b<;XZ/pRmN$Ql-1j:SR>--5n:&sbcO]J+"G,j'^3<C**FY+ns?>>5Y,/;5j;7JrJZ[5nq8gJp3J<Fj#Q>Nt&?rr`*pf5p.G]+U3s%mfI-m/"qFHaIM[\"m_DeW#sY9j;CmlKeDAfcDm@m;L>*3Kh>E]tU&L:E&orL>G9CrE2L3Tm[HSI'UZ*7\g!I%J7ks$VsY%:>HZbIoft?Z6-<&^E<^:E`4Q:T`>bO$M;52$/hE/J@d'4.gdOWAPD9,pPBn0_=2'=+!n#=P#k>BM<,LfT/+s_71!CnQ71BX%ihS]@Yrt2W$PBi1_X0_T9XRLU);mmX$0abF(uBW!-Z):GcZ3NP`:!@;<$RML"]Uh?>g&<6>cXQ--<l$'U]O,lD!2SKA,DVp&[J_E>bdg/$qmub4IOc*^W(_K>(;NW=+$3Z[,lU8:cUC.LOD_O2/87W"rr,cZ+'8@SmJF(d4[(P6-W4dd(B'F9U,ZaDBb>PfhIt"_%JC468c;k'-c&qfWc%D(J](QRR8l;61e<R^p_#D50O77253:5+Ip9=s=\>CIE<_#_HAI2sSH*#\jT8GN"JBjh2PGP;M><a&aaaRXVrH*9hj$:kB^4(1iVZ8W@0.\.W_(AYSjf:^IFX:gjF%>87fR<o[:+/9?YmQ!e#[R4HBG8lnESg*]fk6h.tBN?]ToP,M2?p5,_E2tjgK\(9-/^>9CcIb>Xhf;C&-CLFhNEP1EKb&EVe-&;Yp8R8ge3p4Ic`/nA"%aiNm5=PW:K6E;g9-NAC.Gj6XKj2gAKjmsmTI#"2FL@d>8p*)X&X=`kRf;9VrpCmo^D:oKH9H2%?A73.DooTIk:$`3qtiXiUp%]3Hu_0K?B<KC4Sgn*N:>GSfjoK\nsRf&""7)^G5~>endstream
+Gau0DgNK&U'Rf^WS4C&R&]7n8Z7K?`A_E3qFKM^[N*mo*$OgSN3R67NbQ%^BQ;]/'Zk<WQkI1-<B7PMl5@XVO1P!X`%'KsK#?DcdT&me'#1M+j2%&\(nc4_WBEreS#RLS][qE6sfH9pT'D__t*jMGQ'LBiKoCJBH+*.`j`:ftI_'<qea)<%.n1h9Gn3$5mp<h51IP:gR$9]I_poaUkT/9D+5_t9F[@AR9]M=oK4<).7<81_jE'AbRXDWM0Y9p^Y6\*^/E]_%*N+[+?\=6h)"KT:Fos;)XalBRG1,;%0.sg#Ak]B")a4S+o0:-XkGaP[B3kp!YZtnZF_di5KIV4#L$H7$cEWMSiPfFS!5!0$>XlHs/,!TP+oP?0_bkRcpBK<%i"uK+Z-X-Vk&$S2k/#p,#iGYlFDQV"QSImV%$66tjO,gpSM]2d94aA9n_"SdinUDu=cRbtsm+,udO'QTH*W3tc?B*fa?GgkG^U]h0Vi/1_%4nC.e&?DmRJ%m(%]@&$e-Rt7&aCOl:>bnfUAmHh#!qkg,T7%A366]jI)BFrJaE7S2;*rRp97"E)$QgR0Q#BT)![:h"#p.(DuL:<LCe]J(\)puS`(CWpue`,J7&lm:6T1XiLRIVPCk]#i4eoY=Zt32Rb%<pKCdd@\>?<&'`N3F&4h>gQ":%_csUY*oEBL`o]g!oF!RPamb=rd^_9d2phb;%0c@?TSGtKRX9S1h\28^eY<\sO=hQp^i:";DBa7p,DhV0+F2c92NL;n4;L_)0>Z+69$YR@/hsOlT0U=u@p,lph:eq.)+'5sE(IUSiJ.geVrH]mX]<TF9Hs;kXNJOf%8eraN<9fR\\LsPrR45#3']/^_*PXpThhuptV/b@6&/ZRWI%/UWNV`P/M<fYDKpe(^bSe_(!Sl%dVbFmj%&Z;.^['i8^rs'>q070ekecEGIQW-R`ihc6QXk@*$npFs^`WR>(Akue>+!e;h#q>=c03@@o$hdTh;2sQ>U)RuVjuj'4'kSnT"(0J]DGsnZ"+`U1>%DgBdm*J3)DVUY!gD'D*@O$i`i/kN=,SPZOCa^AKeu]YMsiUC@Ip%SQKeI<>DBfbMom$(bCVmD7YGk@6)(EK<0qsPj]s5(H@`XK(tq_pGCCo7_LCiUQF9pA_j%M!V:8D\aKaHM2l>3&JS]LqL"$l#m(KQ_+0e=#i?->qCHYUdihas+W)XZ<kj4u*NVBB@b<ZVEARJ"T(l+rR/qgXi%hct^0r$i\K*?<0L9[4dQ'*1Cn)gi*8FS?Jsc"$>b,kc%!fsU'=F%e"a-e%5%A,CSl7fKhO"`nq3H#I*1[TT9eP#.'Kp,klmS%m2J!]3(R5/*'hr%?Jt`s+NWB7M@gcPF9cY_82lU*L(esXJO]E)%Y2UHErhW07NXX0q09Gf*F93D[!f^UtSF,TWh$d3>j1R=8/EJm=5?)"Cb99Wo<tFZih%S<F8;.*g9hY_jO=2obALQE?q![rnl<K\R3$E5CY7#fu;O0%;4s))=M_?c^P^nhIOpP-uHcYk,,/LA7f+TJWh6OV@GZBt76=4>#)L$VsYkcX.Z=$!,/]YB`dfFae>i7fCjk9^]'*U3Rct#aGo!KLLV`ZguQl"5G&V!YM$gnmtg,=p*d_'@FR[Br*MD;d\BpCDI7^Z`VFCVSmS8)11N:\(1pD*Ib&tMdnW)gqB_MQ!<hB'^T\J%auh"8dIcE^fjJVF2'+_C7oBdPKjBN&a&)Q7;A&eZf3c;/#?L%WIP7$ONMM],m>s.>1<VU%+RX?]A(]1qp,_4i93hS<E]9TNA97_A&i9Fm@O(Mh.84mQWQf&L+pW\iI:T%/p'Qq42)k4SZ/g$Q:6E-=</Dg)0WGkVF%mV)oLgBXTD34`h0k>IPj"3;uFNOi!)5qR=h<3Tt$+8,a+@_:/_*Xce+Ce&_e12(FLD95V9&Ep#4e,<oAVpAJd[S>F&A<8p8+QH@\VqqL2Qj;[<;j$X<,99P8L^rYYm(48%S>M%Qa2,%&2h:M^]:@@sOqh'k$eZnD8:6soD2ke8NAtA\-9-JD?=C##l!!Wep0ohhf<r!:^^OVqW>tR)4#o2\)QAu:p\DD@[DY6Pi9MlG1,ZjjYB&/gp=R;]U'Bm5VUMn3o"%5jr!s@rpU,g1:5?a-l29gTd=!*?^']UDb'P:kV"t#S2W$`i:kPK03-NJm!(/gr#bg*kO>+!<+DNRncX8D6FB]0K#"-grlKb)Ag<Ug1^C9AT]hHOj:RdN"4<ju):QX%f09'nJ#A=&<A:<-'~>
+endstream
+endobj
+14 0 obj
+<<
+/Author (Northwatch)
+/CreationDate (D\07220261111121643\05301\04700\047)
+/Creator (anonymous)
+/Keywords ()
+/ModDate (D\07220261111121643\05301\04700\047)
+/Producer (ReportLab PDF Library \055 \050opensource\051)
+/Subject (unspecified)
+/Title (Northwatch \174 Hardware technical brief)
+/Trapped /False
+>>
 endobj
 xref
-0 14
+0 15
 0000000000 65535 f 
-0000000061 00000 n 
-0000000122 00000 n 
-0000000229 00000 n 
-0000000341 00000 n 
-0000000446 00000 n 
-0000000556 00000 n 
-0000000808 00000 n 
-0000001031 00000 n 
-0000001236 00000 n 
-0000001305 00000 n 
-0000001603 00000 n 
-0000001669 00000 n 
-0000003807 00000 n 
+0000000015 00000 n 
+0000000083 00000 n 
+0000000149 00000 n 
+0000000366 00000 n 
+0000000628 00000 n 
+0000006500 00000 n 
+0000006551 00000 n 
+0000006658 00000 n 
+0000006770 00000 n 
+0000006847 00000 n 
+0000007074 00000 n 
+0000007353 00000 n 
+0000007660 00000 n 
+0000010010 00000 n 
 trailer
 <<
-/ID 
-[<7093cbb2c5728bec4ea4b01ff7ccfc8f><7093cbb2c5728bec4ea4b01ff7ccfc8f>]
-% ReportLab generated PDF document -- digest (opensource)
-
-/Info 10 0 R
-/Root 9 0 R
-/Size 14
+/Size 15
+/Root 1 0 R
+/Info 14 0 R
+/ID [ <4d7e18661000622c2002b55d085ded4f> <4d7e18661000622c2002b55d085ded4f> ]
 >>
 startxref
-5993
+10333
 %%EOF
