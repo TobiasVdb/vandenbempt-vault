@@ -261,10 +261,20 @@ function refinePolluxMaterials(vessel, engine) {
               p = fract(p * .1031);
               p += dot(p, p.yzx + 33.33);
               return fract((p.x+p.y)*p.z);
+            }
+            float paintNoise(vec3 p) {
+              vec3 cell = floor(p), blend = fract(p);
+              blend = blend*blend*(3.-2.*blend);
+              return mix(
+                mix(mix(paintHash(cell),paintHash(cell+vec3(1,0,0)),blend.x),
+                    mix(paintHash(cell+vec3(0,1,0)),paintHash(cell+vec3(1,1,0)),blend.x),blend.y),
+                mix(mix(paintHash(cell+vec3(0,0,1)),paintHash(cell+vec3(1,0,1)),blend.x),
+                    mix(paintHash(cell+vec3(0,1,1)),paintHash(cell+vec3(1,1,1)),blend.x),blend.y),blend.z);
             }`)
           .replace('#include <color_fragment>', `#include <color_fragment>
-            vec3 paintGrid = vPaintPosition * 14.;
-            float paintGrain = (paintHash(floor(paintGrid))-.5)
+            // Fine, continuous paint grain avoids visible square cells in close-ups.
+            vec3 paintGrid = vPaintPosition * 90.;
+            float paintGrain = (paintNoise(paintGrid)-.5)*.4
               * (1.-smoothstep(.35,1.35,length(fwidth(paintGrid))));
             float plateCoordinate = vPaintPosition.z / 4.6 + .22;
             float plateDistance = abs(fract(plateCoordinate+.5)-.5);
@@ -278,7 +288,7 @@ function refinePolluxMaterials(vessel, engine) {
             float scuff = sin(vPaintPosition.x*2.8+vPaintPosition.z*.65) * .01;
             diffuseColor.rgb *= 1. + paintGrain*${finish.grain.toFixed(3)} - (plateJoint + weld*.45)*${finish.seams.toFixed(3)} + paintVariation + scuff;`)
           .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-            roughnessFactor = clamp(roughnessFactor + paintGrain*.18 + paintVariation*3.,.16,.95);`);
+            roughnessFactor = clamp(roughnessFactor + paintGrain*.06 + paintVariation*3.,.16,.95);`);
         if (material.name === 'Non-slip deck') {
           shader.uniforms.deckLighting = { value: deckTextures.lighting };
           shader.fragmentShader = 'uniform sampler2D deckLighting;\n' + shader.fragmentShader
@@ -297,7 +307,7 @@ function refinePolluxMaterials(vessel, engine) {
               roughnessFactor = min(.98,sqrt(max(.34*.34,roughnessFactor*roughnessFactor)+normalVariance*.5));`);
         }
       };
-      material.customProgramCacheKey = () => material.name + ':pollux-paint-v4';
+      material.customProgramCacheKey = () => material.name + ':pollux-paint-v5';
       material.needsUpdate = true;
     }
   });
