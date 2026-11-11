@@ -790,9 +790,9 @@ function addTourHardware(ship, engine) {
     const map = screenLoader.load(image.src);
     map.colorSpace = SRGBColorSpace;
     map.anisotropy = 4;
-    artworks[state] = map;
+    artworks[state] = { map, aspect: Number(image.getAttribute('width')) / Number(image.getAttribute('height')) };
   }
-  const screenMaterial = new MeshBasicMaterial({map:artworks.status,toneMapped:false});
+  const screenMaterial = new MeshBasicMaterial({map:artworks.status.map,toneMapped:false});
   const screen = new Mesh(new PlaneGeometry(.39,.219375),screenMaterial);
   screen.position.set(0,0,.0235);
   display.add(screen);
@@ -801,7 +801,8 @@ function addTourHardware(ship, engine) {
     if (state === previous) return;
     previous = state;
     frame.dataset.helmDisplay = state;
-    screenMaterial.map = artworks[state];
+    screenMaterial.map = artworks[state].map;
+    screen.scale.x = Math.min(1,artworks[state].aspect / (16 / 9));
   }
   updateScreen('status');
 
@@ -1029,37 +1030,34 @@ async function start() {
     const deckPosition = hardware.deviceCenter.clone().add(new Vector3(3.5,2,-1.6));
     const [flightExterior,flightExteriorAim] = cameraPose('exterior');
     const inspectionPositions = [flightExterior,new Vector3(25,11,-36),
-      new Vector3(11,8,-26),deckPosition,
-      hardware.deviceCenter.clone().add(new Vector3(2.8,1.8,-1.25))];
+      new Vector3(11,8,-26),deckPosition];
     const deckKnot = 3;
-    const focusDrops = [1.5,1.5,1.5,1.5,1.5];
-    // Increasing this angle is clockwise when viewed from above (+Z is aft).
-    // Finish west of the device, with its eastbound cable directly beyond it.
-    for (const angle of [-25,35,95,155,191]) {
+    const focusDrops = [1.5,1.5,1.5,1.5];
+    // Evenly spaced points keep the clockwise sweep circular. Leave the
+    // circle heading across the deck, towards the cable run.
+    const orbitStart = inspectionPositions.length;
+    for (let angle = 25; angle <= 265; angle += 15) {
       const radians = angle*Math.PI/180;
       inspectionPositions.push(hardware.deviceCenter.clone().add(
         new Vector3(Math.cos(radians)*2.4,1.55,Math.sin(radians)*2.4)));
       focusDrops.push(1.45);
     }
     const orbitEnd = inspectionPositions.length-1;
-    inspectionPositions.push(
-      hardware.deviceCenter.clone().add(new Vector3(-1.6,1.65,-.6)),
-      hardware.deviceCenter.clone().add(new Vector3(-.25,1.65,0)));
-    focusDrops.push(1.5,1.5);
+    // Frame the cable corridor from above. Camera waypoints are independent
+    // of the bends in the physical cable and its mounting clips.
     const cableShots = [
-      [.015,[0,1.8,0]],[.055,[-.1,1.8,0]],
-      [.08,[-.2,1.8,0]],[.16,[-.2,1.8,0]],
-      [.27,[-.25,3.8,0]],[.38,[-.25,4.8,0]],
-      [.50,[-.25,5.7,0]],[.58,[-.25,5.9,0]],
-      [.62,[-.2,5.9,.1]],[.66,[.7,5.3,.55]],
-      [.74,[.25,2.25,1.2],.5],
-      [.78,[0,1.95,.6],.9],[.84,[-.45,2.1,1],1.1],
+      [2.1,5.8,-20.8,1.5],
+      [3.85,7.1,-12,2.7],
+      [4.2,9.15,2,4.2],
+      [4.25,9.55,7.2,2.4],
+      [3.5,9.55,8.55,1.1],
+      [3.1,9.3,5.1,1.1],
     ];
-    const revealStart = inspectionPositions.length+cableShots.findIndex(([progress]) => progress === .62);
-    const revealEnd = inspectionPositions.length+cableShots.findIndex(([progress]) => progress === .74);
-    for (const [progress,offset,focusDrop] of cableShots) {
-      inspectionPositions.push(hardware.route.getPointAt(progress).add(new Vector3(...offset)));
-      focusDrops.push(focusDrop ?? offset[1]-.15);
+    const revealStart = inspectionPositions.length+3;
+    const revealEnd = inspectionPositions.length+4;
+    for (const [x,y,z,drop] of cableShots) {
+      inspectionPositions.push(new Vector3(x,y,z));
+      focusDrops.push(drop);
     }
     // Pass through the wide helm framing on the way to the display.
     inspectionPositions.push(helmPosition,chartPosition);
@@ -1077,7 +1075,7 @@ async function start() {
       const sample = parameter*inspectionCamera.arcLengthDivisions;
       const index = Math.min(cameraArcLengths.length-2,Math.floor(sample));
       const distance = cameraArcLengths[index]+(cameraArcLengths[index+1]-cameraArcLengths[index])*(sample-index);
-      const ahead = inspectionCamera.getUtoTmapping(Math.min(1,(distance+3.5)/inspectionLength));
+      const ahead = inspectionCamera.getUtoTmapping(Math.min(1,(distance+6)/inspectionLength));
       inspectionCamera.getPoint(ahead,target);
       const aheadKnot = ahead*lastInspectionKnot;
       const dropIndex = Math.min(focusDrops.length-2,Math.floor(aheadKnot));
@@ -1107,6 +1105,11 @@ async function start() {
       });
     }
     for (let i = 1; i < flightSamples; i++) {
+      const knot = inspectionCamera.getUtoTmapping(i/flightSamples)*lastInspectionKnot;
+      if (knot >= orbitStart && knot <= orbitEnd) {
+        flightTiming[i].speed = 2.65;
+        continue;
+      }
       const before = flightTiming[i-1], after = flightTiming[i+1];
       const curvature = Math.acos(Math.min(1,before.tangent.dot(after.tangent)))/(2*flightStep);
       const turnRate = Math.acos(Math.min(1,before.direction.dot(after.direction)))/(2*flightStep);
