@@ -64,7 +64,9 @@ def box(name, position, dimensions, mat, bevel=0):
         obj.modifiers.new('Weighted normals', 'WEIGHTED_NORMAL')
     return obj
 
-def rod(name, start, end, radius, mat, segments=8):
+def rod(name, start, end, radius, mat, segments=None):
+    if segments is None:
+        segments = 32 if radius >= .10 else 20 if radius >= .035 else 12
     delta = Vector(end) - Vector(start)
     bpy.ops.mesh.primitive_cylinder_add(vertices=segments, radius=radius, depth=delta.length,
                                        location=(Vector(start) + Vector(end))/2)
@@ -228,7 +230,7 @@ for side in (-1,1):
         box('Door latch',(side*3.56,y-.20,4.42),(.05,.10,.06),black)
     for y in (-9.6,-5.4,0,6.7,10.8):
         w,z=interpolated_top(y)
-        rod('Round hull port',(side*(w-.12),y,2.48),(side*(w+.015),y,2.48),.17,black)
+        rod('Round hull port',(side*(w-.12),y,2.48),(side*(w+.015),y,2.48),.17,black,48)
     for y in (-8.8,-1.7,6.9):
         box('Lifebuoy wall bracket',(side*3.56,y,4.39),(.075,.12,.13),structure,.015)
         bpy.ops.mesh.primitive_torus_add(major_segments=48,minor_segments=12,location=(side*3.60,y,4.11),
@@ -478,8 +480,10 @@ def console_station(x,y,yaw,width,displays):
     part('Guarded alarm base',width*.38,-.35,8.011,(.106,.084,.025),black,.008)
     part('Amber acknowledge key',width*.38,-.35,8.03,(.048,.044,.017),orange,.005)
     part('Trackball bezel',.34,-.33,8.009,(.19,.16,.032),black,.019)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=10,ring_count=6,radius=.052,location=pos(.34,-.33,8.041))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=16,radius=.052,location=pos(.34,-.33,8.041))
     bpy.context.object.name='Trackball'
+    for polygon in bpy.context.object.data.polygons:
+        polygon.use_smooth = True
     bpy.context.object.data.materials.append(rubber)
     for lever in (.04,.19):
         part('Control lever',lever,-.40,8.055,(.035,.04,.112),black,.011,.18)
@@ -507,9 +511,11 @@ for x,y in [(-1.65,1.79),(1.64,1.73)]:
         box('Seat armrest',(x+side*.33,y-.015,7.94),(.105,.47,.09),rubber,.035)
 
 # Steering and propulsion controls at the central conning position.
-bpy.ops.mesh.primitive_torus_add(major_segments=20,minor_segments=8,location=(0,3.34,8.04),
+bpy.ops.mesh.primitive_torus_add(major_segments=40,minor_segments=12,location=(0,3.34,8.04),
     rotation=(math.pi/2,0,0),major_radius=.145,minor_radius=.023)
 bpy.context.object.name='Steering wheel rim'
+for polygon in bpy.context.object.data.polygons:
+    polygon.use_smooth = True
 bpy.context.object.data.materials.append(rubber)
 rod('Steering wheel hub',(0,3.30,8.04),(0,3.56,8.04),.058,helm_dark)
 for angle in (0,math.tau/3,math.tau*2/3):
@@ -570,18 +576,20 @@ _,winch_z=interpolated_top(15.7)
 box('Windlass bed',(-.65,15.7,winch_z+.09),(1.9,1.15,.16),structure,.05)
 for x in (-1.38,.08):
     box('Windlass bearing pedestal',(x,15.7,winch_z+.47),(.20,.72,.70),structure,.055)
-    rod('Windlass drum flange',(x-.055,15.7,winch_z+.77),(x+.055,15.7,winch_z+.77),.43,structure,24)
+    rod('Windlass drum flange',(x-.055,15.7,winch_z+.77),(x+.055,15.7,winch_z+.77),.43,structure,48)
     for angle in range(0,360,60):
         a=math.radians(angle)
         y=15.7+math.sin(a)*.33
         z=winch_z+.77+math.cos(a)*.33
         rod('Windlass flange bolt',(x+.06,y,z),(x+.085,y,z),.028,waterline)
-rod('Windlass core',(-1.32,15.7,winch_z+.77),(.02,15.7,winch_z+.77),.29,waterline,24)
+rod('Windlass core',(-1.32,15.7,winch_z+.77),(.02,15.7,winch_z+.77),.29,waterline,40)
 for i in range(27):
     x=-1.27+i*.047
-    bpy.ops.mesh.primitive_torus_add(major_segments=16,minor_segments=4,
+    bpy.ops.mesh.primitive_torus_add(major_segments=32,minor_segments=8,
         location=(x,15.7,winch_z+.77),rotation=(0,math.pi/2,0),major_radius=.30,minor_radius=.025)
     bpy.context.object.name='Wound mooring line'
+    for polygon in bpy.context.object.data.polygons:
+        polygon.use_smooth = True
     bpy.context.object.data.materials.append(rope)
 for y in (15.13,16.27):
     for x in (-1.47,.17):
@@ -626,9 +634,11 @@ for side in (-1,1):
     for y in (13.9,17.5,21.4):
         w,z=interpolated_top(y)
         x=side*(w-.74)
-        bpy.ops.mesh.primitive_torus_add(major_segments=12,minor_segments=4,
+        bpy.ops.mesh.primitive_torus_add(major_segments=28,minor_segments=10,
             location=(x,y,z+.031),major_radius=.065,minor_radius=.016)
         bpy.context.object.name='Flush deck tie down'
+        for polygon in bpy.context.object.data.polygons:
+            polygon.use_smooth = True
         bpy.context.object.data.materials.append(structure)
 for x in (-.50,.50):
     rod('Winch flange',(x-.055,15.1,4.05),(x+.055,15.1,4.05),.33,structure)

@@ -929,7 +929,7 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=18', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=19', import.meta.url).href)).scene;
     refinePolluxMaterials(ship,engine);
     ship.traverse(object => {
       if (!object.isMesh) return;
