@@ -630,7 +630,7 @@ function addNavigationLights(ship, { BoxGeometry, Mesh, MeshBasicMaterial, MeshS
 }
 
 function addTourHardware(ship, engine) {
-  const { BoxGeometry, CanvasTexture, CatmullRomCurve3, Mesh, MeshBasicMaterial,
+  const { BoxGeometry, TextureLoader, CatmullRomCurve3, Mesh, MeshBasicMaterial,
     MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3,
     InstancedMesh, Matrix4 } = engine;
   const enclosure = new MeshStandardMaterial({ color: 0x141b1d, roughness: .62 });
@@ -754,131 +754,30 @@ function addTourHardware(ship, engine) {
   const display = box([.425,.24,.0425],displayCenter.toArray(),enclosure);
   display.rotation.x = -.12;
   box([.085,.12,.075],[displayCenter.x,8.055,displayCenter.z-.02],enclosure);
-  const pixels = document.createElement('canvas');
-  pixels.width = 1536;
-  pixels.height = 864;
-  const ctx = pixels.getContext('2d');
-  ctx.scale(3,3);
-  const texture = new CanvasTexture(pixels);
-  texture.colorSpace = SRGBColorSpace;
-  texture.anisotropy = 4;
-  const screen = new Mesh(new PlaneGeometry(.39,.20),new MeshBasicMaterial({map:texture,toneMapped:false}));
+  // Use the exact image assets shown by the landing-page panels.
+  const screenLoader = new TextureLoader();
+  const artworks = {};
+  for (const [state,selector] of Object.entries({
+    status: '#bridge-status [data-tone="verified"] .bridge-artwork',
+    track: '#bridge-status .status-track .bridge-artwork',
+  })) {
+    const image = document.querySelector(selector);
+    const map = screenLoader.load(image.src);
+    map.colorSpace = SRGBColorSpace;
+    map.anisotropy = 4;
+    artworks[state] = map;
+  }
+  const screenMaterial = new MeshBasicMaterial({map:artworks.status,toneMapped:false});
+  const screen = new Mesh(new PlaneGeometry(.39,.219375),screenMaterial);
   screen.position.set(0,0,.0235);
   display.add(screen);
-
-  // Read the same status copy and colors used by the page's bridge display.
-  const readStatus = panel => ({
-    color: getComputedStyle(panel).getPropertyValue('--state-color').trim(),
-    heading: panel.querySelector('h3').innerHTML.split(/<br\s*\/?\s*>/i),
-    icon: panel.querySelector('.status-icon').textContent.trim(),
-    detail: panel.querySelector('p').textContent.trim(),
-    response: panel.querySelector('.status-mode strong').textContent.trim(),
-    chart: panel.querySelector('.track-chart'),
-  });
-  const statuses = {
-    status: readStatus(document.querySelector('#bridge-status [data-tone="verified"]')),
-    track: readStatus(document.querySelector('#bridge-status .status-track')),
-  };
   let previous;
   function updateScreen(state) {
     if (state === previous) return;
     previous = state;
     frame.dataset.helmDisplay = state;
-    const {color,heading,icon,detail,response,chart} = statuses[state];
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0,0,512,288);
-    ctx.fillStyle = '#151c1d';
-    ctx.font = 'bold 21px monospace';
-    ctx.fillText('NORTHWATCH',22,32);
-    ctx.fillRect(22,44,468,2);
-    ctx.fillStyle = color;
-    ctx.fillRect(432,12,58,25);
-    if (chart) {
-      ctx.fillStyle = '#151c1d';
-      ctx.fillText('PNT',441,32);
-      ctx.font = '800 29px "Hanken Grotesk", sans-serif';
-      ctx.fillText(heading.join(' '),22,76,420);
-      ctx.fillStyle = color;
-      ctx.fillRect(460,56,30,30);
-      ctx.fillStyle = '#151c1d';
-      ctx.font = '800 24px sans-serif';
-      ctx.fillText('!',471,80);
-      ctx.font = '500 8px "Hanken Grotesk", sans-serif';
-      let description = '', descriptionRow = 0;
-      for (const word of detail.split(' ')) {
-        const next = description ? description+' '+word : word;
-        if (ctx.measureText(next).width > 468) {
-          ctx.fillText(description,22,94+descriptionRow++*11);
-          description = word;
-        } else description = next;
-      }
-      ctx.fillText(description,22,94+descriptionRow*11);
-      ctx.save();
-      ctx.translate(22,112);
-      ctx.scale(1,.83);
-      for (const path of chart.querySelectorAll('path')) {
-        ctx.strokeStyle = path.getAttribute('stroke');
-        ctx.lineWidth = Number(path.getAttribute('stroke-width')) || 1;
-        ctx.lineCap = path.getAttribute('stroke-linecap') || 'butt';
-        ctx.setLineDash((path.getAttribute('stroke-dasharray') || '').split(' ').filter(Boolean).map(Number));
-        const shape = new Path2D(path.getAttribute('d'));
-        const fill = path.getAttribute('fill');
-        if (fill && fill !== 'none') {
-          ctx.fillStyle = fill;
-          ctx.fill(shape);
-        }
-        ctx.stroke(shape);
-      }
-      ctx.fillStyle = chart.querySelector('g').getAttribute('fill');
-      ctx.font = '500 6px "Hanken Grotesk", sans-serif';
-      for (const label of chart.querySelectorAll('text')) {
-        ctx.fillText(label.textContent,Number(label.getAttribute('x')),Number(label.getAttribute('y')));
-      }
-      ctx.restore();
-      ctx.font = '700 13px "Hanken Grotesk", sans-serif';
-      let x = 22;
-      for (const track of chart.querySelectorAll('[data-track]')) {
-        ctx.fillStyle = track.getAttribute('stroke');
-        if (track.dataset.track === 'Independent fixes') {
-          ctx.beginPath(); ctx.arc(x+5,243,2,0,Math.PI*2); ctx.fill();
-        } else ctx.fillRect(x,242,10,1.5);
-        ctx.fillStyle = '#151c1d';
-        const name = track.dataset.track;
-        ctx.fillText(name,x+15,248);
-        x += ctx.measureText(name).width+32;
-      }
-      ctx.font = '750 17px "Hanken Grotesk", sans-serif';
-      ctx.fillText(response,22,274,468);
-      texture.needsUpdate = true;
-      return;
-    }
-    ctx.fillRect(419,65,71,71);
-    ctx.fillStyle = '#151c1d';
-    ctx.fillText('PNT',441,32);
-    ctx.font = '800 48px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(icon,454,115);
-    ctx.textAlign = 'left';
-    ctx.font = '800 53px "Hanken Grotesk", sans-serif';
-    heading.forEach((line,i) => ctx.fillText(line,22,105+i*46,383));
-    ctx.font = '500 17px "Hanken Grotesk", sans-serif';
-    let line = '', row = 0;
-    for (const word of detail.split(' ')) {
-      const next = line ? line+' '+word : word;
-      if (ctx.measureText(next).width > 468) {
-        ctx.fillText(line,22,169+row++*20);
-        line = word;
-      } else line = next;
-    }
-    ctx.fillText(line,22,169+row*20);
-    ctx.fillRect(22,231,468,2);
-    ctx.font = '15px monospace';
-    ctx.fillText('WATCH RESPONSE',22,252);
-    ctx.font = '750 19px "Hanken Grotesk", sans-serif';
-    ctx.fillText(response,22,275,468);
-    texture.needsUpdate = true;
+    screenMaterial.map = artworks[state];
   }
-
   updateScreen('status');
 
   const sectionWalls = [];

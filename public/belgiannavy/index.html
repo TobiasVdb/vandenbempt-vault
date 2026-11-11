@@ -17,6 +17,9 @@
   border-bottom: 1px solid var(--line);
 }
 .status-track { grid-column: 1 / -1; }
+.status-panel.has-artwork { padding: 0; aspect-ratio: 16 / 9; }
+.status-panel.has-artwork > :not(.bridge-artwork) { display: none; }
+.bridge-artwork { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .track-chart { display: block; width: 100%; max-width: none; height: auto; }
 .track-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; padding: 0; margin: 12px 0 18px; font-size: .86rem; }
 .track-legend li:nth-child(2)::before { width: 6px; height: 6px; border: 0; border-radius: 50%; }
@@ -360,7 +363,8 @@
   <h2 id="status-title">On the bridge</h2>
   <p class="status-intro">Example states from the NORTHWATCH helm display.</p>
   <div class="status-grid">
-    <article class="status-panel" data-tone="verified">
+    <article class="status-panel has-artwork" data-tone="verified">
+      <img class="bridge-artwork" src="./bridge-corroborated.jpg" width="1364" height="763" alt="NORTHWATCH — GNSS Corroborated. A timely independent fix agrees with GNSS within the vessel’s approved limits. Watch response: GNSS under vessel procedure.">
       <div class="status-top"><strong>NORTHWATCH</strong><span>PNT</span></div>
       <div class="status-message"><h3>GNSS<br>Corroborated</h3><span class="status-icon" aria-hidden="true">✓</span></div>
       <p>A timely independent fix agrees with GNSS within the vessel’s approved limits.</p>
@@ -385,7 +389,8 @@
       <div class="status-mode"><span>WATCH RESPONSE</span><strong>Independent verification</strong></div>
     </article>
 
-    <article class="status-panel status-track" data-tone="caution">
+    <article class="status-panel status-track has-artwork" data-tone="caution">
+      <img class="bridge-artwork" src="./bridge-track.png" width="1672" height="941" alt="NORTHWATCH — Track disagreement. Green intended route, blue independent fixes and orange GNSS reported track. Fix gaps during suspected jamming, followed by suspect drift and stronger divergence. Watch response: use approved independent navigation.">
       <div class="status-top"><strong>NORTHWATCH</strong><span>PNT</span></div>
       <div class="status-message"><h3>Track disagreement</h3><span class="status-icon" aria-hidden="true">!</span></div>
       <p>Illustrative combined event. The independent fixes show where the vessel was observed. The reported GNSS track has fix gaps during suspected jamming and drifts away from the independent fixes during suspected spoofing.</p>
@@ -551,6 +556,6 @@
     });
   }
 </script>
-<script type="module" src="./sea-scene.mjs?v=58"></script>
+<script type="module" src="./sea-scene.mjs?v=59"></script>
 </body>
 </html>
