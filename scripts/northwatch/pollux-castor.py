@@ -230,9 +230,11 @@ for side in (-1,1):
         w,z=interpolated_top(y)
         rod('Round hull port',(side*(w-.12),y,2.48),(side*(w+.015),y,2.48),.17,black)
     for y in (-8.4,-1.7,6.9):
-        bpy.ops.mesh.primitive_torus_add(major_segments=12,minor_segments=6,location=(side*3.82,y,4.11),
+        bpy.ops.mesh.primitive_torus_add(major_segments=48,minor_segments=12,location=(side*3.82,y,4.11),
             rotation=(0,math.pi/2,0),major_radius=.28,minor_radius=.052)
         bpy.context.object.name='Lifebuoy'
+        for polygon in bpy.context.object.data.polygons:
+            polygon.use_smooth = True
         bpy.context.object.data.materials.append(orange)
     mark_pennant(side)
     w,z=interpolated_top(19.5)
