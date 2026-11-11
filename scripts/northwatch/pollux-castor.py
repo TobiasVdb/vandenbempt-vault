@@ -229,8 +229,9 @@ for side in (-1,1):
     for y in (-9.6,-5.4,0,6.7,10.8):
         w,z=interpolated_top(y)
         rod('Round hull port',(side*(w-.12),y,2.48),(side*(w+.015),y,2.48),.17,black)
-    for y in (-8.4,-1.7,6.9):
-        bpy.ops.mesh.primitive_torus_add(major_segments=48,minor_segments=12,location=(side*3.82,y,4.11),
+    for y in (-8.8,-1.7,6.9):
+        box('Lifebuoy wall bracket',(side*3.56,y,4.39),(.075,.12,.13),structure,.015)
+        bpy.ops.mesh.primitive_torus_add(major_segments=48,minor_segments=12,location=(side*3.60,y,4.11),
             rotation=(0,math.pi/2,0),major_radius=.28,minor_radius=.052)
         bpy.context.object.name='Lifebuoy'
         for polygon in bpy.context.object.data.polygons:
@@ -276,9 +277,39 @@ rail([(-2.04,11.48,5.11),(-.7,11.48,5.11),(.7,11.48,5.11),(2.04,11.48,5.11)],(.3
 box('Foredeck pedestal',(0,10.84,5.43),(1.07,1.08,.68),structure,.14)
 box('Foredeck mount',(0,10.84,5.96),(.83,.95,.56),structure,.16)
 rod('Mount detail',(0,11.04,5.99),(0,11.77,6.02),.048,waterline)
+def rounded_rhib(center_x):
+    # Smooth the footprint before sweeping the inflatable collar around it.
+    outline_points = [(-.69,-23.78),(.69,-23.78),(.78,-18.6),(0,-17.05),(-.78,-18.6)]
+    for _ in range(3):
+        outline_points = [
+            (ax+(bx-ax)*t,ay+(by-ay)*t)
+            for (ax,ay),(bx,by) in zip(outline_points,outline_points[1:]+outline_points[:1])
+            for t in (.25,.75)
+        ]
+    count = len(outline_points)
+    sections = 16
+    vertices = []
+    for i,(x,y) in enumerate(outline_points):
+        tangent = Vector(outline_points[(i+1)%count])-Vector(outline_points[i-1])
+        normal = Vector((tangent.y,-tangent.x)).normalized()
+        for j in range(sections):
+            angle = math.tau*j/sections
+            offset = .22*math.cos(angle)
+            vertices.append((center_x+x+normal.x*offset,y+normal.y*offset,2.45+.22*math.sin(angle)))
+    faces = [
+        (i*sections+j,((i+1)%count)*sections+j,
+         ((i+1)%count)*sections+(j+1)%sections,i*sections+(j+1)%sections)
+        for i in range(count) for j in range(sections)
+    ]
+    collar = mesh('RHIB inflatable collar',vertices,faces,black)
+    for polygon in collar.data.polygons:
+        polygon.use_smooth = True
+    base = [(center_x+x*.9,y) for x,y in outline_points]
+    top = [(center_x+x,y) for x,y in outline_points]
+    ring_body('RHIB hull',base,top,1.87,2.45,black)
+
 for side in (-1,1):
-    ring_body('RHIB collar',[(side*1.83-.89,-23.9),(side*1.83+.89,-23.9),(side*1.83+.93,-18.5),(side*1.83,-17.2),(side*1.83-.93,-18.5)],
-        [(side*1.83-.98,-24.05),(side*1.83+.98,-24.05),(side*1.83+1,-18.5),(side*1.83,-16.94),(side*1.83-1,-18.5)],1.87,2.65,black)
+    rounded_rhib(side*1.83)
     box('RHIB console',(side*1.83,-20.1,2.73),(.67,.80,.83),structure,.12)
     box('RHIB equipment',(side*1.83,-21.1,2.63),(1.03,1.12,.43),orange,.12)
     x=side*3.35
@@ -313,8 +344,10 @@ for x,y,z,width in [(0,-4.7,11.52,3.75),(0,-6.85,13.94,2.65)]:
     rod('Radar support',(0,y-.80,z-.23),(0,y,z),.085,structure)
     box('Radar scanner',(x,y,z),(width,.27,.24),white,.045)
 for x,y,z,r in [(-2.0,-2.6,9.26,.59),(2.10,-2.4,9.48,.73),(0,-8.85,16.65,.27),(-2.7,2.9,9.16,.24),(2.7,2.8,9.16,.24)]:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=14,ring_count=8,radius=r,location=(x,y,z))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=20,radius=r,location=(x,y,z))
     bpy.context.object.name='Radome'
+    for polygon in bpy.context.object.data.polygons:
+        polygon.use_smooth = True
     bpy.context.object.data.materials.append(white)
 for x,y,z,h in [(-2.55,-4.2,8.88,7.9),(2.48,-5,8.88,6.8),(0,-8.84,16.62,1.28),(0,23.1,4.09,1.78)]:
     rod('Whip aerial',(x,y,z),(x,y-.28,z+h),.021,black)

@@ -929,7 +929,7 @@ async function start() {
     const ocean = openOcean(renderer, engine, sun);
     scene.add(ocean.mesh);
 
-    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=17', import.meta.url).href)).scene;
+    ship = (await new GLTFLoader().loadAsync(new URL('./pollux.glb?v=18', import.meta.url).href)).scene;
     refinePolluxMaterials(ship,engine);
     ship.traverse(object => {
       if (!object.isMesh) return;
@@ -1053,8 +1053,8 @@ async function start() {
       [3.5,9.55,8.55,1.1],
       [3.1,9.3,5.1,1.1],
     ];
-    const revealStart = inspectionPositions.length+3;
-    const revealEnd = inspectionPositions.length+4;
+    const revealStart = inspectionPositions.length+2.45;
+    const revealEnd = inspectionPositions.length+3.55;
     for (const [x,y,z,drop] of cableShots) {
       inspectionPositions.push(new Vector3(x,y,z));
       focusDrops.push(drop);
@@ -1272,7 +1272,7 @@ async function start() {
       if (touring && !cameraMove) animateTour();
       for (let i = 0; i < scanners.length; i++) {
         scanners[i].quaternion.copy(scannerRest[i]);
-        scanners[i].rotateOnWorldAxis(scannerAxis,time*(i === 0 ? 2.5 : 3.35));
+        scanners[i].rotateOnWorldAxis(scannerAxis,time*(i === 0 ? 1.9 : 2.55));
       }
       updateNavigationLights(camera,cutawayAmount);
       // Foredeck fittings are rigid. Bake their shadow once and transform its
