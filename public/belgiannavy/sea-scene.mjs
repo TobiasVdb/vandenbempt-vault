@@ -782,17 +782,19 @@ function addTourHardware(ship, engine) {
   // Use the exact image assets shown by the landing-page panels.
   const screenLoader = new TextureLoader();
   const artworks = {};
-  for (const [state,selector] of Object.entries({
-    status: '#bridge-status [data-tone="verified"] .bridge-artwork',
-    track: '#bridge-status .status-track .bridge-artwork',
-  })) {
-    const image = document.querySelector(selector);
+  const screenOptions = [];
+  for (const panel of document.querySelectorAll('#bridge-status [data-helm-screen]')) {
+    const state = panel.dataset.helmScreen;
+    const image = panel.querySelector('.bridge-artwork');
     const map = screenLoader.load(image.src);
     map.colorSpace = SRGBColorSpace;
     map.anisotropy = 4;
-    artworks[state] = { map, aspect: Number(image.getAttribute('width')) / Number(image.getAttribute('height')) };
+    artworks[state] = map;
+    const heading = panel.querySelector('h3');
+    const label = [...heading.childNodes].map(node => node.nodeName === 'BR' ? ' ' : node.textContent).join('').trim();
+    screenOptions.push([state,label]);
   }
-  const screenMaterial = new MeshBasicMaterial({map:artworks.status.map,toneMapped:false});
+  const screenMaterial = new MeshBasicMaterial({map:artworks.status,toneMapped:false});
   const screen = new Mesh(new PlaneGeometry(.39,.219375),screenMaterial);
   screen.position.set(0,0,.0235);
   display.add(screen);
@@ -801,8 +803,7 @@ function addTourHardware(ship, engine) {
     if (state === previous) return;
     previous = state;
     frame.dataset.helmDisplay = state;
-    screenMaterial.map = artworks[state].map;
-    screen.scale.x = Math.min(1,artworks[state].aspect / (16 / 9));
+    screenMaterial.map = artworks[state];
   }
   updateScreen('status');
 
@@ -833,7 +834,7 @@ function addTourHardware(ship, engine) {
   sectionWalls.push(box([3.97,.09,.12],[0,8.57,-4.94],cutEdge));
   setCutaway(false);
 
-  return { route, deviceCenter, displayCenter, displayNormal, updateScreen, setCutaway };
+  return { route, deviceCenter, displayCenter, displayNormal, screenOptions, updateScreen, setCutaway };
 }
 
 function suspend() {
@@ -939,6 +940,17 @@ async function start() {
     const updateEnsign = animateEnsign(ship);
     addHelmInstrumentTextures(ship,engine);
     const hardware = addTourHardware(ship,engine);
+    const screenSelect = document.createElement('select');
+    screenSelect.setAttribute('aria-label','Helm display state');
+    screenSelect.hidden = view !== 'helm';
+    for (const [state,label] of hardware.screenOptions) {
+      screenSelect.add(new Option(label,state));
+    }
+    screenSelect.addEventListener('change', () => {
+      hardware.updateScreen(screenSelect.value);
+      sync();
+    });
+    controls.append(screenSelect);
     const updateNavigationLights = addNavigationLights(ship,engine);
 
     const roof = ship.getObjectByName('Bridge_roof_and_mast');
@@ -1012,7 +1024,8 @@ async function start() {
       camera.position.copy(position);
       aim.copy(target);
       camera.lookAt(aim);
-      if (name === 'exterior' || name === 'helm') hardware.updateScreen('status');
+      if (name === 'exterior') hardware.updateScreen('status');
+      if (name === 'helm') hardware.updateScreen(screenSelect.value);
       setCutaway(name === 'helm');
       inspectionLight.color.setHex(name === 'deck' ? 0xffcb91 : 0xe0edf2);
       inspectionLight.intensity = name === 'exterior' ? 0 : name === 'deck' ? .8 : 1.55;
@@ -1220,6 +1233,7 @@ async function start() {
       touring = next === 'tour' && !reduceMotion.matches;
       tourElapsed = 0;
       view = next === 'tour' ? 'exterior' : next;
+      screenSelect.hidden = view !== 'helm';
       delete frame.dataset.tourShot;
       for (const [name,control] of viewControls) {
         control.setAttribute('aria-pressed', String(name === (touring ? 'tour' : view)));
