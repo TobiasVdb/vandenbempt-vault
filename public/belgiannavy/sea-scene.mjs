@@ -659,7 +659,12 @@ function addTourHardware(ship, engine) {
   }
   const label = new MeshBasicMaterial({color:0xa7cb70});
   box([.067,.004,.012],[deviceX,deviceDeckHeight+.127,-18.95],label);
-  const displayCenter = new Vector3(2.48,8.21,-2.82);
+  const displayCenter = new Vector3(2.88,8.38,-2.62);
+  const captainEye = new Vector3(1.64,8.50,-1.73);
+  const displayNormal = captainEye.clone().sub(displayCenter).normalize();
+  const armBase = new Vector3(2.64,8.00,-3.08);
+  const armElbow = new Vector3(3.05,8.22,-2.95);
+  const armWrist = displayCenter.clone().addScaledVector(displayNormal,-.055);
   // Match the model's sheer stations. Dense samples keep the cable inside
   // the bulwark corner instead of smoothing it out through the hull.
   const edgeStations = [[19,2.65,3.82],[14,3.64,3.64],[8,4.42,3.47],[-2,4.60,3.35],[-10.7,4.60,3.28]];
@@ -683,8 +688,10 @@ function addTourHardware(ship, engine) {
     [3.565,6.08,7.4],[3.865,6.10,7.4],[3.865,6.15,7.4],
     [3.64,6.51,7.4],[3.27,7.10,7.4],[3.34,7.27,7.4],
     [3.18,7.28,7.4],[3.155,7.211,7.2],[3.155,7.211,2.7],
-    [3.155,7.211,-2.82],[displayCenter.x,7.211,-2.82],
-    [displayCenter.x,7.96,displayCenter.z-.045],[displayCenter.x,8.11,displayCenter.z-.045],
+    [3.155,7.211,-3.08],[armBase.x,7.211,armBase.z],
+    armBase.clone().add(new Vector3(0,.025,.018)).toArray(),
+    armElbow.clone().add(new Vector3(0,.025,.018)).toArray(),
+    armWrist.clone().add(new Vector3(0,-.035,0)).toArray(),
   ].map(point => new Vector3(...point));
   const wallRoute = [wallCorners[0]];
   for (let i = 1; i < wallCorners.length; i++) {
@@ -752,8 +759,26 @@ function addTourHardware(ship, engine) {
   clips.receiveShadow = true;
   ship.add(clips);
   const display = box([.425,.24,.0425],displayCenter.toArray(),enclosure);
-  display.rotation.x = -.12;
-  box([.085,.12,.075],[displayCenter.x,8.055,displayCenter.z-.02],enclosure);
+  // Aim at the starboard conning chair, independent of the tour camera.
+  display.lookAt(captainEye);
+  box([.18,.025,.14],armBase.toArray(),metal);
+  for (const x of [-.065,.065]) {
+    for (const z of [-.045,.045]) {
+      box([.014,.009,.014],[armBase.x+x,armBase.y+.017,armBase.z+z],enclosure);
+    }
+  }
+  function armLink(from,to) {
+    const direction = to.clone().sub(from);
+    const link = box([.045,direction.length(),.055],from.clone().add(to).multiplyScalar(.5).toArray(),enclosure);
+    link.quaternion.setFromUnitVectors(new Vector3(0,1,0),direction.normalize());
+  }
+  armLink(armBase,armElbow);
+  armLink(armElbow,armWrist);
+  for (const pivot of [armBase,armElbow,armWrist]) {
+    box([.075,.065,.075],pivot.toArray(),metal);
+  }
+  const mount = box([.12,.10,.016],armWrist.toArray(),metal);
+  mount.quaternion.copy(display.quaternion);
   // Use the exact image assets shown by the landing-page panels.
   const screenLoader = new TextureLoader();
   const artworks = {};
@@ -807,7 +832,7 @@ function addTourHardware(ship, engine) {
   sectionWalls.push(box([3.97,.09,.12],[0,8.57,-4.94],cutEdge));
   setCutaway(false);
 
-  return { route, deviceCenter, displayCenter, updateScreen, setCutaway };
+  return { route, deviceCenter, displayCenter, displayNormal, updateScreen, setCutaway };
 }
 
 function suspend() {
@@ -989,8 +1014,8 @@ async function start() {
     const bowAim = hardware.deviceCenter.clone().add(new Vector3(0,.04,0));
     const helmAim = new Vector3(1.65,8.24,-2.9);
     const helmPosition = new Vector3(3.34,9.61,.40);
-    const chartAim = hardware.displayCenter.clone().add(new Vector3(0,.005,.025));
-    const chartPosition = chartAim.clone().add(new Vector3(.10,.12,.61));
+    const chartAim = hardware.displayCenter.clone().addScaledVector(hardware.displayNormal,.025);
+    const chartPosition = chartAim.clone().addScaledVector(hardware.displayNormal,.68).add(new Vector3(0,.055,0));
     const deckPosition = hardware.deviceCenter.clone().add(new Vector3(3.5,2,-1.6));
     const deckAim = bowAim.clone();
     const inspectionPositions = [deckPosition,
