@@ -15,13 +15,19 @@
     <span class="crest" aria-hidden="true">∞</span>
     <h1 id="title">Onder de<br><span>Schors</span></h1>
   </header>
-  <svg class="health" viewBox="0 0 140 24" role="img" aria-label="Levens: 5 van 5">
-    <defs><path id="heart" d="M12 21 3.6 12.9C-2.1 7.4 5.3.2 12 6.8c6.7-6.6 14.1.6 8.4 6.1Z"/></defs>
-    <use href="#heart" x="2"/>
-    <use href="#heart" x="30"/>
-    <use href="#heart" x="58"/>
-    <use href="#heart" x="86"/>
-    <use href="#heart" x="114"/>
+  <svg class="health" viewBox="0 0 86 13" role="img" aria-label="Levens: 5 van 5">
+    <defs>
+      <g id="heart">
+        <path fill="#ea3548" d="M2 1h3v1h1v1h2V2h1V1h3v1h1v1h1v5h-1v1h-1v1h-2v1H9v1H8v1H6v-1H5v-1H4v-1H2V9H1V8H0V3h1V2h1z"/>
+        <path fill="#b91e35" d="M13 6h1v2h-1v1h-1v1h-2v1H9v1H8v1H6v-2h2v-1h1V9h2V8h1V7h1z"/>
+        <path fill="#ffacaa" d="M2 3h2v1H3v1H2z"/>
+      </g>
+    </defs>
+    <use href="#heart"/>
+    <use href="#heart" x="18"/>
+    <use href="#heart" x="36"/>
+    <use href="#heart" x="54"/>
+    <use href="#heart" x="72"/>
   </svg>
   <div class="controls" id="controls" hidden>
     <button type="button" id="play-sequence">Speel animatieproef</button>

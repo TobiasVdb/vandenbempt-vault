@@ -17,12 +17,9 @@ h1 span { color: #f2c47e; }
   position: absolute;
   top: max(clamp(14px, 3vw, 32px), env(safe-area-inset-top));
   right: max(clamp(14px, 3vw, 32px), env(safe-area-inset-right));
-  width: clamp(104px, 16vw, 148px);
-  fill: #c95f54;
-  stroke: #f2bc8d;
-  stroke-width: 1.15;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 2px 2px #160c0c);
+  width: 86px;
+  shape-rendering: crispEdges;
+  filter: drop-shadow(0 1px 1px #160c0c);
   pointer-events: none;
 }
 .controls, .status {
