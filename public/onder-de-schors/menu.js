@@ -1,5 +1,6 @@
 import * as THREE from './vendor/three/three.module.js';
 import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js';
+import { makeSceneAudio } from './scene-audio.js';
 
 const host = document.querySelector('#scene');
 const status = document.querySelector('#status');
@@ -136,24 +137,25 @@ function makeLandscape(texture) {
         float shape = mistNoise(p) * 0.75 + mistNoise(p * 2.3 + 4.0) * 0.25;
         return smoothstep(0.30, 0.82, shape) * exp(-height * height);
       }
+      vec2 leafSway(vec2 uv, vec2 center, vec2 span, float phase) {
+        vec2 p = (uv - center) / span;
+        float tips = smoothstep(-0.70, 0.60, p.y);
+        float patch = 1.0 - smoothstep(0.42, 1.0, length(p));
+        float gust = sin(uTime * 1.9 + phase) * 0.72 + sin(uTime * 3.2 + phase) * 0.28;
+        return vec2(0.00125, -p.x * 0.00040) * patch * tips * gust;
+      }
     `).replace('#include <map_fragment>', `
       vec2 uv = vMapUv;
       // De hangende bladeren en de kruin bewegen. De stam en gebouwen staan vast.
-      float fringe = smoothstep(0.87, 0.98, uv.y)
-        * (1.0 - smoothstep(0.53, 0.65, uv.x));
-      float crown = (1.0 - smoothstep(0.75, 1.0,
-        length((uv - vec2(0.72, 0.77)) / vec2(0.31, 0.17))));
-      float movement = fringe + crown * 0.70;
-      float gust = 0.65 + 0.35 * sin(uTime * 0.92);
-      vec2 sway = vec2(
-        sin(uv.y * 20.0 + uv.x * 15.0 + uTime * 1.65) * 0.004,
-        cos(uv.x * 19.0 - uTime * 1.32) * 0.002
-      ) * movement * gust;
+      vec2 sway = leafSway(uv, vec2(0.16, 0.95), vec2(0.17, -0.07), 0.0)
+        + leafSway(uv, vec2(0.46, 0.94), vec2(0.15, -0.07), 1.8)
+        + leafSway(uv, vec2(0.69, 0.89), vec2(0.16, 0.09), 3.2)
+        + leafSway(uv, vec2(0.82, 0.77), vec2(0.15, 0.065), 4.7);
       diffuseColor *= texture2D(map, clamp(uv + sway, 0.0, 1.0));
-      float valleyMist = windBand(uv, 0.30 + sin(uv.x * 5.0) * 0.027, 0.087, 0.15);
-      float highClouds = windBand(uv, 0.59 - uv.x * 0.13, 0.095, 0.089);
+      float valleyMist = windBand(uv, 0.30 + sin(uv.x * 5.0) * 0.027, 0.087, 0.085);
+      float highClouds = windBand(uv, 0.59 - uv.x * 0.13, 0.095, 0.055);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.44, 0.43),
-        valleyMist * 0.31 + highClouds * 0.18);
+        valleyMist * 0.22 + highClouds * 0.13);
       vec2 lamp = (uv - vec2(0.907, 0.285)) * vec2(1.77, 1.0);
       float lantern = exp(-dot(lamp, lamp) * 550.0);
       float flame = 0.65 + sin(uTime * 5.7) * 0.19 + sin(uTime * 9.3) * 0.16;
@@ -337,6 +339,7 @@ async function showMenu() {
 
   const animateFireflies = makeFireflies(scene);
   const animateCritters = makeCritters(scene);
+  const audio = makeSceneAudio();
 
   const playSequence = document.querySelector('#play-sequence');
   let demoTime = -1;
@@ -399,6 +402,7 @@ async function showMenu() {
 
   function draw(dt) {
     elapsed += dt;
+    const wasInAir = jumpTime < jumpDuration;
     jumpTime = Math.min(jumpTime + dt, jumpDuration);
     stepDirection.set(0, 0);
     activeDirections.clear();
@@ -461,9 +465,16 @@ async function showMenu() {
     const viewLeft = Math.max(0.07, (margin - backgroundCenter) / backgroundWidth + 0.5);
     const viewRight = Math.min(0.93, (width - margin - backgroundCenter) / backgroundWidth + 0.5);
     const travel = targetHeight * 0.48;
+    const oldX = heroPosition.x;
+    const oldY = heroPosition.y;
     heroPosition.x = THREE.MathUtils.clamp(heroPosition.x + motion.x * dt * travel / backgroundWidth, viewLeft, viewRight);
     heroPosition.y = THREE.MathUtils.clamp(heroPosition.y + motion.y * dt * 0.13, 0.835, 0.945);
-    phase = (phase + dt * speed / bellmaker.cycle) % 1;
+    const nextPhase = phase + dt * speed / bellmaker.cycle;
+    const stepped = !wasInAir && speed > 0.12
+      && (heroPosition.x !== oldX || heroPosition.y !== oldY)
+      && Math.floor(nextPhase * 2) !== Math.floor(phase * 2);
+    audio.update(stepped, wasInAir && jumpTime === jumpDuration);
+    phase = nextPhase % 1;
     const progress = THREE.MathUtils.clamp(actionTime / (duration[action] ?? 1), 0, 1);
     const footX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     const footY = (1 - heroPosition.y) * backgroundHeight;
