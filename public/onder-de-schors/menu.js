@@ -595,19 +595,31 @@ async function showMenu() {
   const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage);
   let routeOrigin;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
-  hero.geometry = new THREE.PlaneGeometry(1, 1, 24, 32);
+  hero.geometry = new THREE.PlaneGeometry(1, 1, 48, 64);
   const idleBreath = { value: 0 };
+  const swordBreath = { value: 0 };
   let idleTime = 0;
   hero.material.onBeforeCompile = shader => {
     shader.uniforms.idleBreath = idleBreath;
-    shader.vertexShader = 'uniform float idleBreath;\n' + shader.vertexShader.replace(
+    shader.uniforms.swordBreath = swordBreath;
+    shader.vertexShader = 'uniform float idleBreath;\nuniform float swordBreath;\n' + shader.vertexShader.replace(
       '#include <begin_vertex>',
       '#include <begin_vertex>\n'
         + `float heightFromChest = (position.y * ${bellmaker.scale.toFixed(6)} - 0.15) / 0.095;\n`
         + 'float chest = exp(-heightFromChest * heightFromChest);\n'
         + 'float upperBody = smoothstep(-0.16, 0.045, position.y);\n'
         + 'transformed.x += position.x * chest * idleBreath * 0.018;\n'
-        + `transformed.y += upperBody * idleBreath * ${(0.004 / bellmaker.scale).toFixed(6)};`
+        + `transformed.y += upperBody * idleBreath * ${(0.004 / bellmaker.scale).toFixed(6)};\n`
+        + `
+          // The grip and tip are measured in the stationary drawn-sword atlas cell.
+          vec2 grip = vec2(-0.094, -0.013);
+          vec2 blade = vec2(0.154, -0.081);
+          vec2 fromGrip = position.xy - grip;
+          float along = clamp(dot(fromGrip, blade) / dot(blade, blade), 0.0, 1.0);
+          float swordMask = 1.0 - smoothstep(0.014, 0.035, length(fromGrip - blade * along));
+          vec2 swordMotion = vec2(-fromGrip.y, fromGrip.x) * 0.035 + vec2(0.0, 0.002);
+          transformed.xy += swordMotion * swordMask * swordBreath;
+        `
     );
   };
   scene.add(hero);
@@ -803,8 +815,10 @@ async function showMenu() {
     const frame = bellmaker.frame(airborne ? jumpAction : action, speed > 0.12, phase,
       airborne ? airProgress : progress, attack);
     hero.material.map = frame;
-    idleTime = action === 'idle' && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
+    const standingArmed = action === 'ready' && speed <= 0.12;
+    idleTime = (action === 'idle' || standingArmed) && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
     idleBreath.value = 0.5 - Math.cos(idleTime * 1.62) * 0.5;
+    swordBreath.value = standingArmed ? idleBreath.value : 0;
     const turning = action === 'turn' || action === 'armed-turn';
     const facingSprite = turning && progress < 0.5 ? -facing : facing;
     const spriteHeight = renderHeight * bellmaker.scale;
