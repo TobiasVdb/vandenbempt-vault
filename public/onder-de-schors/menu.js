@@ -25,7 +25,9 @@ const plane = new THREE.PlaneGeometry(1, 1);
 const routeSpacing = 0.78;
 const routeScenes = ['bos', 'grasland-open', 'dorpsrand'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
-const sceneryParallax = 0.84;
+const sceneryParallax = 0.74;
+const skyParallax = 0.48;
+const closeForegroundParallax = 0.24;
 let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
 
@@ -118,8 +120,9 @@ function sprite(texture, z) {
   return mesh;
 }
 
-function makeRoute(scene, world, scenery, foliage, entranceTree) {
+function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
   const townTime = { value: 0 };
+  const skyOffset = { value: 0 };
   const forestSeam = `
     float seam = 0.202 + sin(vMapUv.y * 14.0) * 0.004;
     diffuseColor.a *= smoothstep(seam - 0.009, seam + 0.009, vMapUv.x);
@@ -172,6 +175,45 @@ function makeRoute(scene, world, scenery, foliage, entranceTree) {
     return tile;
   });
 
+  const sky = [world, ...scenery].map((texture, index, tiles) => {
+    const clouds = sprite(texture, 0.36 + index * 0.02);
+    clouds.material.customProgramCacheKey = () => `sky-${index}`;
+    clouds.material.onBeforeCompile = shader => {
+      shader.uniforms.skyOffset = skyOffset;
+      shader.uniforms.weatherTime = townTime;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+        #include <common>
+        uniform float skyOffset;
+        uniform float weatherTime;
+        float skyHash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        }
+        float skyNoise(vec2 p) {
+          vec2 cell = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(skyHash(cell), skyHash(cell + vec2(1, 0)), f.x),
+            mix(skyHash(cell + vec2(0, 1)), skyHash(cell + vec2(1, 1)), f.x), f.y);
+        }
+      `).replace('#include <map_fragment>', `
+        #include <map_fragment>
+        vec2 uv = vMapUv;
+        // Use the painted sky as a mask so clouds stay behind roofs and leaves.
+        float blue = smoothstep(0.005, 0.08, diffuseColor.b - diffuseColor.r);
+        float silhouettes = 1.0 - smoothstep(0.13, 0.28, diffuseColor.r);
+        float heightMask = smoothstep(0.65, 0.78, uv.y) * (1.0 - smoothstep(0.94, 1.0, uv.y));
+        vec2 cloud = vec2((uv.x + ${(index * routeSpacing).toFixed(2)} - skyOffset) * 8.5 - weatherTime * 0.11, uv.y * 17.0);
+        float banks = skyNoise(cloud) * 0.72 + skyNoise(cloud * 2.25) * 0.28;
+        diffuseColor.rgb = vec3(0.18, 0.37, 0.42);
+        diffuseColor.a *= blue * silhouettes * heightMask * smoothstep(0.47, 0.82, banks) * 0.32;
+        ${index === 0 ? '' : index === 1 ? forestSeam : routeSeam}
+        ${index < tiles.length - 1 ? 'diffuseColor.a *= 1.0 - smoothstep(0.86, 0.95, uv.x);' : ''}
+      `);
+    };
+    scene.add(clouds);
+    return clouds;
+  });
+
   const forestEntrance = sprite(makeTexture(entranceTree), 0.45);
   scene.add(forestEntrance);
 
@@ -191,6 +233,17 @@ function makeRoute(scene, world, scenery, foliage, entranceTree) {
     return { x, size, plant };
   });
 
+  makeTexture(closeFoliage);
+  const closePlants = [0.38, 0.88, 1.15, 1.48].map((x, index) => {
+    const texture = closeFoliage.clone();
+    texture.repeat.x = 0.5;
+    texture.offset.x = index % 2 * 0.5;
+    texture.needsUpdate = true;
+    const plant = sprite(texture, 5);
+    scene.add(plant);
+    return { x, plant };
+  });
+
   function positionPanel(panel, x) {
     panel.scale.set(backgroundWidth, backgroundHeight, 1);
     panel.position.x = x;
@@ -200,6 +253,9 @@ function makeRoute(scene, world, scenery, foliage, entranceTree) {
 
   return (origin, scroll, sceneryCenter) => {
     townTime.value = reducedMotion.matches ? 0 : elapsed;
+    const sceneryShift = (origin - sceneryCenter) / backgroundWidth;
+    skyOffset.value = sceneryShift - scroll * skyParallax;
+    sky.forEach((tile, index) => positionPanel(tile, sceneryCenter + index * routeSpacing * backgroundWidth));
     panels.forEach((panel, index) => positionPanel(panel, sceneryCenter + (index + 1) * routeSpacing * backgroundWidth));
     road.forEach((tile, index) => positionPanel(tile, backgroundCenter + index * routeSpacing * backgroundWidth));
     const entranceX = sceneryCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
@@ -213,6 +269,13 @@ function makeRoute(scene, world, scenery, foliage, entranceTree) {
       plant.position.set(screenX, side * 0.30, 4.5);
       plant.scale.set(side, side, 1);
       plant.visible = screenX + side / 2 > 0 && screenX - side / 2 < width;
+    }
+    for (const { x, plant } of closePlants) {
+      const size = backgroundHeight * 0.39;
+      const screenX = origin + (x - 0.5 - scroll * closeForegroundParallax) * backgroundWidth;
+      plant.position.set(screenX, size * 0.09, 5);
+      plant.scale.set(size, size * 0.44, 1);
+      plant.visible = screenX + size / 2 > 0 && screenX - size / 2 < width;
     }
   };
 }
@@ -285,14 +348,6 @@ function makeLandscape(texture) {
       float highClouds = windBand(uv, 0.59 - uv.x * 0.13, 0.095, 0.055);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.44, 0.43),
         valleyMist * 0.22 + highClouds * 0.13);
-      float openSky = softArea(uv, vec2(0.28, 0.71), vec2(0.29, 0.15))
-        * (1.0 - smoothstep(0.16, 0.27, painted.g));
-      vec2 cloudPosition = vec2(uv.x * 10.0 - uTime * 0.34, uv.y * 19.0);
-      float cloudTexture = mistNoise(cloudPosition) * 0.68
-        + mistNoise(cloudPosition * 2.2) * 0.22 + mistNoise(cloudPosition * 4.6) * 0.10;
-      float crossingCloud = smoothstep(0.44, 0.78, cloudTexture);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.29, 0.48, 0.49),
-        openSky * crossingCloud * 0.36);
       vec2 lamp = (uv - vec2(0.907, 0.285)) * vec2(1.77, 1.0);
       float lantern = exp(-dot(lamp, lamp) * 550.0);
       float flame = 0.65 + sin(uTime * 5.7) * 0.19 + sin(uTime * 9.3) * 0.16;
@@ -470,17 +525,18 @@ async function showMenu() {
   const camera = new THREE.OrthographicCamera(0, 1, 1, 0, 0.1, 30);
   camera.position.z = 10;
   const loader = new THREE.TextureLoader();
-  const [worldTexture, bellmaker, scenery, foliage, entranceTree] = await Promise.all([
+  const [worldTexture, bellmaker, scenery, foliage, entranceTree, closeFoliage] = await Promise.all([
     loader.loadAsync('./assets/wereldboom.webp'),
     loadBellmakerSprites(loader),
     Promise.all(routeScenes.map(name => loader.loadAsync(`./assets/route-${name}.webp`))),
     loader.loadAsync('./assets/route-voorgrond.webp'),
     loader.loadAsync('./assets/route-bosstam.webp'),
+    loader.loadAsync('./assets/route-dichte-voorgrond.webp'),
   ]);
   const world = makeTexture(worldTexture);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
-  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree);
+  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage);
   let routeOrigin;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
   hero.geometry = new THREE.PlaneGeometry(1, 1, 24, 32);
@@ -665,7 +721,7 @@ async function showMenu() {
     const scroll = THREE.MathUtils.clamp(follow, 0, maxScroll);
     backgroundCenter = routeOrigin - scroll * backgroundWidth;
     // Limit the offset over long walks so the far end of the town stays in view.
-    const sceneryLag = scroll * (1 - sceneryParallax) / Math.hypot(1, scroll / 0.65);
+    const sceneryLag = scroll * (1 - sceneryParallax) / Math.hypot(1, scroll / 0.48);
     const sceneryCenter = backgroundCenter + sceneryLag * backgroundWidth;
     background.position.x = sceneryCenter;
     background.visible = sceneryCenter + backgroundWidth / 2 > 0;
