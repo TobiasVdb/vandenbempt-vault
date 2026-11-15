@@ -35,26 +35,30 @@ body { margin: 0; background: #0c1d1e; color: #ffe7bb; font-family: Georgia, ser
   .touch-group button {
     display: grid;
     place-items: center;
-    width: clamp(48px, 12vw, 56px);
+    width: clamp(60px, 17vw, 76px);
     aspect-ratio: 1;
     padding: 0;
+    border: 0;
     border-radius: 50%;
-    background: #151b15e8;
+    background: linear-gradient(155deg, #fff5d82b, #0b171b55);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
   }
   .touch-group svg {
-    width: 23px;
-    height: 23px;
+    width: 27px;
+    height: 27px;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.75;
     stroke-linecap: round;
     stroke-linejoin: round;
     pointer-events: none;
+    filter: drop-shadow(0 1px 2px #091211b3);
   }
-  .touch-group button:active { background: #534128; border-color: #f2c47e; }
+  .touch-group button:active { background: linear-gradient(155deg, #fff5d850, #0b171b55); }
 }
 .status { bottom: calc(clamp(16px, 4vh, 46px) + 42px); }
 .loading-screen {
