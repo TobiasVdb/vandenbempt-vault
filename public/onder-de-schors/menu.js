@@ -22,6 +22,9 @@ const heroPosition = new THREE.Vector2(0.68, 0.91);
 const stepDirection = new THREE.Vector2();
 const motion = new THREE.Vector2();
 const plane = new THREE.PlaneGeometry(1, 1);
+const routeSpacing = 0.78;
+const routeScenes = ['bos', 'grasland', 'dorp'];
+const routeEnd = 1 + routeSpacing * routeScenes.length;
 let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
 
@@ -112,6 +115,72 @@ function sprite(texture, z) {
   }));
   mesh.position.z = z;
   return mesh;
+}
+
+function makeRoute(scene, scenery, foliage) {
+  const townTime = { value: 0 };
+  const panels = scenery.map((texture, index) => {
+    const panel = sprite(makeTexture(texture), 0.1 * (index + 1));
+    const isTown = index === scenery.length - 1;
+    panel.material.customProgramCacheKey = () => isTown ? 'route-town' : 'route-road';
+    panel.material.onBeforeCompile = shader => {
+      if (isTown) {
+        shader.uniforms.townTime = townTime;
+        shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+          #include <common>
+          uniform float townTime;
+        `);
+      }
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+        #include <map_fragment>
+        float seam = 0.12 + sin(vMapUv.y * 14.0) * 0.017;
+        diffuseColor.a *= smoothstep(seam - 0.038, seam + 0.038, vMapUv.x);
+        ${isTown ? `
+          vec2 uv = vMapUv;
+          float fountain = (1.0 - smoothstep(0.8, 1.0,
+            length((uv - vec2(0.509, 0.392)) / vec2(0.057, 0.045))))
+            * smoothstep(0.015, 0.14, diffuseColor.g - diffuseColor.r);
+          float shimmer = sin(uv.y * 680.0 + uv.x * 420.0 + townTime * 13.0);
+          diffuseColor.rgb += vec3(0.075, 0.13, 0.14) * fountain * shimmer;
+        ` : ''}
+      `);
+    };
+    scene.add(panel);
+    return panel;
+  });
+
+  makeTexture(foliage);
+  const plants = [
+    [0.97, 0, 0.17], [1.26, 1, 0.19], [1.52, 0, 0.14],
+    [1.77, 2, 0.16], [2.03, 1, 0.16], [2.22, 2, 0.15],
+    [2.50, 3, 0.14], [2.86, 3, 0.15], [3.22, 3, 0.13],
+  ].map(([x, tile, size]) => {
+    const texture = foliage.clone();
+    const cell = foliage.image.width / 2;
+    texture.repeat.set(0.5 - 1 / (cell * 2), 0.5 - 1 / (cell * 2));
+    texture.offset.set((tile % 2) / 2 + 0.5 / (cell * 2), (1 - Math.floor(tile / 2)) / 2 + 0.5 / (cell * 2));
+    texture.needsUpdate = true;
+    const plant = sprite(texture, 4.5);
+    scene.add(plant);
+    return { x, size, plant };
+  });
+
+  return (origin, scroll) => {
+    townTime.value = reducedMotion.matches ? 0 : elapsed;
+    panels.forEach((panel, index) => {
+      panel.scale.set(backgroundWidth, backgroundHeight, 1);
+      panel.position.x = backgroundCenter + (index + 1) * routeSpacing * backgroundWidth;
+      panel.position.y = backgroundHeight / 2;
+      panel.visible = panel.position.x + backgroundWidth / 2 > 0 && panel.position.x - backgroundWidth / 2 < width;
+    });
+    for (const { x, size, plant } of plants) {
+      const side = size * backgroundHeight;
+      const screenX = origin + (x - 0.5 - scroll + (x - 0.67 - scroll) * 0.24) * backgroundWidth;
+      plant.position.set(screenX, side * 0.30, 4.5);
+      plant.scale.set(side, side, 1);
+      plant.visible = screenX + side / 2 > 0 && screenX - side / 2 < width;
+    }
+  };
 }
 
 function makeLandscape(texture) {
@@ -366,13 +435,17 @@ async function showMenu() {
   const camera = new THREE.OrthographicCamera(0, 1, 1, 0, 0.1, 30);
   camera.position.z = 10;
   const loader = new THREE.TextureLoader();
-  const [worldTexture, bellmaker] = await Promise.all([
+  const [worldTexture, bellmaker, scenery, foliage] = await Promise.all([
     loader.loadAsync('./assets/wereldboom.webp'),
     loadBellmakerSprites(loader),
+    Promise.all(routeScenes.map(name => loader.loadAsync(`./assets/route-${name}.webp`))),
+    loader.loadAsync('./assets/route-voorgrond.webp'),
   ]);
   const world = makeTexture(worldTexture);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
+  const updateRoute = makeRoute(scene, scenery, foliage);
+  let routeOrigin;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
   hero.geometry = new THREE.PlaneGeometry(1, 1, 24, 32);
   const idleBreath = { value: 0 };
@@ -449,7 +522,7 @@ async function showMenu() {
   }
   function startDemo() {
     if (demoTime >= 0) return;
-    heroPosition.x = (width * 0.40 - backgroundCenter) / backgroundWidth + 0.5;
+    heroPosition.x = (width * 0.40 - routeOrigin) / backgroundWidth + 0.5;
     heroPosition.y = 0.90;
 
     phase = 0;
@@ -474,10 +547,10 @@ async function showMenu() {
     const scale = Math.max(width / world.image.width, height / world.image.height);
     backgroundWidth = world.image.width * scale;
     backgroundHeight = world.image.height * scale;
-    backgroundCenter = THREE.MathUtils.lerp(width / 2, width / 2 - backgroundWidth * 0.16,
+    routeOrigin = THREE.MathUtils.lerp(width / 2, width / 2 - backgroundWidth * 0.16,
       THREE.MathUtils.clamp(1 - width / backgroundWidth, 0, 0.7));
     background.scale.set(backgroundWidth, backgroundHeight, 1);
-    background.position.set(backgroundCenter, backgroundHeight / 2, 0);
+    background.position.y = backgroundHeight / 2;
   }
 
   function draw(dt) {
@@ -542,13 +615,20 @@ async function showMenu() {
     const renderHeight = characterHeight * 1.34;
     const heroWidth = renderHeight * bellmaker.aspect;
     const margin = Math.min(width * 0.27, renderHeight * 0.35);
-    const viewLeft = Math.max(0.07, (margin - backgroundCenter) / backgroundWidth + 0.5);
-    const viewRight = Math.min(0.93, (width - margin - backgroundCenter) / backgroundWidth + 0.5);
+    const viewLeft = Math.max(0.07, (margin - routeOrigin) / backgroundWidth + 0.5);
+    const viewRight = routeEnd - margin / backgroundWidth;
     const travel = targetHeight * 0.48;
     const oldX = heroPosition.x;
     const oldY = heroPosition.y;
     heroPosition.x = THREE.MathUtils.clamp(heroPosition.x + motion.x * dt * travel / backgroundWidth, viewLeft, viewRight);
     heroPosition.y = THREE.MathUtils.clamp(heroPosition.y + motion.y * dt * 0.13, 0.835, 0.945);
+    const follow = heroPosition.x - 0.5 + (routeOrigin - width * 0.67) / backgroundWidth;
+    const maxScroll = routeEnd - 0.5 + (routeOrigin - width) / backgroundWidth;
+    const scroll = THREE.MathUtils.clamp(follow, 0, maxScroll);
+    backgroundCenter = routeOrigin - scroll * backgroundWidth;
+    background.position.x = backgroundCenter;
+    background.visible = backgroundCenter + backgroundWidth / 2 > 0;
+    updateRoute(routeOrigin, scroll);
     const nextPhase = phase + dt * speed / bellmaker.cycle;
     const stepped = !wasInAir && speed > 0.12
       && (heroPosition.x !== oldX || heroPosition.y !== oldY)
