@@ -2,12 +2,27 @@ import * as THREE from './vendor/three/three.module.js';
 
 const cellSize = 384;
 const originalCellSize = 256;
+const attacks = [
+  [17, 18, 19, 20],
+  [33, 65, 34, 34],
+  [35, 66, 36, 36],
+  [37, 67, 38, 38],
+  [39, 68, 40, 40],
+];
 
 function slashPose(progress) {
   if (progress < 0.28) return 0;
   if (progress < 0.43) return 1;
   if (progress < 0.62) return 2;
   return 3;
+}
+
+function makeTrailPath(start, firstControl, mid, secondControl, end) {
+  const point = ([x, y]) => new THREE.Vector2(x, y);
+  const path = new THREE.CurvePath();
+  path.add(new THREE.QuadraticBezierCurve(point(start), point(firstControl), point(mid)));
+  path.add(new THREE.QuadraticBezierCurve(point(mid), point(secondControl), point(end)));
+  return { path, midpoint: path.curves[0].getLength() / path.getLength() };
 }
 
 export function makeSlashTrail() {
@@ -24,29 +39,29 @@ export function makeSlashTrail() {
   trail.position.z = 0.01;
   trail.visible = false;
 
-  // Points follow the blade tips in atlas frames 18–20, in sprite cell pixels.
-  const arc = new THREE.CurvePath();
-  const impact = new THREE.Vector2(358, 149);
-  arc.add(new THREE.CubicBezierCurve(
-    new THREE.Vector2(169, 39), new THREE.Vector2(252, 15), new THREE.Vector2(348, 78), impact,
-  ));
-  arc.add(new THREE.CubicBezierCurve(
-    impact, new THREE.Vector2(364, 188), new THREE.Vector2(366, 246), new THREE.Vector2(352, 286),
-  ));
-  const reachAtImpact = arc.curves[0].getLength() / arc.getLength();
+  // Each arc follows the blade tip through the corresponding atlas cells.
+  const arcs = [
+    makeTrailPath([169, 39], [322, 20], [358, 149], [371, 228], [352, 286]),
+    makeTrailPath([113, 268], [153, 314], [219, 302], [301, 323], [349, 294]),
+    makeTrailPath([73, 270], [291, 323], [358, 195], [389, 102], [332, 37]),
+    makeTrailPath([256, 193], [303, 185], [351, 181], [363, 182], [369, 188]),
+    makeTrailPath([112, 111], [203, 22], [321, 84], [373, 147], [316, 263]),
+  ];
   const points = Array.from({ length: 25 }, () => new THREE.Vector2());
 
   return {
     trail,
-    update(action, progress) {
-      trail.visible = action === 'slash' && progress >= 0.43 && progress < 0.91;
+    update(action, progress, attack = 0) {
+      const overhead = attack === 0;
+      trail.visible = action === 'slash' && progress >= (overhead ? 0.43 : 0.28) && progress < 0.91;
       if (!trail.visible) return;
 
-      const impactPose = slashPose(progress) === 2;
-      const end = impactPose ? reachAtImpact : 1;
+      const { path, midpoint } = arcs[attack];
+      const midSwing = slashPose(progress) === (overhead ? 2 : 1);
+      const end = midSwing ? midpoint : 1;
       const fade = THREE.MathUtils.smoothstep(progress, 0.62, 0.91);
-      const start = impactPose ? 0.03 : 0.22 + fade * 0.48;
-      points.forEach((point, i) => arc.getPoint(THREE.MathUtils.lerp(start, end, i / 24), point));
+      const start = midSwing ? 0.03 : 0.22 + fade * 0.48;
+      points.forEach((point, i) => path.getPoint(THREE.MathUtils.lerp(start, end, i / 24), point));
 
       brush.clearRect(0, 0, cellSize, cellSize);
       brush.beginPath();
@@ -54,7 +69,7 @@ export function makeSlashTrail() {
       for (const point of points) brush.lineTo(point.x, point.y);
       for (let i = 24; i >= 0; i--) {
         const { x, y } = points[i];
-        const inset = Math.sin(Math.PI * i / 24) * 0.064;
+        const inset = Math.sin(Math.PI * i / 24) * (attack === 3 ? 0.04 : 0.064);
         brush.lineTo(THREE.MathUtils.lerp(x, 213, inset), THREE.MathUtils.lerp(y, 165, inset));
       }
       brush.closePath();
@@ -77,9 +92,9 @@ export async function loadBellmakerSprites(loader) {
   atlas.minFilter = THREE.NearestFilter;
   atlas.generateMipmaps = false;
   const size = cellSize;
-  const columns = 4;
-  const rows = 6;
-  const frames = Array.from({ length: 21 }, (_, i) => {
+  const columns = 8;
+  const rows = 10;
+  const frames = Array.from({ length: 73 }, (_, i) => {
     const frame = atlas.clone();
     frame.repeat.set((size - 1) / (columns * size), (size - 1) / (rows * size));
     frame.offset.set(((i % columns) * size + 0.5) / (columns * size),
@@ -95,18 +110,22 @@ export async function loadBellmakerSprites(loader) {
     scale: size / originalCellSize,
     baseline: (19 + (size - originalCellSize) / 2) / size,
     cycle: 0.59,
-    frame(action, moving, phase, progress) {
+    attackCount: attacks.length,
+    frame(action, moving, phase, progress, attack = 0) {
       switch (action) {
-        case 'run': return frameAt([0, 1, 2, 3], phase);
-        case 'jump': return frames[1];
-        case 'armed-jump': return frames[7];
-        case 'turn': return frameAt([8, 9], progress);
-        case 'draw': return frameAt([4, 5, 6], progress);
-        case 'ready': return moving ? frameAt([6, 7], phase) : frames[10];
-        case 'slash': return frames[17 + slashPose(progress)];
-        case 'recover': return frameAt([20, 13, 10], progress);
-        case 'sheathe': return frameAt([6, 5, 4], progress);
-        case 'punch': return frameAt([14, 15, 14], progress);
+        case 'run': return frameAt([0, 41, 1, 42, 2, 43, 3, 44], phase);
+        case 'jump': return frameAt([21, 22, 23, 23, 22, 24], progress);
+        case 'run-jump': return frameAt([25, 26, 27, 27, 26, 28], progress);
+        case 'armed-jump': return frameAt([49, 50, 51, 51, 50, 52], progress);
+        case 'armed-run-jump': return frameAt([53, 54, 55, 55, 54, 56], progress);
+        case 'turn': return frameAt([8, 29, 30, 31, 32, 9], progress);
+        case 'armed-turn': return frameAt([10, 69, 70, 71, 72, 10], progress);
+        case 'draw': return frameAt([4, 57, 58, 5, 59, 60], progress);
+        case 'ready': return moving ? frameAt([45, 6, 46, 47, 7, 48], phase) : frames[10];
+        case 'slash': return frames[attacks[attack][slashPose(progress)]];
+        case 'recover': return frameAt([attacks[attack][3], 13, 10], progress);
+        case 'sheathe': return frameAt([60, 59, 5, 58, 57, 4], progress);
+        case 'punch': return frameAt([61, 62, 63, 15, 64, 14], progress);
         default: return frames[16];
       }
     },

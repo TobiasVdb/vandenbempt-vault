@@ -7,6 +7,7 @@ const status = document.querySelector('#status');
 const loadingScreen = document.querySelector('#loading-screen');
 const controls = document.querySelector('#controls');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const mobileLandscape = matchMedia('(orientation: landscape) and (any-pointer: coarse), (orientation: landscape) and (max-width: 1000px) and (max-height: 500px)');
 
 const directions = new Map([
   ['z', [0, -1]], ['arrowup', [0, -1]],
@@ -414,13 +415,20 @@ async function showMenu() {
   let action = 'idle';
   let actionTime = 0;
   let phase = 0;
-  const jumpDuration = 0.54;
+  let attack = 0;
+  let nextAttack = 0;
+  const jumpDrift = new THREE.Vector2();
+  let jumpDuration = 0.54;
   let jumpTime = jumpDuration;
   function jump() {
-    if (demoTime < 0 && jumpTime >= jumpDuration) jumpTime = 0;
+    if (demoTime >= 0 || jumpTime < jumpDuration) return;
+    jumpDrift.set(0, 0);
+    if (motion.lengthSq() > 0.05) jumpDrift.copy(motion).normalize();
+    jumpDuration = jumpDrift.lengthSq() > 0 ? 0.59 : 0.50;
+    jumpTime = 0;
   }
 
-  const duration = { turn: 0.25, draw: 0.48, slash: 0.42, recover: 0.20, sheathe: 0.48, punch: 0.31 };
+  const duration = { turn: 0.34, 'armed-turn': 0.34, draw: 0.48, slash: 0.42, recover: 0.20, sheathe: 0.48, punch: 0.31 };
   const demo = [
     { action: 'run', duration: 1.10, facing: 1 },
     { action: 'turn', duration: duration.turn, facing: -1 },
@@ -434,6 +442,10 @@ async function showMenu() {
   function startAction(next) {
     action = next;
     actionTime = 0;
+    if (next === 'slash') {
+      attack = nextAttack;
+      nextAttack = (nextAttack + 1) % bellmaker.attackCount;
+    }
   }
   function startDemo() {
     if (demoTime >= 0) return;
@@ -441,6 +453,7 @@ async function showMenu() {
     heroPosition.y = 0.90;
 
     phase = 0;
+    attack = 0;
     jumpTime = jumpDuration;
     facing = 1;
     motion.set(0, 0);
@@ -469,7 +482,8 @@ async function showMenu() {
 
   function draw(dt) {
     elapsed += dt;
-    const wasInAir = jumpTime < jumpDuration;
+    const previousJumpProgress = jumpTime / jumpDuration;
+    const wasInAir = previousJumpProgress < 1;
     jumpTime = Math.min(jumpTime + dt, jumpDuration);
     stepDirection.set(0, 0);
     activeDirections.clear();
@@ -506,26 +520,25 @@ async function showMenu() {
     }
     if (!demoStage) {
       if (duration[action] && actionTime >= duration[action]) {
-        startAction(action === 'draw' || action === 'recover' ? 'ready' : action === 'slash' ? 'recover' : 'idle');
+        startAction(['draw', 'recover', 'armed-turn'].includes(action) ? 'ready' : action === 'slash' ? 'recover' : 'idle');
       }
-      if ((action === 'idle' || action === 'run') && stepDirection.x && Math.sign(stepDirection.x) !== facing) {
+      const canTurn = ['idle', 'run', 'ready'].includes(action);
+      if (!wasInAir && canTurn && stepDirection.x && Math.sign(stepDirection.x) !== facing) {
         facing = Math.sign(stepDirection.x);
-        startAction('turn');
+        startAction(action === 'ready' ? 'armed-turn' : 'turn');
       }
       if (action === 'idle' || action === 'run') action = stepDirection.lengthSq() ? 'run' : 'idle';
-      if (action === 'turn' || action === 'slash' || action === 'recover' || action === 'punch') stepDirection.set(0, 0);
+      if (['turn', 'armed-turn', 'slash', 'recover', 'punch'].includes(action)) stepDirection.set(0, 0);
       // Keep moving during weapon transitions. Defer reversing until the animation ends.
-      if (stepDirection.x && Math.sign(stepDirection.x) !== facing && action !== 'turn') {
-        if (action === 'ready') facing = Math.sign(stepDirection.x);
-        else stepDirection.x = 0;
-      }
+      if (stepDirection.x && Math.sign(stepDirection.x) !== facing) stepDirection.x = 0;
+      if (wasInAir) stepDirection.copy(jumpDrift);
     }
     motion.lerp(stepDirection, 1 - Math.exp(-dt * 18));
-    if (action === 'turn') motion.set(0, 0);
+    if (!wasInAir && (action === 'turn' || action === 'armed-turn')) motion.set(0, 0);
     const speed = motion.length();
     const targetHeight = THREE.MathUtils.clamp(height * 0.31, 100, 285)
       * THREE.MathUtils.lerp(0.78, 1.09, (heroPosition.y - 0.835) / 0.11);
-    const characterHeight = targetHeight * 0.5;
+    const characterHeight = targetHeight * (mobileLandscape.matches ? 0.65 : 0.5);
     const renderHeight = characterHeight * 1.34;
     const heroWidth = renderHeight * bellmaker.aspect;
     const margin = Math.min(width * 0.27, renderHeight * 0.35);
@@ -540,23 +553,30 @@ async function showMenu() {
     const stepped = !wasInAir && speed > 0.12
       && (heroPosition.x !== oldX || heroPosition.y !== oldY)
       && Math.floor(nextPhase * 2) !== Math.floor(phase * 2);
-    audio.update(stepped, wasInAir && jumpTime === jumpDuration);
+    const airProgress = jumpTime / jumpDuration;
+    audio.update(stepped, previousJumpProgress < 0.88 && airProgress >= 0.88);
     phase = nextPhase % 1;
     const progress = THREE.MathUtils.clamp(actionTime / (duration[action] ?? 1), 0, 1);
     const footX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     const footY = (1 - heroPosition.y) * backgroundHeight;
-    const airProgress = jumpTime / jumpDuration;
-    const lift = 4 * airProgress * (1 - airProgress);
-    const airborne = jumpTime < jumpDuration && ['idle', 'run', 'ready', 'turn'].includes(action);
-    const frame = bellmaker.frame(airborne ? (action === 'ready' ? 'armed-jump' : 'jump') : action, speed > 0.12, phase, progress);
+    const flight = THREE.MathUtils.clamp((airProgress - 0.12) / 0.76, 0, 1);
+    const lift = 4 * flight * (1 - flight);
+    const airborne = jumpTime < jumpDuration && ['idle', 'run', 'ready', 'turn', 'armed-turn'].includes(action);
+    const runningJump = jumpDrift.lengthSq() > 0;
+    const armed = action === 'ready' || action === 'armed-turn';
+    const jumpAction = `${armed ? 'armed-' : ''}${runningJump ? 'run-jump' : 'jump'}`;
+    const frame = bellmaker.frame(airborne ? jumpAction : action, speed > 0.12, phase,
+      airborne ? airProgress : progress, attack);
     hero.material.map = frame;
     idleBreath.value = action === 'idle' && !airborne && !reducedMotion.matches
       ? 0.5 - Math.cos(elapsed * 1.83) * 0.5 : 0;
-    const facingSprite = action === 'turn' && progress < 0.5 ? -facing : facing;
+    const turning = action === 'turn' || action === 'armed-turn';
+    const facingSprite = turning && progress < 0.5 ? -facing : facing;
     const spriteHeight = renderHeight * bellmaker.scale;
     hero.scale.set(heroWidth * bellmaker.scale * facingSprite, spriteHeight, 1);
-    hero.position.set(footX, footY + spriteHeight * (0.5 - bellmaker.baseline) + lift * characterHeight * 0.63, 3);
-    updateSlashTrail(action, progress);
+    hero.position.set(footX, footY + spriteHeight * (0.5 - bellmaker.baseline)
+      + lift * characterHeight * (runningJump ? 0.52 : 0.73), 3);
+    updateSlashTrail(action, progress, attack);
     shadow.scale.set(characterHeight * 0.54, characterHeight * 0.125, 1);
     shadow.material.opacity = 1 - lift * 0.55;
     shadow.position.set(footX, footY + 1, 2);
