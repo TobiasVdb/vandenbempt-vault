@@ -518,6 +518,58 @@ function makeCritters(scene) {
   };
 }
 
+function makeTrainingDummies(scene, atlas) {
+  makeTexture(atlas);
+  atlas.minFilter = THREE.LinearFilter;
+  atlas.generateMipmaps = false;
+  const frames = Array.from({ length: 4 }, (_, index) => {
+    const frame = atlas.clone();
+    frame.repeat.x = (atlas.image.width / 4 - 1) / atlas.image.width;
+    frame.offset.x = (atlas.image.width / 4 * index + 0.5) / atlas.image.width;
+    frame.needsUpdate = true;
+    return frame;
+  });
+  const dummies = [1.19, 1.43, 1.66].map((home, index) => {
+    const mesh = sprite(frames[1], 2.8);
+    scene.add(mesh);
+    return { mesh, home, x: home, facing: -1, phase: index * 0.29, stagger: 0, struck: false };
+  });
+
+  return (dt, player, reach, facing, baseHeight) => {
+    const lane = 0.91;
+    const footY = (1 - lane) * backgroundHeight;
+    const size = baseHeight * 1.11;
+    const stopDistance = size * 0.32 / backgroundWidth;
+    for (const dummy of dummies) {
+      if (!reach) dummy.struck = false;
+      const distance = player.x - dummy.x;
+      const gap = Math.abs(distance);
+      if (gap > 0.004) dummy.facing = Math.sign(distance);
+      if (reach && !dummy.struck && gap * backgroundWidth <= reach
+        && distance * facing <= 0.015 && Math.abs(player.y - lane) < 0.026) {
+        dummy.struck = true;
+        dummy.stagger = 0.34;
+        dummy.recoil = facing;
+      }
+
+      const stunned = dummy.stagger > 0;
+      const following = !stunned && gap > stopDistance && gap < 0.27;
+      const movement = stunned ? dummy.recoil * 0.075 : following ? dummy.facing * 0.032 : 0;
+      const nextX = THREE.MathUtils.clamp(dummy.x + movement * dt, dummy.home - 0.11, dummy.home + 0.11);
+      const walking = following && nextX !== dummy.x;
+      dummy.x = nextX;
+      dummy.stagger = Math.max(0, dummy.stagger - dt);
+      if (walking) dummy.phase = (dummy.phase + dt / 1.08) % 1;
+
+      const screenX = backgroundCenter + (dummy.x - 0.5) * backgroundWidth;
+      dummy.mesh.visible = screenX + size > 0 && screenX - size < width;
+      dummy.mesh.material.map = frames[stunned ? 3 : walking ? Math.floor(dummy.phase * 3) : 1];
+      dummy.mesh.position.set(screenX, footY + size * 0.46, player.y < lane ? 3.15 : 2.8);
+      dummy.mesh.scale.set(size * dummy.facing, size, 1);
+    }
+  };
+}
+
 async function showMenu() {
   const renderer = new THREE.WebGLRenderer({ antialias: false });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -525,13 +577,14 @@ async function showMenu() {
   const camera = new THREE.OrthographicCamera(0, 1, 1, 0, 0.1, 30);
   camera.position.z = 10;
   const loader = new THREE.TextureLoader();
-  const [worldTexture, bellmaker, scenery, foliage, entranceTree, closeFoliage] = await Promise.all([
+  const [worldTexture, bellmaker, scenery, foliage, entranceTree, closeFoliage, dummyAtlas] = await Promise.all([
     loader.loadAsync('./assets/wereldboom.webp'),
     loadBellmakerSprites(loader),
     Promise.all(routeScenes.map(name => loader.loadAsync(`./assets/route-${name}.webp`))),
     loader.loadAsync('./assets/route-voorgrond.webp'),
     loader.loadAsync('./assets/route-bosstam.webp'),
     loader.loadAsync('./assets/route-dichte-voorgrond.webp'),
+    loader.loadAsync('./assets/oefenpoppen.webp'),
   ]);
   const world = makeTexture(worldTexture);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
@@ -574,6 +627,7 @@ async function showMenu() {
 
   const animateFireflies = makeFireflies(scene);
   const animateCritters = makeCritters(scene);
+  const animateDummies = makeTrainingDummies(scene, dummyAtlas);
   const audio = makeSceneAudio();
 
   const playSequence = document.querySelector('#play-sequence');
@@ -763,6 +817,10 @@ async function showMenu() {
     const runningOnGround = lift === 0 && speed > 0.12 && stepDirection.lengthSq() > 0
       && (heroPosition.x !== oldX || heroPosition.y !== oldY);
     animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround);
+    const attacking = lift < 0.2 && progress > 0.32 && progress < 0.69;
+    const reach = attacking ? characterHeight * (action === 'slash' ? 0.97 : action === 'punch' ? 0.49 : 0) : 0;
+    animateDummies(dt, heroPosition, reach, facing,
+      THREE.MathUtils.clamp(height * 0.31, 100, 285) * (mobileLandscape.matches ? 0.65 : 0.5));
     renderer.render(scene, camera);
   }
 
