@@ -140,9 +140,9 @@ function makeLandscape(texture) {
       vec2 leafSway(vec2 uv, vec2 center, vec2 span, float phase) {
         vec2 p = (uv - center) / span;
         float tips = smoothstep(-0.70, 0.60, p.y);
-        float patch = 1.0 - smoothstep(0.42, 1.0, length(p));
+        float cluster = 1.0 - smoothstep(0.42, 1.0, length(p));
         float gust = sin(uTime * 1.9 + phase) * 0.72 + sin(uTime * 3.2 + phase) * 0.28;
-        return vec2(0.00125, -p.x * 0.00040) * patch * tips * gust;
+        return vec2(0.00125, -p.x * 0.00040) * cluster * tips * gust;
       }
     `).replace('#include <map_fragment>', `
       vec2 uv = vMapUv;
