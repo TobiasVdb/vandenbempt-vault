@@ -283,10 +283,36 @@ function makeCritters(scene) {
   const mesh = sprite(species[0].textures[0], 2);
   mesh.visible = false;
   scene.add(mesh);
+
+  const stainCanvas = document.createElement('canvas');
+  stainCanvas.width = 16;
+  stainCanvas.height = 6;
+  const ink = stainCanvas.getContext('2d');
+  ink.fillStyle = '#631022';
+  ink.fillRect(2, 2, 12, 3);
+  ink.fillRect(4, 1, 8, 5);
+  ink.fillRect(0, 3, 3, 1);
+  ink.fillRect(14, 1, 2, 1);
+  ink.fillStyle = '#a32036';
+  ink.fillRect(4, 2, 7, 2);
+  ink.fillRect(7, 1, 3, 1);
+  const puddle = sprite(makeTexture(new THREE.CanvasTexture(stainCanvas)), 1.65);
+  puddle.visible = false;
+  scene.add(puddle);
+
   let nextVisit = 2.5;
   let visit;
+  let spill;
 
-  return (time, dt, visible) => {
+  return (time, dt, visible, footX, footY, running) => {
+    puddle.visible = Boolean(spill && visible && time < spill.time + 4);
+    if (puddle.visible) {
+      puddle.position.x = backgroundCenter + spill.x * backgroundWidth;
+      puddle.position.y = spill.y * backgroundHeight + puddle.scale.y / 2;
+      puddle.material.opacity = 1 - THREE.MathUtils.smoothstep(time - spill.time, 2.3, 4);
+    } else {
+      spill = undefined;
+    }
     if (!visible) {
       mesh.visible = false;
       visit = undefined;
@@ -296,7 +322,8 @@ function makeCritters(scene) {
     if (!visit && time >= nextVisit) {
       const animal = species[Math.floor(Math.random() * species.length)];
       const direction = Math.random() < 0.5 ? 1 : -1;
-      visit = { animal, direction, started: time, distance: 0, lane: 0.86 + Math.random() * 0.065 };
+      const lane = THREE.MathUtils.clamp(heroPosition.y + (Math.random() - 0.5) * 0.017, 0.84, 0.94);
+      visit = { animal, direction, started: time, distance: 0, lane };
       mesh.visible = true;
     }
     if (!visit) return;
@@ -311,12 +338,19 @@ function makeCritters(scene) {
     mesh.scale.set(direction * size, spriteHeight, 1);
     const fraction = visit.distance / Math.min(width, 1050);
     const progress = direction > 0 ? fraction : 1 - fraction;
+    const groundY = (1 - lane) * backgroundHeight;
     mesh.position.set(
       -size + progress * (width + 2 * size),
-      (1 - lane) * backgroundHeight + spriteHeight / 2,
+      groundY + spriteHeight / 2,
       lane > heroPosition.y ? 4 : 1.8,
     );
-    if (fraction > 1) {
+    const trampled = running && Math.abs(mesh.position.x - footX) < size * 0.40
+      && Math.abs(groundY - footY) < Math.max(9, backgroundHeight * 0.009);
+    if (trampled) {
+      spill = { time, x: (mesh.position.x - backgroundCenter) / backgroundWidth, y: 1 - lane };
+      puddle.scale.set(size * 0.76, size * 0.23, 1);
+    }
+    if (trampled || fraction > 1) {
       mesh.visible = false;
       visit = undefined;
       nextVisit = time + 8 + Math.random() * 9;
@@ -529,7 +563,9 @@ async function showMenu() {
 
     landscapeTime.value = reducedMotion.matches ? 0 : elapsed;
     animateFireflies(elapsed, !reducedMotion.matches);
-    animateCritters(elapsed, dt, !reducedMotion.matches);
+    const runningOnGround = lift === 0 && speed > 0.12 && stepDirection.lengthSq() > 0
+      && (heroPosition.x !== oldX || heroPosition.y !== oldY);
+    animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround);
     renderer.render(scene, camera);
   }
 
