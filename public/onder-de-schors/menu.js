@@ -23,7 +23,7 @@ const stepDirection = new THREE.Vector2();
 const motion = new THREE.Vector2();
 const plane = new THREE.PlaneGeometry(1, 1);
 const routeSpacing = 0.78;
-const routeScenes = ['bos', 'grasland-open', 'dorpsrand'];
+const routeScenes = ['bos-uitloop', 'grasland-open', 'dorpsrand'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
 const sceneryParallax = 0.74;
 const skyParallax = 0.48;
@@ -129,8 +129,9 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
   `;
   const routeSeam = `
     float seam = 0.12 + sin(vMapUv.y * 14.0) * 0.017;
-    diffuseColor.a *= smoothstep(seam - 0.038, seam + 0.038, vMapUv.x);
+    diffuseColor.a *= smoothstep(seam - 0.027, seam + 0.027, vMapUv.x);
   `;
+  const meadowSeam = 'diffuseColor.a *= smoothstep(0.05, 0.091, vMapUv.x);';
   const panels = scenery.map((texture, index) => {
     const panel = sprite(makeTexture(texture), 0.1 * (index + 1));
     const isForest = index === 0;
@@ -145,8 +146,13 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
         `);
       }
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
-        #include <map_fragment>
-        ${isForest ? forestSeam : routeSeam}
+        ${isForest ? `
+          vec2 forestUV = vMapUv;
+          float curb = smoothstep(0.13, 0.19, forestUV.y) * (1.0 - smoothstep(0.26, 0.41, forestUV.y));
+          forestUV.y -= 0.04 * curb * smoothstep(0.58, 0.82, forestUV.x);
+          diffuseColor *= texture2D(map, forestUV);
+        ` : '#include <map_fragment>'}
+        ${isForest ? forestSeam : isTown ? routeSeam : meadowSeam}
         ${isTown ? `
           vec2 uv = vMapUv;
           float fountain = (1.0 - smoothstep(0.8, 1.0,
@@ -161,19 +167,23 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
     return panel;
   });
 
-  const road = [world, ...scenery].map((texture, index) => {
-    const tile = sprite(texture, 0.55 + index * 0.1);
-    tile.material.customProgramCacheKey = () => `road-${index}`;
-    tile.material.onBeforeCompile = shader => {
-      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
-        #include <map_fragment>
-        ${index === 0 ? '' : index === 1 ? forestSeam : routeSeam}
-        diffuseColor.a *= 1.0 - smoothstep(0.12, 0.175, vMapUv.y);
-      `);
-    };
-    scene.add(tile);
-    return tile;
-  });
+  const road = sprite(world, 0.55);
+  const roadView = { value: new THREE.Vector2() };
+  road.material.onBeforeCompile = shader => {
+    shader.uniforms.roadView = roadView;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+      #include <common>
+      uniform vec2 roadView;
+    `).replace('#include <map_fragment>', `
+      // Mirror a clean section of paving at the joins. World coordinates keep
+      // the same stones under the player's feet across every landscape.
+      float worldX = roadView.x + vMapUv.x * roadView.y;
+      float paving = 1.0 - abs(fract(worldX / 1.24) * 2.0 - 1.0);
+      diffuseColor *= texture2D(map, vec2(mix(0.15, 0.77, paving), vMapUv.y));
+      diffuseColor.a *= 1.0 - smoothstep(0.148, 0.195, vMapUv.y);
+    `);
+  };
+  scene.add(road);
 
   const sky = [world, ...scenery].map((texture, index, tiles) => {
     const clouds = sprite(texture, 0.36 + index * 0.02);
@@ -206,7 +216,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
         float banks = skyNoise(cloud) * 0.72 + skyNoise(cloud * 2.25) * 0.28;
         diffuseColor.rgb = vec3(0.18, 0.37, 0.42);
         diffuseColor.a *= blue * silhouettes * heightMask * smoothstep(0.47, 0.82, banks) * 0.32;
-        ${index === 0 ? '' : index === 1 ? forestSeam : routeSeam}
+        ${['', forestSeam, meadowSeam, routeSeam][index]}
         ${index < tiles.length - 1 ? 'diffuseColor.a *= 1.0 - smoothstep(0.86, 0.95, uv.x);' : ''}
       `);
     };
@@ -257,7 +267,9 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
     skyOffset.value = sceneryShift - scroll * skyParallax;
     sky.forEach((tile, index) => positionPanel(tile, sceneryCenter + index * routeSpacing * backgroundWidth));
     panels.forEach((panel, index) => positionPanel(panel, sceneryCenter + (index + 1) * routeSpacing * backgroundWidth));
-    road.forEach((tile, index) => positionPanel(tile, backgroundCenter + index * routeSpacing * backgroundWidth));
+    roadView.value.set(0.5 - backgroundCenter / backgroundWidth, width / backgroundWidth);
+    road.scale.set(width, backgroundHeight, 1);
+    road.position.set(width / 2, backgroundHeight / 2, 0.55);
     const entranceX = sceneryCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
     const trunkWidth = backgroundWidth * 0.19;
     forestEntrance.position.set(entranceX, backgroundHeight * 0.63, 0.45);
@@ -483,7 +495,13 @@ function makeCritters(scene) {
       const animal = species[Math.floor(Math.random() * species.length)];
       const direction = Math.random() < 0.5 ? 1 : -1;
       const lane = THREE.MathUtils.clamp(heroPosition.y + (Math.random() - 0.5) * 0.017, 0.84, 0.94);
-      visit = { animal, direction, started: time, distance: 0, lane };
+      const spawnX = direction > 0 ? -animal.size : width + animal.size;
+      visit = {
+        animal, direction, started: time, distance: 0, lane,
+        origin: (spawnX - backgroundCenter) / backgroundWidth,
+        span: (width + 2 * animal.size) / backgroundWidth,
+        durationDistance: Math.min(width, 1050),
+      };
       mesh.visible = true;
     }
     if (!visit) return;
@@ -496,11 +514,10 @@ function makeCritters(scene) {
     const spriteHeight = size * texture.image.height / texture.image.width;
     mesh.material.map = texture;
     mesh.scale.set(direction * size, spriteHeight, 1);
-    const fraction = visit.distance / Math.min(width, 1050);
-    const progress = direction > 0 ? fraction : 1 - fraction;
+    const fraction = visit.distance / visit.durationDistance;
     const groundY = (1 - lane) * backgroundHeight;
     mesh.position.set(
-      -size + progress * (width + 2 * size),
+      backgroundCenter + (visit.origin + direction * fraction * visit.span) * backgroundWidth,
       groundY + spriteHeight / 2,
       lane > heroPosition.y ? 4 : 1.8,
     );
@@ -594,6 +611,8 @@ async function showMenu() {
   scene.add(background);
   const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage);
   let routeOrigin;
+  let cameraScroll = 0;
+  let lookAhead = 0;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
   hero.geometry = new THREE.PlaneGeometry(1, 1, 48, 64);
   const idleBreath = { value: 0 };
@@ -688,6 +707,8 @@ async function showMenu() {
     if (demoTime >= 0) return;
     heroPosition.x = (width * 0.40 - routeOrigin) / backgroundWidth + 0.5;
     heroPosition.y = 0.90;
+    cameraScroll = 0;
+    lookAhead = 0;
 
     phase = 0;
     attack = 0;
@@ -786,9 +807,19 @@ async function showMenu() {
     const oldY = heroPosition.y;
     heroPosition.x = THREE.MathUtils.clamp(heroPosition.x + motion.x * dt * travel / backgroundWidth, viewLeft, viewRight);
     heroPosition.y = THREE.MathUtils.clamp(heroPosition.y + motion.y * dt * 0.13, 0.835, 0.945);
-    const follow = heroPosition.x - 0.5 + (routeOrigin - width * 0.67) / backgroundWidth;
     const maxScroll = routeEnd - 0.5 + (routeOrigin - width) / backgroundWidth;
-    const scroll = THREE.MathUtils.clamp(follow, 0, maxScroll);
+    lookAhead = THREE.MathUtils.lerp(lookAhead, reducedMotion.matches ? 0 : motion.x, 1 - Math.exp(-dt * 4));
+    const cameraFocus = width * (0.62 - lookAhead * 0.12);
+    const playerOnScreen = routeOrigin + (heroPosition.x - 0.5 - cameraScroll) * backgroundWidth;
+    const offset = playerOnScreen - cameraFocus;
+    const deadZone = width * 0.085;
+    const correction = offset - THREE.MathUtils.clamp(offset, -deadZone, deadZone);
+    let targetScroll = cameraScroll + correction / backgroundWidth;
+    const visitEnd = heroPosition.x >= viewRight - 0.0001;
+    if (visitEnd) targetScroll = maxScroll;
+    const scroll = THREE.MathUtils.clamp(
+      THREE.MathUtils.lerp(cameraScroll, targetScroll, 1 - Math.exp(-dt * 9)), 0, maxScroll);
+    cameraScroll = scroll;
     backgroundCenter = routeOrigin - scroll * backgroundWidth;
     // Limit the offset over long walks so the far end of the town stays in view.
     const sceneryLag = scroll * (1 - sceneryParallax) / Math.hypot(1, scroll / 0.48);
