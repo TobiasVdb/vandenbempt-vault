@@ -25,6 +25,7 @@ const plane = new THREE.PlaneGeometry(1, 1);
 const routeSpacing = 0.78;
 const routeScenes = ['bos', 'grasland-open', 'dorpsrand'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
+const sceneryParallax = 0.84;
 let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
 
@@ -117,8 +118,16 @@ function sprite(texture, z) {
   return mesh;
 }
 
-function makeRoute(scene, scenery, foliage, entranceTree) {
+function makeRoute(scene, world, scenery, foliage, entranceTree) {
   const townTime = { value: 0 };
+  const forestSeam = `
+    float seam = 0.202 + sin(vMapUv.y * 14.0) * 0.004;
+    diffuseColor.a *= smoothstep(seam - 0.009, seam + 0.009, vMapUv.x);
+  `;
+  const routeSeam = `
+    float seam = 0.12 + sin(vMapUv.y * 14.0) * 0.017;
+    diffuseColor.a *= smoothstep(seam - 0.038, seam + 0.038, vMapUv.x);
+  `;
   const panels = scenery.map((texture, index) => {
     const panel = sprite(makeTexture(texture), 0.1 * (index + 1));
     const isForest = index === 0;
@@ -134,14 +143,7 @@ function makeRoute(scene, scenery, foliage, entranceTree) {
       }
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
         #include <map_fragment>
-        ${isForest ? `
-          // At the forest entrance, join the dark bark beyond the lantern.
-          float seam = 0.202 + sin(vMapUv.y * 14.0) * 0.004;
-          diffuseColor.a *= smoothstep(seam - 0.009, seam + 0.009, vMapUv.x);
-        ` : `
-          float seam = 0.12 + sin(vMapUv.y * 14.0) * 0.017;
-          diffuseColor.a *= smoothstep(seam - 0.038, seam + 0.038, vMapUv.x);
-        `}
+        ${isForest ? forestSeam : routeSeam}
         ${isTown ? `
           vec2 uv = vMapUv;
           float fountain = (1.0 - smoothstep(0.8, 1.0,
@@ -154,6 +156,20 @@ function makeRoute(scene, scenery, foliage, entranceTree) {
     };
     scene.add(panel);
     return panel;
+  });
+
+  const road = [world, ...scenery].map((texture, index) => {
+    const tile = sprite(texture, 0.55 + index * 0.1);
+    tile.material.customProgramCacheKey = () => `road-${index}`;
+    tile.material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+        #include <map_fragment>
+        ${index === 0 ? '' : index === 1 ? forestSeam : routeSeam}
+        diffuseColor.a *= 1.0 - smoothstep(0.12, 0.175, vMapUv.y);
+      `);
+    };
+    scene.add(tile);
+    return tile;
   });
 
   const forestEntrance = sprite(makeTexture(entranceTree), 0.45);
@@ -175,15 +191,18 @@ function makeRoute(scene, scenery, foliage, entranceTree) {
     return { x, size, plant };
   });
 
-  return (origin, scroll) => {
+  function positionPanel(panel, x) {
+    panel.scale.set(backgroundWidth, backgroundHeight, 1);
+    panel.position.x = x;
+    panel.position.y = backgroundHeight / 2;
+    panel.visible = x + backgroundWidth / 2 > 0 && x - backgroundWidth / 2 < width;
+  }
+
+  return (origin, scroll, sceneryCenter) => {
     townTime.value = reducedMotion.matches ? 0 : elapsed;
-    panels.forEach((panel, index) => {
-      panel.scale.set(backgroundWidth, backgroundHeight, 1);
-      panel.position.x = backgroundCenter + (index + 1) * routeSpacing * backgroundWidth;
-      panel.position.y = backgroundHeight / 2;
-      panel.visible = panel.position.x + backgroundWidth / 2 > 0 && panel.position.x - backgroundWidth / 2 < width;
-    });
-    const entranceX = backgroundCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
+    panels.forEach((panel, index) => positionPanel(panel, sceneryCenter + (index + 1) * routeSpacing * backgroundWidth));
+    road.forEach((tile, index) => positionPanel(tile, backgroundCenter + index * routeSpacing * backgroundWidth));
+    const entranceX = sceneryCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
     const trunkWidth = backgroundWidth * 0.19;
     forestEntrance.position.set(entranceX, backgroundHeight * 0.63, 0.45);
     forestEntrance.scale.set(trunkWidth, backgroundHeight * 0.89, 1);
@@ -299,28 +318,29 @@ function makeFireflies(scene) {
   texture.colorSpace = THREE.SRGBColorSpace;
   const group = new THREE.Group();
   scene.add(group);
-  const flies = Array.from({ length: 24 }, (_, index) => {
+  const flies = Array.from({ length: Math.ceil(routeEnd * 22) }, (_, index) => {
     const foreground = index % 4 === 0;
     const mesh = sprite(texture, foreground ? 4 : 1);
     mesh.material.blending = THREE.AdditiveBlending;
     group.add(mesh);
     return {
       mesh, foreground,
-      x: (index * 0.618 + 0.16) % 1,
+      x: (index * 0.618 + 0.16) % routeEnd,
       y: 0.18 + (index * 0.341 % 1) * 0.49,
       pace: 0.38 + index % 6 * 0.067,
       phase: index * 2.399,
     };
   });
-  return (time, visible) => {
+  return (time, visible, sceneryCenter) => {
     group.visible = visible;
     if (!visible) return;
     for (const { mesh, x, y, foreground, pace, phase } of flies) {
       const flight = time * pace + phase;
       const pulse = Math.pow(0.5 + 0.5 * Math.sin(flight * 2.4), 3);
       const size = (foreground ? 38 : 25) * (0.8 + pulse * 0.2);
-      mesh.position.x = (x + Math.sin(flight) * 0.031) * width;
-      mesh.position.y = (y + Math.cos(flight * 0.77 + phase) * 0.047) * height;
+      mesh.position.x = sceneryCenter + (x - 0.5 + Math.sin(flight) * 0.019) * backgroundWidth;
+      mesh.position.y = (y + Math.cos(flight * 0.77 + phase) * 0.032) * backgroundHeight;
+      mesh.visible = mesh.position.x + size > 0 && mesh.position.x - size < width;
       mesh.scale.set(size, size, 1);
       mesh.material.opacity = 0.055 + pulse * (foreground ? 0.82 : 0.62);
     }
@@ -460,7 +480,7 @@ async function showMenu() {
   const world = makeTexture(worldTexture);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
-  const updateRoute = makeRoute(scene, scenery, foliage, entranceTree);
+  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree);
   let routeOrigin;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
   hero.geometry = new THREE.PlaneGeometry(1, 1, 24, 32);
@@ -642,9 +662,12 @@ async function showMenu() {
     const maxScroll = routeEnd - 0.5 + (routeOrigin - width) / backgroundWidth;
     const scroll = THREE.MathUtils.clamp(follow, 0, maxScroll);
     backgroundCenter = routeOrigin - scroll * backgroundWidth;
-    background.position.x = backgroundCenter;
-    background.visible = backgroundCenter + backgroundWidth / 2 > 0;
-    updateRoute(routeOrigin, scroll);
+    // Limit the offset over long walks so the far end of the town stays in view.
+    const sceneryLag = scroll * (1 - sceneryParallax) / Math.hypot(1, scroll / 0.65);
+    const sceneryCenter = backgroundCenter + sceneryLag * backgroundWidth;
+    background.position.x = sceneryCenter;
+    background.visible = sceneryCenter + backgroundWidth / 2 > 0;
+    updateRoute(routeOrigin, scroll, sceneryCenter);
     const nextPhase = phase + dt * speed * 1.22 / bellmaker.cycle;
     const stepped = !wasInAir && speed > 0.12
       && (heroPosition.x !== oldX || heroPosition.y !== oldY)
@@ -678,7 +701,7 @@ async function showMenu() {
     shadow.position.set(footX, footY + 1, 2);
 
     landscapeTime.value = reducedMotion.matches ? 0 : elapsed;
-    animateFireflies(elapsed, !reducedMotion.matches);
+    animateFireflies(elapsed, !reducedMotion.matches, sceneryCenter);
     const runningOnGround = lift === 0 && speed > 0.12 && stepDirection.lengthSq() > 0
       && (heroPosition.x !== oldX || heroPosition.y !== oldY);
     animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround);
