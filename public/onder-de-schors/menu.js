@@ -23,7 +23,7 @@ const stepDirection = new THREE.Vector2();
 const motion = new THREE.Vector2();
 const plane = new THREE.PlaneGeometry(1, 1);
 const routeSpacing = 0.78;
-const routeScenes = ['bos', 'grasland', 'dorp'];
+const routeScenes = ['bos', 'grasland-open', 'dorpsrand'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
 let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
