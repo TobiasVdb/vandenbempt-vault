@@ -1,6 +1,15 @@
+// Overhead chop, low sweep, rising cut, thrust, and cross-body cut.
+const swordSounds = [
+  { length: 0.16, from: 2400, to: 630, level: 0.21, attack: 0.018 },
+  { length: 0.21, from: 1650, to: 880, level: 0.16, attack: 0.032 },
+  { length: 0.17, from: 780, to: 2500, level: 0.19, attack: 0.021 },
+  { length: 0.065, from: 3700, to: 1530, level: 0.17, attack: 0.005 },
+  { length: 0.13, from: 3000, to: 990, level: 0.20, attack: 0.010 },
+];
+
 export function makeSceneAudio() {
   const Audio = window.AudioContext ?? window.webkitAudioContext;
-  if (!Audio) return { update() {} };
+  if (!Audio) return { update() {}, swing() {}, swordHit() {} };
 
   let context;
   let output;
@@ -68,20 +77,32 @@ export function makeSceneAudio() {
     source.stop(when + length);
   }
 
-  function grit(when, length, low, high, level) {
+  function grit(when, length, from, to, level, attack) {
     const source = context.createBufferSource();
     source.buffer = noise;
     const filter = context.createBiquadFilter();
     filter.type = 'bandpass';
     filter.Q.value = 0.85;
-    filter.frequency.setValueAtTime(low, when);
-    filter.frequency.exponentialRampToValueAtTime(high, when + length);
+    filter.frequency.setValueAtTime(from, when);
+    filter.frequency.exponentialRampToValueAtTime(to, when + length);
     source.connect(filter);
     source.start(when, Math.random() * 0.55);
-    play(source, filter, when, length, level);
+    play(source, filter, when, length, level, attack);
   }
 
   return {
+    swing(attack) {
+      if (context?.state !== 'running' || document.hidden) return;
+      const sound = swordSounds[attack];
+      grit(context.currentTime, sound.length, sound.from, sound.to, sound.level, sound.attack);
+    },
+    swordHit(attack) {
+      if (context?.state !== 'running' || document.hidden) return;
+      const now = context.currentTime;
+      const sound = swordSounds[attack];
+      grit(now, 0.052, sound.from * 0.59, 420, 0.23, 0.003);
+      grit(now + 0.008, 0.078, 640, sound.to * 0.32, 0.12, 0.005);
+    },
     update(step, landed) {
       if (context?.state !== 'running' || document.hidden) return;
       const now = context.currentTime + 0.015;
