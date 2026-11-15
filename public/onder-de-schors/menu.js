@@ -617,7 +617,7 @@ async function showMenu() {
     const margin = Math.min(width * 0.27, renderHeight * 0.35);
     const viewLeft = Math.max(0.07, (margin - routeOrigin) / backgroundWidth + 0.5);
     const viewRight = routeEnd - margin / backgroundWidth;
-    const travel = targetHeight * 0.48;
+    const travel = targetHeight * 0.72;
     const oldX = heroPosition.x;
     const oldY = heroPosition.y;
     heroPosition.x = THREE.MathUtils.clamp(heroPosition.x + motion.x * dt * travel / backgroundWidth, viewLeft, viewRight);
@@ -629,7 +629,7 @@ async function showMenu() {
     background.position.x = backgroundCenter;
     background.visible = backgroundCenter + backgroundWidth / 2 > 0;
     updateRoute(routeOrigin, scroll);
-    const nextPhase = phase + dt * speed / bellmaker.cycle;
+    const nextPhase = phase + dt * speed * 1.22 / bellmaker.cycle;
     const stepped = !wasInAir && speed > 0.12
       && (heroPosition.x !== oldX || heroPosition.y !== oldY)
       && Math.floor(nextPhase * 2) !== Math.floor(phase * 2);

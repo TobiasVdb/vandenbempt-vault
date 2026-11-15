@@ -5,9 +5,35 @@ export function makeSceneAudio() {
   let context;
   let output;
   let noise;
-  let nextBird = 0;
   let nextCreak = 0;
   const activation = new AbortController();
+
+  async function startAmbience() {
+    // Midnight field recording by sengjinn, CC0: https://freesound.org/s/175020/
+    const response = await fetch(new URL('./assets/nachtkrekels.mp3', import.meta.url));
+    if (!response.ok) return;
+    const recording = await context.decodeAudioData(await response.arrayBuffer());
+    const fade = Math.min(Math.round(recording.sampleRate * 0.8), Math.floor(recording.length / 4));
+    const length = recording.length - fade;
+    const loop = context.createBuffer(recording.numberOfChannels, length, recording.sampleRate);
+    for (let channel = 0; channel < recording.numberOfChannels; channel++) {
+      const original = recording.getChannelData(channel);
+      const samples = loop.getChannelData(channel);
+      samples.set(original.subarray(0, length));
+      // Blend the tail into the start so each repeat reconnects to the same waveform.
+      for (let i = 0; i < fade; i++) {
+        const blend = i / fade;
+        samples[i] = original[length + i] * (1 - blend) + original[i] * blend;
+      }
+    }
+    const source = context.createBufferSource();
+    source.buffer = loop;
+    source.loop = true;
+    const level = context.createGain();
+    level.gain.value = 0.60;
+    source.connect(level).connect(output);
+    source.start();
+  }
 
   async function unlock() {
     try {
@@ -19,6 +45,10 @@ export function makeSceneAudio() {
         noise = context.createBuffer(1, context.sampleRate, context.sampleRate);
         const samples = noise.getChannelData(0);
         for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+        document.addEventListener('visibilitychange', () => {
+          output.gain.setTargetAtTime(document.hidden ? 0 : 0.28, context.currentTime, 0.06);
+        });
+        void startAmbience().catch(error => console.warn('Nachtgeluid kon niet laden.', error));
       }
       await context.resume();
       if (context.state === 'running') activation.abort();
@@ -51,36 +81,19 @@ export function makeSceneAudio() {
     play(source, filter, when, length, level);
   }
 
-  function tone(when, length, from, to, level, attack) {
-    const source = context.createOscillator();
-    source.frequency.setValueAtTime(from, when);
-    source.frequency.exponentialRampToValueAtTime(to, when + length);
-    source.start(when);
-    play(source, source, when, length, level, attack);
-  }
-
   return {
     update(step, landed) {
       if (context?.state !== 'running' || document.hidden) return;
       const now = context.currentTime + 0.015;
       if (step || landed) {
         const pitch = 0.88 + Math.random() * 0.24;
-        grit(now, 0.12, 460 * pitch, 190 * pitch, landed ? 0.23 : 0.15);
-        grit(now + 0.014, 0.085, 1720 * pitch, 700 * pitch, 0.054);
-        tone(now, 0.073, 106 * pitch, 54 * pitch, landed ? 0.16 : 0.10, 0.007);
+        grit(now, 0.062, 930 * pitch, 510 * pitch, landed ? 0.079 : 0.042);
+        grit(now + 0.009, 0.044, 1800 * pitch, 880 * pitch, landed ? 0.031 : 0.020);
       }
-      nextBird ||= now + 2.5;
       nextCreak ||= now + 5;
-      if (now >= nextBird) {
-        const pitch = 0.8 + Math.random() * 0.35;
-        tone(now, 0.16, 1380 * pitch, 2100 * pitch, 0.022, 0.04);
-        tone(now + 0.19, 0.21, 2000 * pitch, 1460 * pitch, 0.017, 0.025);
-        nextBird = now + 11 + Math.random() * 16;
-      }
       if (now >= nextCreak) {
         grit(now, 0.31, 470, 205, 0.04);
         grit(now + 0.15, 0.21, 620, 340, 0.022);
-        tone(now, 0.30, 207, 130, 0.011, 0.08);
         nextCreak = now + 8 + Math.random() * 13;
       }
     },
