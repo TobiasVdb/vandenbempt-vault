@@ -19,12 +19,20 @@
     <button type="button" id="play-sequence">Speel animatieproef</button>
     <div class="touch-controls" aria-label="Aanraakbediening">
       <div class="touch-group">
-        <button type="button" data-direction="left" aria-label="Naar links">←</button>
-        <button type="button" data-direction="right" aria-label="Naar rechts">→</button>
+        <button type="button" data-direction="left" aria-label="Naar links">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+        </button>
+        <button type="button" data-direction="right" aria-label="Naar rechts">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+        </button>
       </div>
       <div class="touch-group">
-        <button type="button" data-action="jump">Spring</button>
-        <button type="button" data-action="hit">Sla</button>
+        <button type="button" data-action="jump" aria-label="Springen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5M5 20h14"/></svg>
+        </button>
+        <button type="button" data-action="hit" aria-label="Slaan">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 15 6-7V4h-4l-7 6m-2-2 9 9m-6-6-6 6a2 2 0 0 0 3 3l6-6"/></svg>
+        </button>
       </div>
     </div>
   </div>

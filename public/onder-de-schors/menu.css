@@ -29,16 +29,27 @@ h1 span { color: #f2c47e; }
   .touch-controls { display: flex; justify-content: space-between; width: 100%; gap: 8px; }
   .touch-group { display: flex; gap: 6px; }
   .touch-group button {
-    min-width: 48px;
-    min-height: 50px;
-    padding: 5px 9px;
-    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    width: clamp(48px, 12vw, 56px);
+    aspect-ratio: 1;
+    padding: 0;
+    border-radius: 50%;
     background: #151b15e8;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
   }
-  .touch-group button[data-direction] { font-size: 24px; }
+  .touch-group svg {
+    width: 23px;
+    height: 23px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
   .touch-group button:active { background: #534128; border-color: #f2c47e; }
 }
 .status { bottom: calc(clamp(16px, 4vh, 46px) + 42px); }
