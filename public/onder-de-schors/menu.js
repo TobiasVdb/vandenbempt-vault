@@ -117,12 +117,13 @@ function sprite(texture, z) {
   return mesh;
 }
 
-function makeRoute(scene, scenery, foliage) {
+function makeRoute(scene, scenery, foliage, entranceTree) {
   const townTime = { value: 0 };
   const panels = scenery.map((texture, index) => {
     const panel = sprite(makeTexture(texture), 0.1 * (index + 1));
+    const isForest = index === 0;
     const isTown = index === scenery.length - 1;
-    panel.material.customProgramCacheKey = () => isTown ? 'route-town' : 'route-road';
+    panel.material.customProgramCacheKey = () => routeScenes[index];
     panel.material.onBeforeCompile = shader => {
       if (isTown) {
         shader.uniforms.townTime = townTime;
@@ -133,8 +134,14 @@ function makeRoute(scene, scenery, foliage) {
       }
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
         #include <map_fragment>
-        float seam = 0.12 + sin(vMapUv.y * 14.0) * 0.017;
-        diffuseColor.a *= smoothstep(seam - 0.038, seam + 0.038, vMapUv.x);
+        ${isForest ? `
+          // At the forest entrance, join the dark bark beyond the lantern.
+          float seam = 0.202 + sin(vMapUv.y * 14.0) * 0.004;
+          diffuseColor.a *= smoothstep(seam - 0.009, seam + 0.009, vMapUv.x);
+        ` : `
+          float seam = 0.12 + sin(vMapUv.y * 14.0) * 0.017;
+          diffuseColor.a *= smoothstep(seam - 0.038, seam + 0.038, vMapUv.x);
+        `}
         ${isTown ? `
           vec2 uv = vMapUv;
           float fountain = (1.0 - smoothstep(0.8, 1.0,
@@ -148,6 +155,9 @@ function makeRoute(scene, scenery, foliage) {
     scene.add(panel);
     return panel;
   });
+
+  const forestEntrance = sprite(makeTexture(entranceTree), 0.45);
+  scene.add(forestEntrance);
 
   makeTexture(foliage);
   const plants = [
@@ -173,6 +183,11 @@ function makeRoute(scene, scenery, foliage) {
       panel.position.y = backgroundHeight / 2;
       panel.visible = panel.position.x + backgroundWidth / 2 > 0 && panel.position.x - backgroundWidth / 2 < width;
     });
+    const entranceX = backgroundCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
+    const trunkWidth = backgroundWidth * 0.19;
+    forestEntrance.position.set(entranceX, backgroundHeight * 0.63, 0.45);
+    forestEntrance.scale.set(trunkWidth, backgroundHeight * 0.89, 1);
+    forestEntrance.visible = entranceX + trunkWidth / 2 > 0 && entranceX - trunkWidth / 2 < width;
     for (const { x, size, plant } of plants) {
       const side = size * backgroundHeight;
       const screenX = origin + (x - 0.5 - scroll + (x - 0.67 - scroll) * 0.24) * backgroundWidth;
@@ -435,16 +450,17 @@ async function showMenu() {
   const camera = new THREE.OrthographicCamera(0, 1, 1, 0, 0.1, 30);
   camera.position.z = 10;
   const loader = new THREE.TextureLoader();
-  const [worldTexture, bellmaker, scenery, foliage] = await Promise.all([
+  const [worldTexture, bellmaker, scenery, foliage, entranceTree] = await Promise.all([
     loader.loadAsync('./assets/wereldboom.webp'),
     loadBellmakerSprites(loader),
     Promise.all(routeScenes.map(name => loader.loadAsync(`./assets/route-${name}.webp`))),
     loader.loadAsync('./assets/route-voorgrond.webp'),
+    loader.loadAsync('./assets/route-bosstam.webp'),
   ]);
   const world = makeTexture(worldTexture);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
-  const updateRoute = makeRoute(scene, scenery, foliage);
+  const updateRoute = makeRoute(scene, scenery, foliage, entranceTree);
   let routeOrigin;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
   hero.geometry = new THREE.PlaneGeometry(1, 1, 24, 32);
