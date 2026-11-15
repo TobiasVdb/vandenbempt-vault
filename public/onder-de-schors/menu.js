@@ -24,6 +24,11 @@ let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
 
 function bindControls(weaponInput, jump) {
+  let hitPress = null;
+  const clearHitPress = () => {
+    if (hitPress) clearTimeout(hitPress.timer);
+    hitPress = null;
+  };
   window.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
     if (key === 'j' && !event.altKey && !event.ctrlKey && !event.metaKey) {
@@ -44,6 +49,7 @@ function bindControls(weaponInput, jump) {
   const clearInput = () => {
     keys.clear();
     touchDirections.clear();
+    clearHitPress();
   };
   window.addEventListener('blur', clearInput);
   document.addEventListener('visibilitychange', clearInput);
@@ -58,15 +64,38 @@ function bindControls(weaponInput, jump) {
       button.addEventListener(event, release);
     }
   }
-  for (const button of controls.querySelectorAll('[data-action]')) {
-    const activate = button.dataset.action === 'jump' ? jump : () => weaponInput(' ');
-    button.addEventListener('pointerdown', event => {
-      if (event.button === 0) activate();
-    });
-    button.addEventListener('click', event => {
-      if (event.detail === 0) activate();
+  const jumpButton = controls.querySelector('[data-action="jump"]');
+  jumpButton.addEventListener('pointerdown', event => {
+    if (event.button === 0) jump();
+  });
+  jumpButton.addEventListener('click', event => {
+    if (event.detail === 0) jump();
+  });
+
+  const hitButton = controls.querySelector('[data-action="hit"]');
+  hitButton.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || hitPress) return;
+    hitButton.setPointerCapture(event.pointerId);
+    hitPress = { pointerId: event.pointerId, held: false, timer: setTimeout(() => {
+      hitPress.held = true;
+      weaponInput('draw');
+    }, 350) };
+  });
+  hitButton.addEventListener('pointerup', event => {
+    if (hitPress?.pointerId !== event.pointerId) return;
+    const tapped = !hitPress.held;
+    clearHitPress();
+    if (tapped) weaponInput(' ');
+  });
+  for (const type of ['pointercancel', 'lostpointercapture']) {
+    hitButton.addEventListener(type, event => {
+      if (hitPress?.pointerId === event.pointerId) clearHitPress();
     });
   }
+  hitButton.addEventListener('contextmenu', event => event.preventDefault());
+  hitButton.addEventListener('click', event => {
+    if (event.detail === 0) weaponInput(' ');
+  });
 }
 
 function makeTexture(texture) {
@@ -469,7 +498,7 @@ async function showMenu() {
   });
   bindControls(key => {
     if (demoTime >= 0) return;
-    if (key === 'f' && (action === 'idle' || action === 'run')) startAction('draw');
+    if ((key === 'f' || key === 'draw') && (action === 'idle' || action === 'run')) startAction('draw');
     else if (key === 'f' && action === 'ready') startAction('sheathe');
     else if (key === ' ' && action === 'ready') startAction('slash');
     else if (key === ' ' && (action === 'idle' || action === 'run' || action === 'turn')) startAction('punch');
