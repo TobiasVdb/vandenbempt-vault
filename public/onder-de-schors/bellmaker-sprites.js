@@ -88,8 +88,8 @@ export function makeSlashTrail() {
 export async function loadBellmakerSprites(loader) {
   const atlas = await loader.loadAsync('./assets/klokkenmaker-animaties.webp');
   atlas.colorSpace = THREE.SRGBColorSpace;
-  atlas.magFilter = THREE.NearestFilter;
-  atlas.minFilter = THREE.NearestFilter;
+  atlas.magFilter = THREE.LinearFilter;
+  atlas.minFilter = THREE.LinearFilter;
   atlas.generateMipmaps = false;
   const size = cellSize;
   const columns = 8;

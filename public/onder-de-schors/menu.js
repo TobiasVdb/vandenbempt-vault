@@ -106,7 +106,7 @@ function bindControls(weaponInput, jump) {
 
 function makeTexture(texture) {
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.LinearFilter;
   return texture;
 }
 
@@ -485,6 +485,7 @@ async function showMenu() {
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
   hero.geometry = new THREE.PlaneGeometry(1, 1, 24, 32);
   const idleBreath = { value: 0 };
+  let idleTime = 0;
   hero.material.onBeforeCompile = shader => {
     shader.uniforms.idleBreath = idleBreath;
     shader.vertexShader = 'uniform float idleBreath;\n' + shader.vertexShader.replace(
@@ -492,8 +493,9 @@ async function showMenu() {
       '#include <begin_vertex>\n'
         + `float heightFromChest = (position.y * ${bellmaker.scale.toFixed(6)} - 0.15) / 0.095;\n`
         + 'float chest = exp(-heightFromChest * heightFromChest);\n'
-        + 'transformed.x += position.x * chest * idleBreath * 0.035;\n'
-        + `transformed.y += chest * idleBreath * ${(0.007 / bellmaker.scale).toFixed(6)};`
+        + 'float upperBody = smoothstep(-0.16, 0.045, position.y);\n'
+        + 'transformed.x += position.x * chest * idleBreath * 0.018;\n'
+        + `transformed.y += upperBody * idleBreath * ${(0.004 / bellmaker.scale).toFixed(6)};`
     );
   };
   scene.add(hero);
@@ -687,8 +689,8 @@ async function showMenu() {
     const frame = bellmaker.frame(airborne ? jumpAction : action, speed > 0.12, phase,
       airborne ? airProgress : progress, attack);
     hero.material.map = frame;
-    idleBreath.value = action === 'idle' && !airborne && !reducedMotion.matches
-      ? 0.5 - Math.cos(elapsed * 1.83) * 0.5 : 0;
+    idleTime = action === 'idle' && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
+    idleBreath.value = 0.5 - Math.cos(idleTime * 1.62) * 0.5;
     const turning = action === 'turn' || action === 'armed-turn';
     const facingSprite = turning && progress < 0.5 ? -facing : facing;
     const spriteHeight = renderHeight * bellmaker.scale;
