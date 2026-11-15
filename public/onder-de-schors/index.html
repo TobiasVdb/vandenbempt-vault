@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Onder de Schors</title>
 <link rel="stylesheet" href="./menu.css">
 <script type="module" src="./menu.js"></script>
@@ -17,9 +17,16 @@
   </header>
   <div class="controls" id="controls" hidden>
     <button type="button" id="play-sequence">Speel animatieproef</button>
-    <span><kbd>ZQSD</kbd> / <kbd>↑ ← ↓ →</kbd> Rennen</span>
-    <span><kbd>F</kbd> Zwaard trekken of opbergen</span>
-    <span><kbd>Spatie</kbd> Slaan met vuist of zwaard</span>
+    <div class="touch-controls" aria-label="Aanraakbediening">
+      <div class="touch-group">
+        <button type="button" data-direction="left" aria-label="Naar links">←</button>
+        <button type="button" data-direction="right" aria-label="Naar rechts">→</button>
+      </div>
+      <div class="touch-group">
+        <button type="button" data-action="jump">Spring</button>
+        <button type="button" data-action="hit">Sla</button>
+      </div>
+    </div>
   </div>
   <div class="loading-screen" id="loading-screen">
     <div class="loading-mark" aria-hidden="true">∞</div>

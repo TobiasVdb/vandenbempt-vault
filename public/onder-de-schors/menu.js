@@ -14,6 +14,7 @@ const directions = new Map([
   ['d', [1, 0]], ['arrowright', [1, 0]],
 ]);
 const keys = new Set();
+const touchDirections = new Map();
 const activeDirections = new Set();
 const heroPosition = new THREE.Vector2(0.68, 0.91);
 const stepDirection = new THREE.Vector2();
@@ -22,9 +23,13 @@ const plane = new THREE.PlaneGeometry(1, 1);
 let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
 
-function bindControls(weaponInput) {
+function bindControls(weaponInput, jump) {
   window.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
+    if (key === 'j' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      if (!event.repeat) jump();
+      return;
+    }
     if ((key === 'f' || key === ' ') && !event.altKey && !event.ctrlKey && !event.metaKey) {
       if (key === ' ' && event.target instanceof HTMLButtonElement) return;
       event.preventDefault();
@@ -36,8 +41,32 @@ function bindControls(weaponInput) {
     keys.add(key);
   });
   window.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
-  window.addEventListener('blur', () => keys.clear());
-  document.addEventListener('visibilitychange', () => keys.clear());
+  const clearInput = () => {
+    keys.clear();
+    touchDirections.clear();
+  };
+  window.addEventListener('blur', clearInput);
+  document.addEventListener('visibilitychange', clearInput);
+  for (const button of controls.querySelectorAll('[data-direction]')) {
+    button.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      button.setPointerCapture(event.pointerId);
+      touchDirections.set(event.pointerId, button.dataset.direction === 'left' ? '-1,0' : '1,0');
+    });
+    const release = event => touchDirections.delete(event.pointerId);
+    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      button.addEventListener(event, release);
+    }
+  }
+  for (const button of controls.querySelectorAll('[data-action]')) {
+    const activate = button.dataset.action === 'jump' ? jump : () => weaponInput(' ');
+    button.addEventListener('pointerdown', event => {
+      if (event.button === 0) activate();
+    });
+    button.addEventListener('click', event => {
+      if (event.detail === 0) activate();
+    });
+  }
 }
 
 function makeTexture(texture) {
@@ -284,6 +313,11 @@ async function showMenu() {
   let action = 'idle';
   let actionTime = 0;
   let phase = 0;
+  const jumpDuration = 0.54;
+  let jumpTime = jumpDuration;
+  function jump() {
+    if (demoTime < 0 && jumpTime >= jumpDuration) jumpTime = 0;
+  }
 
   const duration = { turn: 0.25, draw: 0.48, slash: 0.36, recover: 0.20, sheathe: 0.48, punch: 0.31 };
   const demo = [
@@ -306,6 +340,7 @@ async function showMenu() {
     heroPosition.y = 0.90;
 
     phase = 0;
+    jumpTime = jumpDuration;
     facing = 1;
     motion.set(0, 0);
     demoTime = 0;
@@ -333,12 +368,14 @@ async function showMenu() {
 
   function draw(dt) {
     elapsed += dt;
+    jumpTime = Math.min(jumpTime + dt, jumpDuration);
     stepDirection.set(0, 0);
     activeDirections.clear();
     for (const key of keys) {
       const direction = directions.get(key);
       activeDirections.add(direction[0] + ',' + direction[1]);
     }
+    for (const direction of touchDirections.values()) activeDirections.add(direction);
     stepDirection.set(
       Number(activeDirections.has('1,0')) - Number(activeDirections.has('-1,0')),
       Number(activeDirections.has('0,1')) - Number(activeDirections.has('0,-1')),
@@ -399,14 +436,18 @@ async function showMenu() {
     const progress = THREE.MathUtils.clamp(actionTime / (duration[action] ?? 1), 0, 1);
     const footX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     const footY = (1 - heroPosition.y) * backgroundHeight;
-    const frame = bellmaker.frame(action, speed > 0.12, phase, progress);
+    const airProgress = jumpTime / jumpDuration;
+    const lift = 4 * airProgress * (1 - airProgress);
+    const airborne = jumpTime < jumpDuration && ['idle', 'run', 'ready', 'turn'].includes(action);
+    const frame = bellmaker.frame(airborne ? (action === 'ready' ? 'armed-jump' : 'jump') : action, speed > 0.12, phase, progress);
     hero.material.map = frame;
-    idleBreath.value = action === 'idle' && !reducedMotion.matches
+    idleBreath.value = action === 'idle' && !airborne && !reducedMotion.matches
       ? 0.5 - Math.cos(elapsed * 1.83) * 0.5 : 0;
     const facingSprite = action === 'turn' && progress < 0.5 ? -facing : facing;
     hero.scale.set(heroWidth * facingSprite, renderHeight, 1);
-    hero.position.set(footX, footY + renderHeight * (0.5 - bellmaker.baseline), 3);
+    hero.position.set(footX, footY + renderHeight * (0.5 - bellmaker.baseline) + lift * characterHeight * 0.63, 3);
     shadow.scale.set(characterHeight * 0.54, characterHeight * 0.125, 1);
+    shadow.material.opacity = 1 - lift * 0.55;
     shadow.position.set(footX, footY + 1, 2);
 
     landscapeTime.value = reducedMotion.matches ? 0 : elapsed;
@@ -427,8 +468,8 @@ async function showMenu() {
     if (key === 'f' && (action === 'idle' || action === 'run')) startAction('draw');
     else if (key === 'f' && action === 'ready') startAction('sheathe');
     else if (key === ' ' && action === 'ready') startAction('slash');
-    else if (key === ' ' && (action === 'idle' || action === 'run')) startAction('punch');
-  });
+    else if (key === ' ' && (action === 'idle' || action === 'run' || action === 'turn')) startAction('punch');
+  }, jump);
   new ResizeObserver(resize).observe(host);
   resize();
   draw(0);
