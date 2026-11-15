@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/three.module.js';
-import { loadBellmakerSprites } from './bellmaker-sprites.js';
+import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js';
 
 const host = document.querySelector('#scene');
 const status = document.querySelector('#status');
@@ -282,13 +282,15 @@ async function showMenu() {
     shader.vertexShader = 'uniform float idleBreath;\n' + shader.vertexShader.replace(
       '#include <begin_vertex>',
       '#include <begin_vertex>\n'
-        + 'float heightFromChest = (position.y - 0.15) / 0.095;\n'
+        + `float heightFromChest = (position.y * ${bellmaker.scale.toFixed(6)} - 0.15) / 0.095;\n`
         + 'float chest = exp(-heightFromChest * heightFromChest);\n'
         + 'transformed.x += position.x * chest * idleBreath * 0.035;\n'
-        + 'transformed.y += chest * idleBreath * 0.007;'
+        + `transformed.y += chest * idleBreath * ${(0.007 / bellmaker.scale).toFixed(6)};`
     );
   };
   scene.add(hero);
+  const { trail: slashTrail, update: updateSlashTrail } = makeSlashTrail();
+  hero.add(slashTrail);
 
   const shadowCanvas = document.createElement('canvas');
   shadowCanvas.width = 64;
@@ -319,7 +321,7 @@ async function showMenu() {
     if (demoTime < 0 && jumpTime >= jumpDuration) jumpTime = 0;
   }
 
-  const duration = { turn: 0.25, draw: 0.48, slash: 0.36, recover: 0.20, sheathe: 0.48, punch: 0.31 };
+  const duration = { turn: 0.25, draw: 0.48, slash: 0.42, recover: 0.20, sheathe: 0.48, punch: 0.31 };
   const demo = [
     { action: 'run', duration: 1.10, facing: 1 },
     { action: 'turn', duration: duration.turn, facing: -1 },
@@ -444,8 +446,10 @@ async function showMenu() {
     idleBreath.value = action === 'idle' && !airborne && !reducedMotion.matches
       ? 0.5 - Math.cos(elapsed * 1.83) * 0.5 : 0;
     const facingSprite = action === 'turn' && progress < 0.5 ? -facing : facing;
-    hero.scale.set(heroWidth * facingSprite, renderHeight, 1);
-    hero.position.set(footX, footY + renderHeight * (0.5 - bellmaker.baseline) + lift * characterHeight * 0.63, 3);
+    const spriteHeight = renderHeight * bellmaker.scale;
+    hero.scale.set(heroWidth * bellmaker.scale * facingSprite, spriteHeight, 1);
+    hero.position.set(footX, footY + spriteHeight * (0.5 - bellmaker.baseline) + lift * characterHeight * 0.63, 3);
+    updateSlashTrail(action, progress);
     shadow.scale.set(characterHeight * 0.54, characterHeight * 0.125, 1);
     shadow.material.opacity = 1 - lift * 0.55;
     shadow.position.set(footX, footY + 1, 2);
