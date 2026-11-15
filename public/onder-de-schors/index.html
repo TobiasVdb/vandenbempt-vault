@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onder de Schors</title>
+<link rel="stylesheet" href="./menu.css">
+<script type="module" src="./menu.js"></script>
+</head>
+<body>
+<main class="title-screen" aria-labelledby="title">
+  <div id="scene" class="scene" aria-hidden="true"></div>
+  <div class="shade" aria-hidden="true"></div>
+  <header class="title">
+    <span class="crest" aria-hidden="true">∞</span>
+    <h1 id="title">Onder de<br><span>Schors</span></h1>
+  </header>
+  <div class="controls" id="controls" hidden>
+    <button type="button" id="play-sequence">Speel animatieproef</button>
+    <span><kbd>ZQSD</kbd> / <kbd>↑ ← ↓ →</kbd> Rennen</span>
+    <span><kbd>F</kbd> Zwaard trekken of opbergen</span>
+    <span><kbd>Spatie</kbd> Slaan met vuist of zwaard</span>
+  </div>
+  <div class="loading-screen" id="loading-screen">
+    <div class="loading-mark" aria-hidden="true">∞</div>
+    <p role="status">De wereldboom laden…</p>
+    <div class="loading-track" aria-hidden="true"></div>
+  </div>
+  <p class="status" id="status" role="status" hidden></p>
+</main>
+</body>
+</html>
+
