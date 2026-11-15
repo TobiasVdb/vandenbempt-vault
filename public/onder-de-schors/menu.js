@@ -142,7 +142,14 @@ function makeLandscape(texture) {
         float tips = smoothstep(-0.70, 0.60, p.y);
         float cluster = 1.0 - smoothstep(0.42, 1.0, length(p));
         float gust = sin(uTime * 1.9 + phase) * 0.72 + sin(uTime * 3.2 + phase) * 0.28;
-        return vec2(0.00125, -p.x * 0.00040) * cluster * tips * gust;
+        return vec2(0.0030, -p.x * 0.0008) * cluster * tips * gust;
+      }
+      float softArea(vec2 uv, vec2 center, vec2 span) {
+        return 1.0 - smoothstep(0.50, 1.0, length((uv - center) / span));
+      }
+      float cascade(vec2 uv, vec2 center, vec2 span) {
+        vec2 p = abs((uv - center) / span);
+        return (1.0 - smoothstep(0.65, 1.0, p.x)) * (1.0 - smoothstep(0.67, 1.0, p.y));
       }
     `).replace('#include <map_fragment>', `
       vec2 uv = vMapUv;
@@ -151,11 +158,37 @@ function makeLandscape(texture) {
         + leafSway(uv, vec2(0.46, 0.94), vec2(0.15, -0.07), 1.8)
         + leafSway(uv, vec2(0.69, 0.89), vec2(0.16, 0.09), 3.2)
         + leafSway(uv, vec2(0.82, 0.77), vec2(0.15, 0.065), 4.7);
+      float falls = max(cascade(uv, vec2(0.842, 0.384), vec2(0.027, 0.019)),
+        cascade(uv, vec2(0.735, 0.380), vec2(0.014, 0.017)));
+      falls = max(falls, cascade(uv, vec2(0.741, 0.454), vec2(0.012, 0.013)));
+      falls = max(falls, cascade(uv, vec2(0.776, 0.483), vec2(0.009, 0.016)));
+      falls = max(falls, cascade(uv, vec2(0.628, 0.260), vec2(0.018, 0.028)));
+      float lake = max(softArea(uv, vec2(0.528, 0.295), vec2(0.104, 0.023)),
+        softArea(uv, vec2(0.669, 0.318), vec2(0.048, 0.024)));
+      vec3 painted = texture2D(map, uv).rgb;
+      float cyanWater = smoothstep(0.015, 0.11, painted.g - painted.r)
+        * smoothstep(0.15, 0.40, painted.g);
+      falls *= mix(0.18, 1.0, cyanWater);
+      sway.y += falls * sin(uv.y * 270.0 + uv.x * 193.0 + uTime * 8.0) * 0.0020;
+      float ripple = sin(uv.y * 530.0 + uv.x * 26.0 + uTime * 2.5)
+        * sin(uv.x * 56.0 - uTime * 0.8);
+      sway.x += lake * ripple * 0.0018;
       diffuseColor *= texture2D(map, clamp(uv + sway, 0.0, 1.0));
+      diffuseColor.rgb += vec3(0.09, 0.15, 0.16) * falls
+        * pow(0.5 + 0.5 * sin(uv.y * 420.0 + uv.x * 310.0 + uTime * 10.0), 3.0);
+      diffuseColor.rgb += vec3(0.035, 0.065, 0.067) * lake * ripple;
       float valleyMist = windBand(uv, 0.30 + sin(uv.x * 5.0) * 0.027, 0.087, 0.085);
       float highClouds = windBand(uv, 0.59 - uv.x * 0.13, 0.095, 0.055);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.44, 0.43),
         valleyMist * 0.22 + highClouds * 0.13);
+      float openSky = softArea(uv, vec2(0.28, 0.71), vec2(0.29, 0.15))
+        * (1.0 - smoothstep(0.16, 0.27, painted.g));
+      vec2 cloudPosition = vec2(uv.x * 10.0 - uTime * 0.34, uv.y * 19.0);
+      float cloudTexture = mistNoise(cloudPosition) * 0.68
+        + mistNoise(cloudPosition * 2.2) * 0.22 + mistNoise(cloudPosition * 4.6) * 0.10;
+      float crossingCloud = smoothstep(0.44, 0.78, cloudTexture);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.29, 0.48, 0.49),
+        openSky * crossingCloud * 0.36);
       vec2 lamp = (uv - vec2(0.907, 0.285)) * vec2(1.77, 1.0);
       float lantern = exp(-dot(lamp, lamp) * 550.0);
       float flame = 0.65 + sin(uTime * 5.7) * 0.19 + sin(uTime * 9.3) * 0.16;
