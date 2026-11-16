@@ -23,16 +23,43 @@ const stepDirection = new THREE.Vector2();
 const motion = new THREE.Vector2();
 const plane = new THREE.PlaneGeometry(1, 1);
 const routeSpacing = 0.78;
-const routeScenes = ['bos-uitloop', 'grasland-open', 'dorpsrand'];
+const routeScenes = ['bos-uitloop', 'grasland-open', 'dorpsplein'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
 const sceneryParallax = 0.74;
 const skyParallax = 0.48;
 const closeForegroundParallax = 0.24;
+const lightAnchors = [[0.907, 0.285], [1.95, 0.36], [2.62, 0.33], [3.14, 0.33]];
+const puddleGLSL = `
+  float pavingX(float x) {
+    return 1.0 - abs(fract(x / 1.24) * 2.0 - 1.0);
+  }
+  float pool(vec2 uv, vec2 center, vec2 span) {
+    return 1.0 - smoothstep(0.72, 1.0, length((uv - center) / span));
+  }
+  float puddleAt(vec2 ground) {
+    vec2 uv = vec2(pavingX(ground.x), ground.y / 0.22);
+    float smallPools = max(pool(uv, vec2(0.13, 0.27), vec2(0.066, 0.036)),
+      pool(uv, vec2(0.45, 0.145), vec2(0.052, 0.025)));
+    float largePools = max(pool(uv, vec2(0.17, 0.565), vec2(0.091, 0.047)),
+      pool(uv, vec2(0.775, 0.415), vec2(0.086, 0.046)));
+    return max(smallPools, largePools);
+  }
+`;
 let width, height, backgroundWidth, backgroundHeight, backgroundCenter;
 let elapsed = 0;
+let sprintDirection = 0;
 
 function bindControls(weaponInput, jump) {
   let hitPress = null;
+  let lastTapDirection = 0;
+  let lastTapTime = -Infinity;
+  const tapDirection = direction => {
+    if (!direction) return;
+    const now = performance.now();
+    sprintDirection = direction === lastTapDirection && now - lastTapTime < 300 ? direction : 0;
+    lastTapDirection = direction;
+    lastTapTime = now;
+  };
   const clearHitPress = () => {
     if (hitPress) clearTimeout(hitPress.timer);
     hitPress = null;
@@ -51,12 +78,15 @@ function bindControls(weaponInput, jump) {
     }
     if (!directions.has(key) || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
+    if (!event.repeat && !keys.has(key)) tapDirection(directions.get(key)[0]);
     keys.add(key);
   });
   window.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
   const clearInput = () => {
     keys.clear();
     touchDirections.clear();
+    sprintDirection = 0;
+    lastTapTime = -Infinity;
     clearHitPress();
   };
   window.addEventListener('blur', clearInput);
@@ -65,7 +95,9 @@ function bindControls(weaponInput, jump) {
     button.addEventListener('pointerdown', event => {
       if (event.button !== 0) return;
       button.setPointerCapture(event.pointerId);
-      touchDirections.set(event.pointerId, button.dataset.direction === 'left' ? '-1,0' : '1,0');
+      const direction = button.dataset.direction === 'left' ? -1 : 1;
+      tapDirection(direction);
+      touchDirections.set(event.pointerId, `${direction},0`);
     });
     const release = event => touchDirections.delete(event.pointerId);
     for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
@@ -120,7 +152,8 @@ function sprite(texture, z) {
   return mesh;
 }
 
-function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
+function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, effects) {
+  const { lights, splash } = effects;
   const townTime = { value: 0 };
   const skyOffset = { value: 0 };
   const forestSeam = `
@@ -151,6 +184,12 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
           float curb = smoothstep(0.13, 0.19, forestUV.y) * (1.0 - smoothstep(0.26, 0.41, forestUV.y));
           forestUV.y -= 0.04 * curb * smoothstep(0.58, 0.82, forestUV.x);
           diffuseColor *= texture2D(map, forestUV);
+        ` : isTown ? `
+          vec2 pennantUV = vMapUv;
+          float flags = (1.0 - smoothstep(0.45, 1.0,
+            length((pennantUV - vec2(0.53, 0.59)) / vec2(0.24, 0.067))));
+          pennantUV.x += flags * sin(townTime * 3.0 + pennantUV.x * 79.0) * 0.0029;
+          diffuseColor *= texture2D(map, pennantUV);
         ` : '#include <map_fragment>'}
         ${isForest ? forestSeam : isTown ? routeSeam : meadowSeam}
         ${isTown ? `
@@ -167,23 +206,74 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
     return panel;
   });
 
-  const road = sprite(world, 0.55);
+  const road = sprite(makeTexture(street), 0.55);
   const roadView = { value: new THREE.Vector2() };
   road.material.onBeforeCompile = shader => {
     shader.uniforms.roadView = roadView;
+    shader.uniforms.roadLights = lights;
+    shader.uniforms.roadSplash = splash;
+    shader.uniforms.roadTime = townTime;
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
       #include <common>
       uniform vec2 roadView;
+      uniform vec3 roadLights[4];
+      uniform vec3 roadSplash;
+      uniform float roadTime;
+      ${puddleGLSL}
     `).replace('#include <map_fragment>', `
       // Mirror a clean section of paving at the joins. World coordinates keep
       // the same stones under the player's feet across every landscape.
       float worldX = roadView.x + vMapUv.x * roadView.y;
-      float paving = 1.0 - abs(fract(worldX / 1.24) * 2.0 - 1.0);
-      diffuseColor *= texture2D(map, vec2(mix(0.15, 0.77, paving), vMapUv.y));
-      diffuseColor.a *= 1.0 - smoothstep(0.148, 0.195, vMapUv.y);
+      float paving = pavingX(worldX);
+      diffuseColor *= texture2D(map, vec2(paving, vMapUv.y / 0.22));
+      float wet = puddleAt(vec2(worldX, vMapUv.y));
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.60 + vec3(0.015, 0.037, 0.047), wet * 0.72);
+      vec3 illumination = vec3(0.89, 0.95, 1.01);
+      vec3 reflections = vec3(0.0);
+      for (int i = 0; i < 4; i++) {
+        float spread = (worldX - roadLights[i].x);
+        float distance = length(vec2(spread * 1.78, (vMapUv.y - roadLights[i].y) * 0.82));
+        float glow = exp(-distance * distance * 25.0) * roadLights[i].z;
+        illumination += vec3(0.63, 0.28, 0.065) * glow;
+        float ripple = 0.65 + 0.35 * sin(vMapUv.y * 690.0 + roadTime * 7.0 + worldX * 90.0);
+        float reflection = exp(-abs(spread + sin(vMapUv.y * 380.0 + roadTime * 3.0) * 0.003) * 47.0);
+        reflections += vec3(0.81, 0.34, 0.061) * glow * reflection * ripple * wet * 0.75;
+      }
+      diffuseColor.rgb = diffuseColor.rgb * illumination + reflections;
+      float wake = length((vec2(worldX, vMapUv.y) - roadSplash.xy) * vec2(2.1, 5.2));
+      float ring = 1.0 - smoothstep(0.002, 0.014, abs(wake - roadSplash.z * 0.23));
+      diffuseColor.rgb += vec3(0.11, 0.19, 0.20) * wet * ring *
+        (1.0 - smoothstep(0.06, 0.42, roadSplash.z));
+      diffuseColor.a *= 1.0 - smoothstep(0.154, 0.213, vMapUv.y);
     `);
   };
   scene.add(road);
+
+  makeTexture(storefronts);
+  storefronts.minFilter = THREE.LinearFilter;
+  storefronts.generateMipmaps = false;
+  const shops = [0.27, 0.80].map((x, index) => {
+    const texture = storefronts.clone();
+    texture.repeat.x = 0.5;
+    texture.offset.x = index * 0.5;
+    texture.needsUpdate = true;
+    const facade = sprite(texture, 0.48);
+    facade.material.customProgramCacheKey = () => `open-shop-${index}`;
+    facade.material.onBeforeCompile = shader => {
+      shader.uniforms.shopGlow = lights;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+        #include <common>
+        uniform vec3 shopGlow[4];
+      `).replace('#include <map_fragment>', `
+        #include <map_fragment>
+        vec2 doorway = vec2(vMapUv.x * 2.0 - ${index}.0, vMapUv.y) - vec2(0.53, 0.19);
+        float hearth = exp(-dot(doorway * vec2(3.6, 3.2), doorway * vec2(3.6, 3.2)));
+        diffuseColor.rgb *= vec3(1.0) + hearth * shopGlow[${index + 2}].z * vec3(0.17, 0.082, 0.015);
+      `);
+    };
+    scene.add(facade);
+    return { facade, x: routeSpacing * 3 + x };
+  });
 
   const sky = [world, ...scenery].map((texture, index, tiles) => {
     const clouds = sprite(texture, 0.36 + index * 0.02);
@@ -270,6 +360,13 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
     roadView.value.set(0.5 - backgroundCenter / backgroundWidth, width / backgroundWidth);
     road.scale.set(width, backgroundHeight, 1);
     road.position.set(width / 2, backgroundHeight / 2, 0.55);
+    for (const { facade, x } of shops) {
+      const center = sceneryCenter + (x - 0.5) * backgroundWidth;
+      const size = backgroundHeight * 0.56;
+      facade.position.set(center, backgroundHeight * 0.238 + size / 2, 0.48);
+      facade.scale.set(size, size, 1);
+      facade.visible = center + size / 2 > 0 && center - size / 2 < width;
+    }
     const entranceX = sceneryCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
     const trunkWidth = backgroundWidth * 0.19;
     forestEntrance.position.set(entranceX, backgroundHeight * 0.63, 0.45);
@@ -281,6 +378,10 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
       plant.position.set(screenX, side * 0.30, 4.5);
       plant.scale.set(side, side, 1);
       plant.visible = screenX + side / 2 > 0 && screenX - side / 2 < width;
+      const playerX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
+      const brush = THREE.MathUtils.clamp((playerX - screenX) / side, -1, 1);
+      plant.rotation.z = reducedMotion.matches ? 0
+        : Math.sin(elapsed * 2 + x * 5) * 0.022 + brush * (1 - Math.abs(brush)) * 0.29;
     }
     for (const { x, plant } of closePlants) {
       const size = backgroundHeight * 0.39;
@@ -289,6 +390,82 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage) {
       plant.scale.set(size, size * 0.44, 1);
       plant.visible = screenX + size / 2 > 0 && screenX - size / 2 < width;
     }
+  };
+}
+
+function makeRouteEffects(scene) {
+  const lights = { value: lightAnchors.map(() => new THREE.Vector3()) };
+  const splash = { value: new THREE.Vector3(0, 0, 1) };
+  const embersPerLight = 11;
+  const tracks = Array.from({ length: 18 }, () => ({ life: 0, x: 0, y: 0, drift: 0 }));
+  const positions = new THREE.BufferAttribute(new Float32Array((lightAnchors.length * embersPerLight + tracks.length) * 3), 3);
+  const colors = new THREE.BufferAttribute(new Float32Array(positions.count * 3), 3);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', positions);
+  geometry.setAttribute('color', colors);
+  const material = new THREE.PointsMaterial({
+    size: 3.2, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const particles = new THREE.Points(geometry, material);
+  particles.frustumCulled = false;
+  scene.add(particles);
+  let nextTrack = 0;
+  let kickTime = 0;
+  const emberCount = lightAnchors.length * embersPerLight;
+  return {
+    lights,
+    splash,
+    footstep(worldX, gridY) {
+      if (!reducedMotion.matches) splash.value.set(worldX, gridY, 0);
+    },
+    update(dt, sceneryCenter, footX, footY, sliding, drift) {
+      splash.value.z = Math.min(1, splash.value.z + dt);
+      const animated = !reducedMotion.matches;
+      particles.visible = animated;
+      let nearestLight;
+      let strength = 0;
+      for (const [index, [x, y]] of lightAnchors.entries()) {
+        const lightX = sceneryCenter + (x - 0.5) * backgroundWidth;
+        const fire = animated ? 0.79 + Math.sin(elapsed * 7.9 + x * 7) * 0.13 + Math.sin(elapsed * 17) * 0.08 : 0.8;
+        lights.value[index].set(0.5 + (lightX - backgroundCenter) / backgroundWidth, y, fire);
+        const distance = Math.hypot((footX - lightX) / backgroundWidth * 2.2, footY / backgroundHeight - y);
+        const incident = Math.exp(-distance * distance * 29) * fire;
+        if (incident > strength) {
+          strength = incident;
+          nearestLight = lightX;
+        }
+        for (let i = 0; i < embersPerLight; i++) {
+          const t = (elapsed * (0.44 + (i % 4) * 0.063) + i * 0.618) % 1;
+          const px = lightX + Math.sin(i * 2.17 + t * 5) * backgroundHeight * t * 0.037;
+          const py = backgroundHeight * (y + t * (0.045 + i % 3 * 0.013));
+          const alpha = Math.sin(Math.PI * t) * (0.30 + i % 4 * 0.13);
+          positions.setXYZ(index * embersPerLight + i, px, py, 2.1);
+          colors.setXYZ(index * embersPerLight + i, alpha, alpha * 0.36, alpha * 0.059);
+        }
+      }
+      kickTime -= dt;
+      if (animated && sliding && kickTime <= 0) {
+        const track = tracks[nextTrack];
+        track.x = (footX - backgroundCenter) / backgroundWidth;
+        track.y = footY / backgroundHeight;
+        track.life = 0.31;
+        track.drift = drift * 0.045;
+        kickTime = 0.024;
+        nextTrack = (nextTrack + 1) % tracks.length;
+      }
+      tracks.forEach((track, index) => {
+        track.life = Math.max(0, track.life - dt);
+        track.x -= track.drift * dt;
+        const p = emberCount + index;
+        const shine = track.life * 1.48;
+        positions.setXYZ(p, backgroundCenter + track.x * backgroundWidth,
+          backgroundHeight * (track.y + (0.31 - track.life) * 0.055), 2.2);
+        colors.setXYZ(p, shine * 0.53, shine * 0.45, shine * 0.34);
+      });
+      positions.needsUpdate = true;
+      colors.needsUpdate = true;
+      return { strength, direction: nearestLight === undefined ? 0 : Math.sign(footX - nearestLight) };
+    },
   };
 }
 
@@ -498,36 +675,49 @@ function makeCritters(scene) {
       const spawnX = direction > 0 ? -animal.size : width + animal.size;
       visit = {
         animal, direction, started: time, distance: 0, lane,
-        origin: (spawnX - backgroundCenter) / backgroundWidth,
-        span: (width + 2 * animal.size) / backgroundWidth,
-        durationDistance: Math.min(width, 1050),
+        x: (spawnX - backgroundCenter) / backgroundWidth,
+        worldPace: (width + 2 * animal.size) / (backgroundWidth * Math.min(width, 1050)),
+        climb: 0,
+        fleeing: false,
       };
       mesh.visible = true;
     }
     if (!visit) return;
-    const { animal, direction, started, lane } = visit;
+    const { animal, started, lane } = visit;
     const age = time - started;
-    const moving = age % 2.1 < 1.68;
-    if (moving) visit.distance += animal.pace * dt;
+    const animalX = visit.x + 0.5;
+    if (!visit.climb && Math.abs(animalX - heroPosition.x) < 0.071 && Math.abs(lane - heroPosition.y) < 0.055) {
+      visit.fleeing = true;
+      visit.direction = animalX < heroPosition.x ? -1 : 1;
+    }
+    const nearTrunk = [1.01, 1.34, 1.52].some(x => Math.abs(animalX - x) < 0.023);
+    if (visit.climb || (visit.fleeing && nearTrunk)) visit.climb += dt;
+    const moving = visit.fleeing || age % 2.1 < 1.68;
+    if (moving && !visit.climb) {
+      const step = animal.pace * dt * (visit.fleeing ? 2.3 : 1);
+      visit.distance += step;
+      visit.x += visit.direction * step * visit.worldPace;
+    }
     const size = THREE.MathUtils.clamp(height / 850, 0.78, 1.25) * animal.size;
-    const texture = animal.textures[moving ? Math.floor(age * 12) % 2 : 0];
+    const texture = animal.textures[moving ? Math.floor(age * (visit.fleeing ? 22 : 12)) % 2 : 0];
     const spriteHeight = size * texture.image.height / texture.image.width;
     mesh.material.map = texture;
-    mesh.scale.set(direction * size, spriteHeight, 1);
-    const fraction = visit.distance / visit.durationDistance;
+    mesh.scale.set(visit.direction * size, spriteHeight, 1);
+    mesh.rotation.z = visit.climb ? visit.direction * Math.PI / 2 : 0;
+    mesh.material.opacity = 1 - THREE.MathUtils.smoothstep(visit.climb, 0.72, 1.22);
     const groundY = (1 - lane) * backgroundHeight;
     mesh.position.set(
-      backgroundCenter + (visit.origin + direction * fraction * visit.span) * backgroundWidth,
-      groundY + spriteHeight / 2,
+      backgroundCenter + visit.x * backgroundWidth,
+      groundY + spriteHeight / 2 + visit.climb * backgroundHeight * 0.19,
       lane > heroPosition.y ? 4 : 1.8,
     );
-    const trampled = running && Math.abs(mesh.position.x - footX) < size * 0.40
+    const trampled = running && !visit.climb && Math.abs(mesh.position.x - footX) < size * 0.40
       && Math.abs(groundY - footY) < Math.max(9, backgroundHeight * 0.009);
     if (trampled) {
       spill = { time, x: (mesh.position.x - backgroundCenter) / backgroundWidth, y: 1 - lane };
       puddle.scale.set(size * 0.76, size * 0.23, 1);
     }
-    if (trampled || fraction > 1) {
+    if (trampled || visit.distance > 1100 || visit.climb > 1.22) {
       mesh.visible = false;
       visit = undefined;
       nextVisit = time + 8 + Math.random() * 9;
@@ -556,16 +746,17 @@ function makeTrainingDummies(scene, atlas) {
     popup.className = 'damage-number';
     document.querySelector('#combat-hud').append(bar, popup);
     return { mesh, bar, popup, hp: 20, popupTime: 0, home, x: home,
-      facing: -1, phase: index * 0.29, stagger: 0, struck: false };
+      facing: -1, phase: index * 0.29, stagger: 0, struck: false, scratch: 0, recovery: 0, hop: 0 };
   });
 
-  return (dt, player, reach, facing, baseHeight, damage) => {
+  return (dt, player, reach, facing, baseHeight, damage, strike, grounded) => {
     const lane = 0.91;
     const footY = (1 - lane) * backgroundHeight;
     const size = baseHeight * 1.11;
     const stopDistance = size * 0.32 / backgroundWidth;
     let hits = 0;
     let killed = false;
+    let scratched = false;
     for (const dummy of dummies) {
       if (!reach) dummy.struck = false;
       const distance = player.x - dummy.x;
@@ -574,8 +765,11 @@ function makeTrainingDummies(scene, atlas) {
       if (dummy.hp > 0 && reach && !dummy.struck && gap * backgroundWidth <= reach
         && distance * facing <= 0.015 && Math.abs(player.y - lane) < 0.026) {
         dummy.struck = true;
-        dummy.stagger = 0.34;
+        dummy.stagger = strike === 0 ? 0.45 : strike === 3 ? 0.21 : 0.32;
         dummy.recoil = facing;
+        dummy.hop = strike === 2 ? 1 : 0;
+        dummy.scratch = 0;
+        dummy.recovery = 0.4;
         const dealt = Math.min(dummy.hp, damage);
         dummy.hp -= dealt;
         dummy.popup.textContent = `−${dealt}`;
@@ -585,8 +779,19 @@ function makeTrainingDummies(scene, atlas) {
       }
 
       const stunned = dummy.stagger > 0;
-      const following = dummy.hp > 0 && player.x < routeSpacing * 3 && !stunned && gap > stopDistance && gap < 0.27;
-      const movement = stunned ? dummy.recoil * 0.075 : following ? dummy.facing * 0.032 : 0;
+      const active = dummy.hp > 0 && player.x < routeSpacing * 3 && !stunned;
+      const inClawRange = gap < stopDistance * 1.55 && Math.abs(player.y - lane) < 0.025;
+      dummy.recovery = Math.max(0, dummy.recovery - dt);
+      if (active && inClawRange && dummy.recovery === 0 && dummy.scratch === 0) dummy.scratch = 0.43;
+      if (dummy.scratch > 0) {
+        dummy.scratch = Math.max(0, dummy.scratch - dt);
+        if (dummy.scratch === 0) {
+          if (active && inClawRange && grounded) scratched = true;
+          dummy.recovery = 1.45;
+        }
+      }
+      const following = active && dummy.scratch === 0 && gap > stopDistance && gap < 0.27;
+      const movement = stunned ? dummy.recoil * (dummy.hop ? 0.052 : 0.085) : following ? dummy.facing * 0.032 : 0;
       const nextX = THREE.MathUtils.clamp(dummy.x + movement * dt, dummy.home - 0.11, dummy.home + 0.11);
       const walking = following && nextX !== dummy.x;
       dummy.x = nextX;
@@ -596,9 +801,11 @@ function makeTrainingDummies(scene, atlas) {
       const screenX = backgroundCenter + (dummy.x - 0.5) * backgroundWidth;
       const onScreen = screenX + size > 0 && screenX - size < width;
       dummy.mesh.visible = onScreen && (dummy.hp > 0 || stunned);
-      dummy.mesh.material.map = frames[stunned ? 3 : walking ? Math.floor(dummy.phase * 3) : 1];
+      dummy.mesh.material.map = frames[stunned || dummy.scratch > 0 ? 3 : walking ? Math.floor(dummy.phase * 3) : 1];
       dummy.mesh.material.opacity = dummy.hp > 0 ? 1 : Math.min(1, dummy.stagger / 0.24);
-      dummy.mesh.position.set(screenX, footY + size * 0.46, player.y < lane ? 3.15 : 2.8);
+      dummy.mesh.material.color.set(dummy.scratch > 0 ? 0xffb082 : stunned ? 0xffaa8a : 0xffffff);
+      const recoilHeight = stunned && dummy.hop ? Math.sin(Math.PI * dummy.stagger / 0.32) * size * 0.20 : 0;
+      dummy.mesh.position.set(screenX, footY + size * 0.46 + recoilHeight, player.y < lane ? 3.15 : 2.8);
       dummy.mesh.scale.set(size * dummy.facing, size, 1);
       const headY = height - footY - size;
       dummy.bar.hidden = !onScreen || dummy.hp <= 0;
@@ -611,7 +818,7 @@ function makeTrainingDummies(scene, atlas) {
       dummy.popup.style.opacity = Math.min(1, dummy.popupTime / 0.22);
       dummy.popupTime = Math.max(0, dummy.popupTime - dt);
     }
-    return { hits, killed };
+    return { hits, killed, scratched };
   };
 }
 
@@ -627,7 +834,7 @@ function makeWeaponShops() {
     long: { name: 'Langzwaard', price: 75, damage: 10, reach: 1.28 },
   };
   const shops = [
-    { name: 'Wapenhandel', interior: 'merchant', x: 0.36, goods: ['iron', 'bronze'] },
+    { name: 'Wapenhandel', interior: 'merchant', x: 0.27, goods: ['iron', 'bronze'] },
     { name: 'Smidse', interior: 'smith', x: 0.80, goods: ['bronze', 'long'] },
   ];
   let nearby;
@@ -674,6 +881,7 @@ function makeWeaponShops() {
     activeShop = nearby;
     keys.clear();
     touchDirections.clear();
+    sprintDirection = 0;
     motion.set(0, 0);
     dialog.dataset.interior = activeShop.interior;
     dialog.querySelector('#shop-title').textContent = activeShop.name;
@@ -717,7 +925,7 @@ async function showMenu() {
   const camera = new THREE.OrthographicCamera(0, 1, 1, 0, 0.1, 30);
   camera.position.z = 10;
   const loader = new THREE.TextureLoader();
-  const [worldTexture, bellmaker, scenery, foliage, entranceTree, closeFoliage, dummyAtlas] = await Promise.all([
+  const [worldTexture, bellmaker, scenery, foliage, entranceTree, closeFoliage, dummyAtlas, street, storefronts] = await Promise.all([
     loader.loadAsync('./assets/wereldboom.webp'),
     loadBellmakerSprites(loader),
     Promise.all(routeScenes.map(name => loader.loadAsync(`./assets/route-${name}.webp`))),
@@ -725,11 +933,14 @@ async function showMenu() {
     loader.loadAsync('./assets/route-bosstam.webp'),
     loader.loadAsync('./assets/route-dichte-voorgrond.webp'),
     loader.loadAsync('./assets/oefenpoppen.webp'),
+    loader.loadAsync('./assets/straatstenen.webp'),
+    loader.loadAsync('./assets/open-winkels.webp'),
   ]);
   const world = makeTexture(worldTexture);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
-  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage);
+  const routeEffects = makeRouteEffects(scene);
+  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, routeEffects);
   let routeOrigin;
   let cameraScroll = 0;
   let lookAhead = 0;
@@ -778,6 +989,39 @@ async function showMenu() {
   brush.fillRect(-32, -34, 64, 68);
   const shadow = sprite(new THREE.CanvasTexture(shadowCanvas), 2);
   scene.add(shadow);
+  const castShadow = sprite(hero.material.map, 1.78);
+  const shadowLean = { value: 0 };
+  castShadow.material.onBeforeCompile = shader => {
+    shader.uniforms.shadowLean = shadowLean;
+    shader.vertexShader = 'uniform float shadowLean;\n' + shader.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      transformed.x += (position.y + 0.28) * shadowLean;
+    `);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      diffuseColor.rgb = vec3(0.008, 0.014, 0.018);
+      diffuseColor.a *= 1.0 - smoothstep(0.45, 0.89, vMapUv.y);
+    `);
+  };
+  scene.add(castShadow);
+  const reflection = sprite(hero.material.map, 1.48);
+  const reflectionWorld = { value: new THREE.Vector3() };
+  reflection.material.color.set(0x88b8bc);
+  reflection.material.opacity = 0.34;
+  reflection.material.onBeforeCompile = shader => {
+    shader.uniforms.reflectionWorld = reflectionWorld;
+    shader.vertexShader = 'varying vec2 roadPoint;\n' + shader.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      roadPoint = (modelMatrix * vec4(position, 1.0)).xy;
+    `);
+    shader.fragmentShader = `varying vec2 roadPoint;\nuniform vec3 reflectionWorld;\n${puddleGLSL}` +
+      shader.fragmentShader.replace('#include <map_fragment>', `
+        #include <map_fragment>
+        vec2 ground = vec2(0.5 + (roadPoint.x - reflectionWorld.x) / reflectionWorld.y, roadPoint.y / reflectionWorld.z);
+        diffuseColor.a *= puddleAt(ground) * (1.0 - smoothstep(0.11, 0.17, ground.y));
+      `);
+  };
+  scene.add(reflection);
 
   const animateFireflies = makeFireflies(scene);
   const animateCritters = makeCritters(scene);
@@ -794,6 +1038,15 @@ async function showMenu() {
   let attack = 0;
   let nextAttack = 0;
   let swingPlayed = false;
+  let playerHealth = 5;
+  let recoveryTime = 0;
+  const hearts = [...document.querySelectorAll('.health use')];
+  const renderHealth = () => {
+    hearts.forEach((heart, index) => heart.style.opacity = index < playerHealth ? 1 : 0.22);
+    hearts[0].closest('svg').setAttribute('aria-label', `Levens: ${playerHealth} van 5`);
+  };
+  let scratchCooldown = 0;
+  let scratchFlash = 0;
   const jumpDrift = new THREE.Vector2();
   let jumpDuration = 0.54;
   let jumpTime = jumpDuration;
@@ -837,6 +1090,7 @@ async function showMenu() {
     jumpTime = jumpDuration;
     facing = 1;
     motion.set(0, 0);
+    sprintDirection = 0;
     demoTime = 0;
     playSequence.disabled = true;
     playSequence.blur();
@@ -862,6 +1116,23 @@ async function showMenu() {
 
   function draw(dt) {
     if (weaponShops.open) return;
+    if (recoveryTime > 0) {
+      recoveryTime = Math.max(0, recoveryTime - dt);
+      if (recoveryTime > 0) return;
+      playerHealth = 5;
+      renderHealth();
+      heroPosition.set(0.68, 0.91);
+      cameraScroll = 0;
+      facing = 1;
+      keys.clear();
+      touchDirections.clear();
+      sprintDirection = 0;
+      motion.set(0, 0);
+      startAction('idle');
+      status.hidden = true;
+    }
+    scratchCooldown = Math.max(0, scratchCooldown - dt);
+    scratchFlash = Math.max(0, scratchFlash - dt);
     elapsed += dt;
     const previousJumpProgress = jumpTime / jumpDuration;
     const wasInAir = previousJumpProgress < 1;
@@ -878,6 +1149,8 @@ async function showMenu() {
       Number(activeDirections.has('0,1')) - Number(activeDirections.has('0,-1')),
     );
     stepDirection.normalize();
+    const sprinting = sprintDirection !== 0 && Math.sign(stepDirection.x) === sprintDirection;
+    if (!stepDirection.x) sprintDirection = 0;
     actionTime += dt;
     let demoStage;
     if (demoTime >= 0) {
@@ -914,8 +1187,11 @@ async function showMenu() {
       if (stepDirection.x && Math.sign(stepDirection.x) !== facing) stepDirection.x = 0;
       if (wasInAir) stepDirection.copy(jumpDrift);
     }
-    motion.lerp(stepDirection, 1 - Math.exp(-dt * 18));
-    if (!wasInAir && (action === 'turn' || action === 'armed-turn')) motion.set(0, 0);
+    const sliding = !wasInAir && (action === 'slash' || action === 'punch' || Math.abs(motion.x) > 1.13)
+      && Math.abs(stepDirection.x) < 0.1;
+    if (sprinting && !wasInAir) stepDirection.x *= 1.66;
+    motion.lerp(stepDirection, 1 - Math.exp(-dt * (sliding ? 6.5 : 18)));
+    if (!wasInAir && !sliding && (action === 'turn' || action === 'armed-turn')) motion.set(0, 0);
     const speed = motion.length();
     const targetHeight = THREE.MathUtils.clamp(height * 0.31, 100, 285)
       * THREE.MathUtils.lerp(0.78, 1.09, (heroPosition.y - 0.835) / 0.11);
@@ -931,7 +1207,7 @@ async function showMenu() {
     heroPosition.x = THREE.MathUtils.clamp(heroPosition.x + motion.x * dt * travel / backgroundWidth, viewLeft, viewRight);
     heroPosition.y = THREE.MathUtils.clamp(heroPosition.y + motion.y * dt * 0.13, 0.835, 0.945);
     const maxScroll = routeEnd - 0.5 + (routeOrigin - width) / backgroundWidth;
-    lookAhead = THREE.MathUtils.lerp(lookAhead, reducedMotion.matches ? 0 : motion.x, 1 - Math.exp(-dt * 4));
+    lookAhead = THREE.MathUtils.lerp(lookAhead, reducedMotion.matches ? 0 : THREE.MathUtils.clamp(motion.x, -1, 1), 1 - Math.exp(-dt * 4));
     const cameraFocus = width * (0.62 - lookAhead * 0.12);
     const playerOnScreen = routeOrigin + (heroPosition.x - 0.5 - cameraScroll) * backgroundWidth;
     const offset = playerOnScreen - cameraFocus;
@@ -960,6 +1236,11 @@ async function showMenu() {
     const progress = THREE.MathUtils.clamp(actionTime / (duration[action] ?? 1), 0, 1);
     const footX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     const footY = (1 - heroPosition.y) * backgroundHeight;
+    if (stepped || (previousJumpProgress < 0.88 && airProgress >= 0.88)) {
+      routeEffects.footstep(heroPosition.x, footY / backgroundHeight);
+    }
+    const lighting = routeEffects.update(dt, sceneryCenter, footX, footY,
+      sliding && Math.abs(motion.x) > 0.15, motion.x);
     weaponShops.update(sceneryCenter, footX);
     const flight = THREE.MathUtils.clamp((airProgress - 0.12) / 0.76, 0, 1);
     const lift = 4 * flight * (1 - flight);
@@ -970,6 +1251,8 @@ async function showMenu() {
     const frame = bellmaker.frame(airborne ? jumpAction : action, speed > 0.12, phase,
       airborne ? airProgress : progress, attack);
     hero.material.map = frame;
+    hero.material.color.setRGB(0.82 + lighting.strength * 0.24, 0.87 + lighting.strength * 0.11,
+      scratchFlash > 0 ? 0.58 : 0.96 - lighting.strength * 0.04);
     const standingArmed = action === 'ready' && speed <= 0.12;
     idleTime = (action === 'idle' || standingArmed) && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
     idleBreath.value = 0.5 - Math.cos(idleTime * 1.62) * 0.5;
@@ -981,9 +1264,21 @@ async function showMenu() {
     hero.position.set(footX, footY + spriteHeight * (0.5 - bellmaker.baseline)
       + lift * characterHeight * (runningJump ? 0.52 : 0.73), 3);
     updateSlashTrail(action, progress, attack);
-    shadow.scale.set(characterHeight * 0.54, characterHeight * 0.125, 1);
-    shadow.material.opacity = 1 - lift * 0.55;
-    shadow.position.set(footX, footY + 1, 2);
+    shadow.scale.set(characterHeight * (0.54 + lighting.strength * 0.62), characterHeight * 0.125, 1);
+    shadow.material.opacity = (0.66 + lighting.strength * 0.34) * (1 - lift * 0.55);
+    shadow.position.set(footX + lighting.direction * lighting.strength * characterHeight * 0.24, footY + 1, 2);
+    const castHeight = spriteHeight * 0.15;
+    shadowLean.value = lighting.direction * facingSprite * (0.20 + lighting.strength * 0.56);
+    castShadow.material.map = frame;
+    castShadow.material.opacity = (0.08 + lighting.strength * 0.31) * (1 - lift * 0.65);
+    castShadow.scale.set(heroWidth * bellmaker.scale * facingSprite, castHeight, 1);
+    castShadow.position.set(footX, footY + castHeight * (0.5 - bellmaker.baseline), 1.78);
+    const reflectedHeight = spriteHeight * 0.54;
+    reflection.material.map = frame;
+    reflection.material.opacity = 0.34 - lift * 0.19;
+    reflection.scale.set(heroWidth * bellmaker.scale * facingSprite, -reflectedHeight, 1);
+    reflection.position.set(footX, footY - reflectedHeight * (0.5 - bellmaker.baseline), 1.48);
+    reflectionWorld.value.set(backgroundCenter, backgroundWidth, backgroundHeight);
 
     landscapeTime.value = reducedMotion.matches ? 0 : elapsed;
     animateFireflies(elapsed, !reducedMotion.matches, sceneryCenter);
@@ -999,11 +1294,23 @@ async function showMenu() {
     }
     const attacking = lift < 0.2 && progress >= (swinging ? swingMoment : 0.32) && progress < 0.69;
     const reach = attacking ? characterHeight * (swinging ? 0.97 * weaponShops.reach : action === 'punch' ? 0.49 : 0) : 0;
-    const { hits, killed } = animateDummies(dt, heroPosition, reach, facing,
+    const { hits, killed, scratched } = animateDummies(dt, heroPosition, reach, facing,
       THREE.MathUtils.clamp(height * 0.31, 100, 285) * (mobileLandscape.matches ? 0.65 : 0.5),
-      swinging ? weaponShops.damage : 5);
+      swinging ? weaponShops.damage : 5, swinging ? attack : -1, lift < 0.16);
     if (swinging && hits) audio.swordHit(attack);
     if (hits) audio.arcadeHit(killed);
+    if (scratched && scratchCooldown === 0 && demoTime < 0) {
+      playerHealth--;
+      renderHealth();
+      scratchCooldown = 1.15;
+      scratchFlash = 0.20;
+      audio.scratch();
+      if (!playerHealth) {
+        recoveryTime = 0.95;
+        status.textContent = 'Je keert terug naar de Wereldboom.';
+        status.hidden = false;
+      }
+    }
     renderer.render(scene, camera);
   }
 

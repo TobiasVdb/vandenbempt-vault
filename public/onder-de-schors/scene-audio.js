@@ -9,7 +9,7 @@ const swordSounds = [
 
 export function makeSceneAudio() {
   const Audio = window.AudioContext ?? window.webkitAudioContext;
-  if (!Audio) return { update() {}, swing() {}, swordHit() {}, arcadeHit() {} };
+  if (!Audio) return { update() {}, swing() {}, swordHit() {}, arcadeHit() {}, scratch() {} };
 
   let context;
   let output;
@@ -91,6 +91,10 @@ export function makeSceneAudio() {
   }
 
   return {
+    scratch() {
+      if (context?.state !== 'running' || document.hidden) return;
+      grit(context.currentTime, 0.125, 2680, 510, 0.22, 0.005);
+    },
     arcadeHit(killed) {
       if (context?.state !== 'running' || document.hidden) return;
       const now = context.currentTime;
