@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three/three.module.js';
 import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=shield';
-import { makeSceneAudio } from './scene-audio.js?v=shield';
+import { makeSceneAudio } from './scene-audio.js?v=clouds-music';
 
 const host = document.querySelector('#scene');
 const status = document.querySelector('#status');
@@ -29,6 +29,40 @@ const routeScenes = ['bos-uitloop', 'grasland-open', 'dorpsplein'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
 const sceneryParallax = 0.74;
 const skyParallax = 0.48;
+const cloudNoiseGLSL = `
+  float skyHash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+  float skyNoise(vec2 p) {
+    vec2 cell = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(skyHash(cell), skyHash(cell + vec2(1, 0)), f.x),
+      mix(skyHash(cell + vec2(0, 1)), skyHash(cell + vec2(1, 1)), f.x), f.y);
+  }
+  float cloudShape(vec2 p) {
+    return skyNoise(p) * 0.55 + skyNoise(p * 2.03 + 14.2) * 0.27
+      + skyNoise(p * 4.11 - 9.6) * 0.13 + skyNoise(p * 8.17) * 0.05;
+  }
+`;
+const valleyCloudGLSL = `
+  ${cloudNoiseGLSL}
+  float valleyDensity(vec2 p, float clock, float rain) {
+    if (p.y < 0.215 || p.y > 0.62) return 0.0;
+    float travel = clock * mix(0.007, 0.024, rain);
+    float drift = p.x - travel;
+    float terrain = skyNoise(vec2(p.x * 1.7, 14.0));
+    float bankHeight = 0.38 + terrain * 0.12 - rain * 0.04;
+    float altitude = (p.y - bankHeight) / (0.047 + rain * 0.054);
+    float lowWisp = (p.y - (0.275 + terrain * 0.025)) / 0.036;
+    vec2 billow = vec2(drift * 7.0, p.y * 22.0);
+    billow.y += (skyNoise(vec2(drift * 4.7, 32.0)) - 0.5) * 1.8;
+    float body = smoothstep(0.37, 0.74, cloudShape(billow));
+    float veil = body * exp(-altitude * altitude) * (0.48 + rain * 0.4);
+    veil += body * exp(-lowWisp * lowWisp) * (0.26 + rain * 0.15);
+    return clamp(veil, 0.0, 0.92);
+  }
+`;
 const closeForegroundParallax = 0.24;
 const lightAnchors = [[0.907, 0.285], [1.95, 0.36], [2.62, 0.33], [3.14, 0.33]];
 // Corner positions on the original town painting, measured on a 1300 × 732 reference.
@@ -48,6 +82,7 @@ const pennants = [
   [[945,235], [966,220], [953,286], [977,278]],
 ].map(points => points.map(([x, y]) => [x / 1300, 1 - y / 732]));
 const puddleGLSL = `
+  uniform float waterLevel;
   float pavingX(float x) {
     return 1.0 - abs(fract(x / 1.24) * 2.0 - 1.0);
   }
@@ -55,11 +90,14 @@ const puddleGLSL = `
     return 1.0 - smoothstep(0.72, 1.0, length((uv - center) / span));
   }
   float puddleAt(vec2 ground) {
+    if (waterLevel <= 0.02) return 0.0;
     vec2 uv = vec2(pavingX(ground.x), ground.y / 0.22);
-    float smallPools = max(pool(uv, vec2(0.13, 0.27), vec2(0.066, 0.036)),
-      pool(uv, vec2(0.45, 0.145), vec2(0.052, 0.025)));
-    float largePools = max(pool(uv, vec2(0.17, 0.565), vec2(0.091, 0.047)),
-      pool(uv, vec2(0.775, 0.415), vec2(0.086, 0.046)));
+    float early = smoothstep(0.02, 0.84, waterLevel);
+    float late = smoothstep(0.16, 0.94, waterLevel);
+    float smallPools = max(pool(uv, vec2(0.13, 0.27), vec2(0.066, 0.036) * mix(0.25, 1.0, late)),
+      pool(uv, vec2(0.45, 0.145), vec2(0.052, 0.025) * mix(0.25, 1.0, late))) * smoothstep(0.16, 0.32, waterLevel);
+    float largePools = max(pool(uv, vec2(0.17, 0.565), vec2(0.091, 0.047) * mix(0.21, 1.0, early)),
+      pool(uv, vec2(0.775, 0.415), vec2(0.086, 0.046) * mix(0.21, 1.0, early))) * smoothstep(0.02, 0.18, waterLevel);
     return max(smallPools, largePools);
   }
 `;
@@ -235,8 +273,9 @@ function makePennants(scene, texture) {
   };
 }
 
-function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, effects, weather) {
+function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, effects, climate) {
   const { lights, splash } = effects;
+  const { weather, waterLevel, clock } = climate;
   const townTime = { value: 0 };
   const skyOffset = { value: 0 };
   const forestSeam = `
@@ -309,12 +348,15 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     shader.uniforms.roadSplash = splash;
     shader.uniforms.roadTime = townTime;
     shader.uniforms.weather = weather;
+    shader.uniforms.waterLevel = waterLevel;
+    shader.uniforms.rainClock = clock;
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
       #include <common>
       uniform vec2 roadView;
       uniform vec3 roadLights[4];
       uniform vec3 roadSplash;
       uniform float roadTime;
+      uniform float rainClock;
       uniform vec4 weather;
       ${puddleGLSL}
     `).replace('#include <map_fragment>', `
@@ -324,8 +366,8 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
       float paving = pavingX(worldX);
       diffuseColor *= texture2D(map, vec2(paving, vMapUv.y / 0.22));
       float wet = puddleAt(vec2(worldX, vMapUv.y));
-      wet = mix(wet, max(wet, 0.33), weather.z);
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.60 + vec3(0.015, 0.037, 0.047), wet * 0.72);
+      diffuseColor.rgb *= 1.0 - max(weather.z, waterLevel) * 0.16;
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.55 + vec3(0.023, 0.067, 0.080), wet * 0.86);
       vec3 illumination = vec3(0.89, 0.95, 1.01);
       vec3 reflections = vec3(0.0);
       for (int i = 0; i < 4; i++) {
@@ -342,13 +384,19 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
       float ring = 1.0 - smoothstep(0.002, 0.014, abs(wake - roadSplash.z * 0.23));
       diffuseColor.rgb += vec3(0.11, 0.19, 0.20) * wet * ring *
         (1.0 - smoothstep(0.06, 0.42, roadSplash.z));
-      vec2 rainGrid = vec2(worldX * 93.0, vMapUv.y * 92.0);
-      vec2 rainCell = floor(rainGrid);
-      float rainSeed = fract(sin(dot(rainCell, vec2(127.1, 311.7))) * 43758.54);
-      float rainAge = fract(roadTime * (1.4 + rainSeed) + rainSeed * 13.0);
-      float radius = length((fract(rainGrid) - vec2(0.5)) * vec2(1.0, 1.8));
-      float rainRing = (1.0 - smoothstep(0.013, 0.049, abs(radius - rainAge * 0.42))) * (1.0 - rainAge);
-      diffuseColor.rgb += vec3(0.12, 0.19, 0.24) * rainRing * weather.z * (0.35 + 0.65 * wet);
+      if (wet > 0.015 && weather.z > 0.02) {
+        vec2 rainGrid = vec2(worldX * 74.0, vMapUv.y * 101.0);
+        vec2 rainCell = floor(rainGrid);
+        float rainSeed = fract(sin(dot(rainCell, vec2(127.1, 311.7))) * 43758.54);
+        float rainAge = fract(rainClock * (1.1 + rainSeed * 0.78) + rainSeed * 13.0);
+        vec2 impact = (fract(rainGrid) - vec2(0.5 + (rainSeed - 0.5) * 0.20, 0.48)) * vec2(1.0, 1.4);
+        float radius = length(impact);
+        float ringSize = 0.035 + rainAge * 0.37;
+        float rainRing = (1.0 - smoothstep(0.016, 0.068, abs(radius - ringSize))) * (1.0 - rainAge);
+        float crest = (1.0 - smoothstep(0.03, 0.11, length(impact - vec2(0.0, rainAge * 0.55))))
+          * (1.0 - smoothstep(0.04, 0.22, rainAge));
+        diffuseColor.rgb += vec3(0.31, 0.53, 0.60) * (rainRing * 0.76 + crest) * weather.z * wet;
+      }
       diffuseColor.a *= 1.0 - smoothstep(0.154, 0.213, vMapUv.y);
     `);
   };
@@ -381,7 +429,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
   });
 
   const sky = [world, ...scenery].map((texture, index, tiles) => {
-    const clouds = sprite(texture, 0.36 + index * 0.02);
+    const clouds = sprite(texture, 0.442 + index * 0.001);
     clouds.material.customProgramCacheKey = () => `sky-${index}`;
     clouds.material.onBeforeCompile = shader => {
       shader.uniforms.skyOffset = skyOffset;
@@ -392,20 +440,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
         uniform float skyOffset;
         uniform float weatherTime;
         uniform vec4 weather;
-        float skyHash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-        }
-        float skyNoise(vec2 p) {
-          vec2 cell = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(skyHash(cell), skyHash(cell + vec2(1, 0)), f.x),
-            mix(skyHash(cell + vec2(0, 1)), skyHash(cell + vec2(1, 1)), f.x), f.y);
-        }
-        float cloudShape(vec2 p) {
-          return skyNoise(p) * 0.55 + skyNoise(p * 2.03 + 14.2) * 0.27
-            + skyNoise(p * 4.11 - 9.6) * 0.13 + skyNoise(p * 8.17) * 0.05;
-        }
+        ${cloudNoiseGLSL}
       `).replace('#include <map_fragment>', `
         #include <map_fragment>
         vec2 uv = vMapUv;
@@ -414,13 +449,14 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
         float silhouettes = 1.0 - smoothstep(0.13, 0.28, diffuseColor.r);
         float heightMask = smoothstep(0.61, 0.74, uv.y) * (1.0 - smoothstep(0.95, 1.0, uv.y));
         float skyX = uv.x + ${(index * routeSpacing).toFixed(2)} - skyOffset;
-        vec2 wisp = vec2(skyX * 6.4 - weatherTime * 0.035, uv.y * 33.0);
+        vec2 wisp = vec2(skyX * 5.7 - weatherTime * 0.029, uv.y * 26.0);
         float highCloud = smoothstep(0.46, 0.72, cloudShape(wisp + 19.0));
-        vec2 bank = vec2(skyX * 9.1 - weatherTime * 0.105 - weather.z * 0.55, uv.y * 24.0);
-        bank.y += skyNoise(bank * 0.36 + vec2(0.0, weatherTime * 0.014)) * 0.96;
+        vec2 bank = vec2(skyX * 10.4 - weatherTime * 0.11, uv.y * 14.0);
+        vec2 curl = vec2(skyNoise(bank * 0.52 + 12.0), skyNoise(bank * 0.44 - 8.0)) - 0.5;
+        bank += curl * vec2(1.5, 2.0);
         float density = cloudShape(bank);
-        float lowCloud = smoothstep(0.44, 0.74, density);
-        float rim = clamp((density - cloudShape(bank + vec2(-0.16, 0.28))) * 3.7 + 0.28, 0.0, 1.0);
+        float lowCloud = smoothstep(0.47 - weather.z * 0.09, 0.73, density);
+        float rim = clamp((density - cloudShape(bank + vec2(-0.32, 0.44))) * 4.3 + 0.30, 0.0, 1.0);
         vec3 cloudColor = mix(vec3(0.026, 0.084, 0.103), vec3(0.19, 0.29, 0.30), rim);
         vec3 clearSky = mix(vec3(0.082, 0.142, 0.17), vec3(0.092, 0.31, 0.57), weather.x);
         cloudColor = mix(cloudColor, vec3(0.46, 0.55, 0.60) + rim * 0.19, weather.x);
@@ -733,22 +769,6 @@ function makeLandscape(texture) {
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
       #include <common>
       uniform float uTime;
-      float mistHash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-      }
-      float mistNoise(vec2 p) {
-        vec2 cell = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(mistHash(cell), mistHash(cell + vec2(1.0, 0.0)), f.x),
-          mix(mistHash(cell + vec2(0.0, 1.0)), mistHash(cell + vec2(1.0)), f.x), f.y);
-      }
-      float windBand(vec2 uv, float level, float breadth, float drift) {
-        float height = (uv.y - level) / breadth;
-        vec2 p = vec2(uv.x * 5.0 - uTime * drift, height * 1.25);
-        float shape = mistNoise(p) * 0.75 + mistNoise(p * 2.3 + 4.0) * 0.25;
-        return smoothstep(0.30, 0.82, shape) * exp(-height * height);
-      }
       vec2 leafSway(vec2 uv, vec2 center, vec2 span, float phase) {
         vec2 p = (uv - center) / span;
         float tips = smoothstep(-0.70, 0.60, p.y);
@@ -764,10 +784,6 @@ function makeLandscape(texture) {
         + leafSway(uv, vec2(0.69, 0.89), vec2(0.16, 0.09), 3.2)
         + leafSway(uv, vec2(0.82, 0.77), vec2(0.15, 0.065), 4.7);
       diffuseColor *= texture2D(map, clamp(uv + sway, 0.0, 1.0));
-      float valleyMist = windBand(uv, 0.30 + sin(uv.x * 5.0) * 0.027, 0.087, 0.085);
-      float highClouds = windBand(uv, 0.59 - uv.x * 0.13, 0.095, 0.055);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.44, 0.43),
-        valleyMist * 0.22 + highClouds * 0.13);
       vec2 lamp = (uv - vec2(0.907, 0.285)) * vec2(1.77, 1.0);
       float lantern = exp(-dot(lamp, lamp) * 550.0);
       float flame = 0.65 + sin(uTime * 5.7) * 0.19 + sin(uTime * 9.3) * 0.16;
@@ -1421,19 +1437,51 @@ function makeWeather(scene) {
     { label: 'Storm', values: [0.04, 0, 1, 1], duration: 23 },
   ];
   const weather = { value: new THREE.Vector4() };
+  const waterLevel = { value: 0 };
   const target = new THREE.Vector4();
   const clock = { value: 0 };
   const lightning = { value: 0 };
   const canvasSize = { value: new THREE.Vector2() };
   const view = { value: 0 };
+  const cloudView = { value: new THREE.Vector3() };
   const button = document.querySelector('#weather');
   let mode = 0;
   let duration = modes[0].duration;
   let nextFlash = 10;
   let flashAge = 2;
+  // This layer is in front of waterfalls and fountain spray, behind the street and actors.
+  const valleyClouds = new THREE.Mesh(plane, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { weather, clock, cloudView, lightning },
+    vertexShader: `
+      varying vec2 cloudUv;
+      void main() {
+        cloudUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 cloudUv;
+      uniform vec4 weather;
+      uniform vec3 cloudView;
+      uniform float clock, lightning;
+      ${valleyCloudGLSL}
+      void main() {
+        vec2 p = vec2(cloudView.x + cloudUv.x * cloudView.y, cloudUv.y * cloudView.z);
+        float cloud = valleyDensity(p, clock, weather.z);
+        if (cloud < 0.005) discard;
+        float lightEdge = clamp((cloud - valleyDensity(p + vec2(0.012, 0.018), clock, weather.z)) * 3.0 + 0.35, 0.0, 1.0);
+        vec3 shade = mix(vec3(0.071, 0.18, 0.20), vec3(0.42, 0.54, 0.52), weather.x);
+        shade = mix(shade, vec3(0.075, 0.12, 0.15), weather.z);
+        gl_FragColor = vec4(shade + vec3(0.17, 0.24, 0.25) * lightEdge + lightning * 0.22, cloud);
+        #include <colorspace_fragment>
+      }
+    `,
+  }));
+  scene.add(valleyClouds);
   const atmosphere = new THREE.Mesh(plane, new THREE.ShaderMaterial({
     transparent: true, depthTest: false, depthWrite: false,
-    uniforms: { weather, clock, lightning, canvasSize, view },
+    uniforms: { weather, clock, lightning, canvasSize, view, cloudView },
     vertexShader: `
       varying vec2 screenUv;
       void main() {
@@ -1444,8 +1492,10 @@ function makeWeather(scene) {
     fragmentShader: `
       varying vec2 screenUv;
       uniform vec2 canvasSize;
+      uniform vec3 cloudView;
       uniform vec4 weather;
       uniform float clock, lightning, view;
+      ${valleyCloudGLSL}
       float hash(vec2 p) {
         return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.54);
       }
@@ -1466,6 +1516,11 @@ function makeWeather(scene) {
         vec2 p = vec2(uv.x * aspect, uv.y);
         p.x -= p.y * mix(0.12, 0.40, weather.w);
         float rain = (0.32 * drops(p, 59.0, 21.0, 3.0) + 0.47 * drops(p, 34.0, 17.0, 17.0)) * weather.z;
+        if (rain > 0.0) {
+          vec2 cloudPoint = vec2(cloudView.x + uv.x * cloudView.y, uv.y * cloudView.z);
+          float cloud = valleyDensity(cloudPoint, clock, weather.z);
+          rain *= (1.0 - smoothstep(0.08, 0.44, cloud)) * (1.0 - smoothstep(0.64, 0.87, cloudPoint.y));
+        }
         float mistHeight = (uv.y - 0.47) * 3.0;
         float haze = exp(-mistHeight * mistHeight) * weather.z * (0.045 + weather.w * 0.048);
         vec2 sunward = vec2((uv.x - 0.79) * aspect, uv.y - 1.13);
@@ -1495,6 +1550,8 @@ function makeWeather(scene) {
   button.addEventListener('click', () => { next(); button.blur(); });
   return {
     weather,
+    waterLevel,
+    clock,
     applyLighting() {
       // Grade each painted layer and character in linear light, after their own shading.
       const graded = new Set();
@@ -1526,11 +1583,14 @@ function makeWeather(scene) {
         };
       });
     },
-    update(dt, scroll) {
+    update(dt, scroll, sceneryCenter) {
       const reduced = reducedMotion.matches;
       duration -= dt;
       if (duration <= 0 && !reduced) next();
       weather.value.lerp(target, 1 - Math.exp(-dt * 0.64));
+      const rain = weather.value.z;
+      const evaporation = rain < 0.08 ? 0.017 + weather.value.y * 0.014 : 0;
+      waterLevel.value = THREE.MathUtils.clamp(waterLevel.value + dt * (rain * 0.042 - evaporation), 0, 1);
       clock.value = reduced ? 0 : clock.value + dt;
       nextFlash -= dt;
       if (nextFlash <= 0) {
@@ -1540,6 +1600,9 @@ function makeWeather(scene) {
       flashAge += dt;
       lightning.value = reduced ? 0 : weather.value.w * Math.max(0, 1 - Math.abs(flashAge - 0.12) / 0.12);
       canvasSize.value.set(width, height);
+      cloudView.value.set(0.5 - sceneryCenter / backgroundWidth, width / backgroundWidth, height / backgroundHeight);
+      valleyClouds.position.set(width / 2, height / 2, 0.448);
+      valleyClouds.scale.set(width, height, 1);
       view.value = scroll;
       atmosphere.visible = weather.value.y + weather.value.z > 0.015;
     },
@@ -1720,7 +1783,7 @@ async function showMenu() {
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
   const routeEffects = makeRouteEffects(scene);
-  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, routeEffects, climate.weather);
+  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, routeEffects, climate);
   const updateLivingScenery = makeLivingScenery(scene);
   let routeOrigin;
   let cameraScroll = 0;
@@ -1795,6 +1858,7 @@ async function showMenu() {
   reflection.material.opacity = 0.34;
   reflection.material.onBeforeCompile = shader => {
     shader.uniforms.reflectionWorld = reflectionWorld;
+    shader.uniforms.waterLevel = climate.waterLevel;
     shader.vertexShader = 'varying vec2 roadPoint;\n' + shader.vertexShader.replace('#include <begin_vertex>', `
       #include <begin_vertex>
       roadPoint = (modelMatrix * vec4(position, 1.0)).xy;
@@ -2045,7 +2109,7 @@ async function showMenu() {
     const sceneryCenter = backgroundCenter + sceneryLag * backgroundWidth;
     background.position.x = sceneryCenter;
     background.visible = sceneryCenter + backgroundWidth / 2 > 0;
-    climate.update(weatherDt, scroll);
+    climate.update(weatherDt, scroll, sceneryCenter);
     updateRoute(routeOrigin, scroll, sceneryCenter);
     updateLivingScenery(sceneryCenter, reducedMotion.matches ? 0 : elapsed);
     const nextPhase = phase + dt * speed * 1.22 / bellmaker.cycle;

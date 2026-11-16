@@ -17,12 +17,11 @@ export function makeSceneAudio() {
   let nextCreak = 0;
   const activation = new AbortController();
 
-  async function startAmbience() {
-    // Midnight field recording by sengjinn, CC0: https://freesound.org/s/175020/
-    const response = await fetch(new URL('./assets/nachtkrekels.mp3', import.meta.url));
-    if (!response.ok) return;
+  async function startLoop(file, volume, fadeSeconds) {
+    const response = await fetch(new URL(file, import.meta.url));
+    if (!response.ok) throw new Error(`Audio HTTP ${response.status}`);
     const recording = await context.decodeAudioData(await response.arrayBuffer());
-    const fade = Math.min(Math.round(recording.sampleRate * 0.8), Math.floor(recording.length / 4));
+    const fade = Math.min(Math.round(recording.sampleRate * fadeSeconds), Math.floor(recording.length / 4));
     const length = recording.length - fade;
     const loop = context.createBuffer(recording.numberOfChannels, length, recording.sampleRate);
     for (let channel = 0; channel < recording.numberOfChannels; channel++) {
@@ -39,7 +38,7 @@ export function makeSceneAudio() {
     source.buffer = loop;
     source.loop = true;
     const level = context.createGain();
-    level.gain.value = 0.60;
+    level.gain.value = volume;
     source.connect(level).connect(output);
     source.start();
   }
@@ -57,7 +56,9 @@ export function makeSceneAudio() {
         document.addEventListener('visibilitychange', () => {
           output.gain.setTargetAtTime(document.hidden ? 0 : 0.28, context.currentTime, 0.06);
         });
-        void startAmbience().catch(error => console.warn('Nachtgeluid kon niet laden.', error));
+        // Midnight field recording by sengjinn, CC0: https://freesound.org/s/175020/
+        void startLoop('./assets/nachtkrekels.mp3', 0.60, 0.8).catch(error => console.warn('Nachtgeluid kon niet laden.', error));
+        void startLoop('./assets/water-onder-de-wortels.mp3', 0.34, 0.64).catch(error => console.warn('Muziek kon niet laden.', error));
       }
       await context.resume();
       if (context.state === 'running') activation.abort();
