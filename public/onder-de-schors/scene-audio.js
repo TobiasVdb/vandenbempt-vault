@@ -9,7 +9,7 @@ const swordSounds = [
 
 export function makeSceneAudio() {
   const Audio = window.AudioContext ?? window.webkitAudioContext;
-  if (!Audio) return { update() {}, swing() {}, swordHit() {}, arcadeHit() {}, scratch() {} };
+  if (!Audio) return { update() {}, swing() {}, swordHit() {}, arcadeHit() {}, scratch() {}, block() {} };
 
   let context;
   let output;
@@ -65,7 +65,7 @@ export function makeSceneAudio() {
       // Audio is optional. The scene stays playable if the browser blocks it.
     }
   }
-  window.addEventListener('pointerup', unlock, { signal: activation.signal });
+  window.addEventListener('pointerdown', unlock, { signal: activation.signal });
   window.addEventListener('keydown', unlock, { signal: activation.signal });
 
   function play(source, tail, when, length, level, attack = 0.012) {
@@ -91,6 +91,17 @@ export function makeSceneAudio() {
   }
 
   return {
+    block() {
+      if (context?.state !== 'running' || document.hidden) return;
+      const now = context.currentTime;
+      grit(now, 0.07, 3800, 1200, 0.15, 0.002);
+      for (const [frequency, length, volume] of [[790, 0.20, 0.085], [1243, 0.14, 0.055], [2200, 0.09, 0.030]]) {
+        const tone = context.createOscillator();
+        tone.frequency.value = frequency;
+        tone.start(now);
+        play(tone, tone, now, length, volume, 0.002);
+      }
+    },
     scratch() {
       if (context?.state !== 'running' || document.hidden) return;
       grit(context.currentTime, 0.125, 2680, 510, 0.22, 0.005);

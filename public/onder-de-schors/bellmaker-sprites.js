@@ -153,6 +153,8 @@ export async function loadBellmakerSprites(loader) {
     },
     frame(action, moving, phase, progress, attack = 0) {
       switch (action) {
+        case 'guard': return frameAt([8, 61, 62, 62], progress);
+        case 'guard-impact': return frameAt([62, 61, 62], progress);
         case 'run': return frameAt([0, 41, 1, 42, 2, 43, 3, 44], phase);
         case 'stop': return frameAt([0, 8, 16], progress);
         case 'armed-stop': return frameAt([45, 69, 10], progress);

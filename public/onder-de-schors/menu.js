@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three/three.module.js';
-import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=idle-poses';
-import { makeSceneAudio } from './scene-audio.js';
+import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=shield';
+import { makeSceneAudio } from './scene-audio.js?v=shield';
 
 const host = document.querySelector('#scene');
 const status = document.querySelector('#status');
@@ -17,6 +17,8 @@ const directions = new Map([
 ]);
 const keys = new Set();
 const touchDirections = new Map();
+const shieldPointers = new Set();
+let shieldKey = false;
 const activeDirections = new Set();
 const heroPosition = new THREE.Vector2(0.68, 0.91);
 const stepDirection = new THREE.Vector2();
@@ -82,6 +84,10 @@ function bindControls(weaponInput, jump) {
   };
   window.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
+    if (key === 'b' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      shieldKey = true;
+      return;
+    }
     if (key === 'j' && !event.altKey && !event.ctrlKey && !event.metaKey) {
       if (!event.repeat) jump();
       return;
@@ -97,10 +103,17 @@ function bindControls(weaponInput, jump) {
     if (!event.repeat && !keys.has(key)) tapDirection(directions.get(key)[0]);
     keys.add(key);
   });
-  window.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
+  const shieldButton = controls.querySelector('[data-action="shield"]');
+  window.addEventListener('keyup', event => {
+    const key = event.key.toLowerCase();
+    keys.delete(key);
+    if (key === 'b') shieldKey = false;
+  });
   const clearInput = () => {
     keys.clear();
     touchDirections.clear();
+    shieldPointers.clear();
+    shieldKey = false;
     sprintDirection = 0;
     lastTapTime = -Infinity;
     clearHitPress();
@@ -152,6 +165,15 @@ function bindControls(weaponInput, jump) {
   hitButton.addEventListener('click', event => {
     if (event.detail === 0) weaponInput(' ');
   });
+  shieldButton?.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    shieldButton.setPointerCapture(event.pointerId);
+    shieldPointers.add(event.pointerId);
+  });
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    shieldButton?.addEventListener(event, pointer => shieldPointers.delete(pointer.pointerId));
+  }
+  shieldButton?.addEventListener('contextmenu', event => event.preventDefault());
 }
 
 function makeTexture(texture) {
@@ -452,6 +474,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
   }
 
   return (origin, scroll, sceneryCenter) => {
+    const playerX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     townTime.value = reducedMotion.matches ? 0 : elapsed;
     const sceneryShift = (origin - sceneryCenter) / backgroundWidth;
     skyOffset.value = sceneryShift - scroll * skyParallax;
@@ -479,7 +502,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
       plant.position.set(screenX, side * 0.30, 4.5);
       plant.scale.set(side, side, 1);
       plant.visible = screenX + side / 2 > 0 && screenX - side / 2 < width;
-      const playerX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
+      plant.material.opacity = THREE.MathUtils.lerp(0.35, 1, THREE.MathUtils.smoothstep(Math.abs(playerX - screenX), side * 0.22, side * 0.54));
       const brush = THREE.MathUtils.clamp((playerX - screenX) / side, -1, 1);
       plant.rotation.z = reducedMotion.matches ? 0
         : Math.sin(elapsed * 2 + x * 5) * 0.022 + brush * (1 - Math.abs(brush)) * 0.29;
@@ -490,6 +513,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
       plant.position.set(screenX, size * 0.09, 5);
       plant.scale.set(size, size * 0.44, 1);
       plant.visible = screenX + size / 2 > 0 && screenX - size / 2 < width;
+      plant.material.opacity = THREE.MathUtils.lerp(0.35, 1, THREE.MathUtils.smoothstep(Math.abs(playerX - screenX), size * 0.22, size * 0.54));
     }
   };
 }
@@ -1184,7 +1208,7 @@ function makeTrainingDummies(scene, atlas) {
       facing: -1, phase: index * 0.29, stagger: 0, struck: false, scratch: 0, recovery: 0, hop: 0 };
   });
 
-  return (dt, player, reach, facing, baseHeight, damage, strike, grounded) => {
+  return (dt, player, reach, facing, baseHeight, damage, strike, grounded, guarding) => {
     const lane = 0.91;
     const footY = (1 - lane) * backgroundHeight;
     const size = baseHeight * 1.11;
@@ -1192,6 +1216,7 @@ function makeTrainingDummies(scene, atlas) {
     let hits = 0;
     let killed = false;
     let scratched = false;
+    let blocked = false;
     let pickedUp = 0;
     for (const dummy of dummies) {
       if (!reach) dummy.struck = false;
@@ -1225,7 +1250,10 @@ function makeTrainingDummies(scene, atlas) {
       if (dummy.scratch > 0) {
         dummy.scratch = Math.max(0, dummy.scratch - dt);
         if (dummy.scratch === 0) {
-          if (active && inClawRange && grounded) scratched = true;
+          if (active && inClawRange && grounded) {
+            if (guarding && distance * facing <= 0) blocked = true;
+            else scratched = true;
+          }
           dummy.recovery = 1.45;
         }
       }
@@ -1278,7 +1306,7 @@ function makeTrainingDummies(scene, atlas) {
         dummy.coinMesh.scale.set(coinSize * spin, coinSize, 1);
       }
     }
-    return { hits, killed, scratched, pickedUp };
+    return { hits, killed, scratched, pickedUp, blocked };
   };
 }
 
@@ -1625,6 +1653,8 @@ function makeIdleInbetweens(materials) {
   const inbetween = { value: new THREE.Vector3() };
   for (const material of materials) {
     const compile = material.onBeforeCompile;
+    const baseProgramKey = material.customProgramCacheKey();
+    material.customProgramCacheKey = () => `${baseProgramKey}-idle-inbetweens`;
     material.onBeforeCompile = function (shader, renderer) {
       compile.call(this, shader, renderer);
       Object.assign(shader.uniforms, { idleNextMap: nextMap, idleFromUv: fromUv, idleToUv: toUv, idleInbetween: inbetween });
@@ -1696,6 +1726,7 @@ async function showMenu() {
   let cameraScroll = 0;
   let lookAhead = 0;
   const hero = sprite(bellmaker.frame('idle', false, 0, 0), 3);
+  hero.frustumCulled = false;
   hero.geometry = new THREE.PlaneGeometry(1, 1, 48, 64);
   const idleBreath = { value: 0 };
   const swordBreath = { value: 0 };
@@ -1808,6 +1839,8 @@ async function showMenu() {
   };
   let scratchCooldown = 0;
   let scratchFlash = 0;
+  let guardTime = 0;
+  let guardImpact = 0;
   const jumpDrift = new THREE.Vector2();
   let jumpDuration = 0.54;
   let jumpTime = jumpDuration;
@@ -1900,6 +1933,7 @@ async function showMenu() {
     }
     scratchCooldown = Math.max(0, scratchCooldown - dt);
     scratchFlash = Math.max(0, scratchFlash - dt);
+    guardImpact = Math.max(0, guardImpact - dt);
     elapsed += dt;
     const previousJumpProgress = jumpTime / jumpDuration;
     const wasInAir = previousJumpProgress < 1;
@@ -1939,12 +1973,17 @@ async function showMenu() {
         startAction('idle');
       }
     }
+    let guarding = false;
     if (!demoStage) {
       if (duration[action] && actionTime >= duration[action]) {
         startAction(['draw', 'recover', 'armed-turn'].includes(action) ? 'ready' : action === 'slash' ? 'recover' : 'idle');
       }
       const canTurn = ['idle', 'run', 'ready'].includes(action);
-      if (!wasInAir && canTurn && stepDirection.x && Math.sign(stepDirection.x) !== facing) {
+      guarding = !wasInAir && canTurn && (shieldKey || shieldPointers.size > 0);
+      if (guarding) {
+        if (stepDirection.x) facing = Math.sign(stepDirection.x);
+        stepDirection.multiplyScalar(0.37);
+      } else if (!wasInAir && canTurn && stepDirection.x && Math.sign(stepDirection.x) !== facing) {
         facing = Math.sign(stepDirection.x);
         startAction(action === 'ready' ? 'armed-turn' : 'turn');
       }
@@ -1958,13 +1997,14 @@ async function showMenu() {
       if (stepDirection.x && Math.sign(stepDirection.x) !== facing) stepDirection.x = 0;
       if (wasInAir) stepDirection.copy(jumpDrift);
     }
+    guardTime = guarding ? guardTime + dt : 0;
     const turning = action === 'turn' || action === 'armed-turn';
     const movingInput = stepDirection.lengthSq() > 0.001;
     const braking = !wasInAir && !movingInput && (action === 'idle' || action === 'ready') && motion.lengthSq() > 0.0144;
     brakeTime = braking ? brakeTime + dt : 0;
     const attackSlide = action === 'slash' || action === 'punch';
     const sliding = !wasInAir && !movingInput && (attackSlide || (braking && Math.abs(motion.x) > 0.7));
-    if (sprinting && !wasInAir) stepDirection.x *= 1.66;
+    if (sprinting && !wasInAir && !guarding) stepDirection.x *= 1.66;
     const response = wasInAir ? 20 : turning && actionTime < duration[action] * 0.48 ? 29
       : attackSlide ? 9 : movingInput ? 15 : 17;
     motion.lerp(stepDirection, 1 - Math.exp(-dt * response));
@@ -1983,7 +2023,7 @@ async function showMenu() {
     const oldY = heroPosition.y;
     heroPosition.x = THREE.MathUtils.clamp(heroPosition.x + motion.x * dt * travel / backgroundWidth, viewLeft, viewRight);
     heroPosition.y = THREE.MathUtils.clamp(heroPosition.y + motion.y * dt * 0.13, 0.835, 0.945);
-    const maxScroll = routeEnd - 0.5 + (routeOrigin - width) / backgroundWidth;
+    const maxScroll = Math.max(0, routeEnd - 0.5 + (routeOrigin - width) / backgroundWidth);
     lookAhead = THREE.MathUtils.lerp(lookAhead, reducedMotion.matches ? 0 : THREE.MathUtils.clamp(motion.x, -1, 1), 1 - Math.exp(-dt * 4));
     const cameraFocus = width * (0.62 - lookAhead * 0.12);
     const playerOnScreen = routeOrigin + (heroPosition.x - 0.5 - cameraScroll) * backgroundWidth;
@@ -1993,8 +2033,11 @@ async function showMenu() {
     let targetScroll = cameraScroll + correction / backgroundWidth;
     const visitEnd = heroPosition.x >= viewRight - 0.0001;
     if (visitEnd) targetScroll = maxScroll;
+    const unscrolledX = playerOnScreen + cameraScroll * backgroundWidth;
+    const minVisibleScroll = Math.max(0, (unscrolledX - width + margin) / backgroundWidth);
+    const maxVisibleScroll = Math.min(maxScroll, (unscrolledX - margin) / backgroundWidth);
     const scroll = THREE.MathUtils.clamp(
-      THREE.MathUtils.lerp(cameraScroll, targetScroll, 1 - Math.exp(-dt * 9)), 0, maxScroll);
+      THREE.MathUtils.lerp(cameraScroll, targetScroll, 1 - Math.exp(-dt * 9)), minVisibleScroll, maxVisibleScroll);
     cameraScroll = scroll;
     backgroundCenter = routeOrigin - scroll * backgroundWidth;
     // Limit the offset over long walks so the far end of the town stays in view.
@@ -2028,14 +2071,17 @@ async function showMenu() {
     const runningJump = jumpDrift.lengthSq() > 0;
     const armed = action === 'ready' || action === 'armed-turn';
     const jumpAction = `${armed ? 'armed-' : ''}${runningJump ? 'run-jump' : 'jump'}`;
-    const pose = airborne ? jumpAction : brakeTime > 0 ? (armed ? 'armed-stop' : 'stop') : action;
-    const gesture = idleGestures.update(Math.min(weatherDt, 0.18), action === 'idle' && speed <= 0.12
+    const pose = guarding ? (guardImpact > 0 ? 'guard-impact' : 'guard')
+      : airborne ? jumpAction : brakeTime > 0 ? (armed ? 'armed-stop' : 'stop') : action;
+    const guardProgress = guardImpact > 0 ? 1 - guardImpact / 0.18 : Math.min(guardTime / 0.16, 1);
+    const gesture = idleGestures.update(Math.min(weatherDt, 0.18), !guarding && action === 'idle' && speed <= 0.12
       && !activeDirections.size && !airborne && demoTime < 0 && scratchFlash === 0);
     const frame = gesture?.frame ?? bellmaker.frame(pose, speed > 0.12, phase,
-      airborne ? airProgress : brakeTime > 0 ? Math.min(brakeTime / 0.16, 1) : progress, attack);
+      guarding ? guardProgress : airborne ? airProgress : brakeTime > 0 ? Math.min(brakeTime / 0.16, 1) : progress, attack);
     hero.material.map = frame;
     updateIdleInbetweens(frame, gesture?.transition);
-    hero.material.color.setRGB(0.82 + lighting.strength * 0.24, 0.87 + lighting.strength * 0.11,
+    const blockGlow = guarding ? guardImpact / 0.18 : 0;
+    hero.material.color.setRGB(0.82 + lighting.strength * 0.24 + blockGlow * 0.35, 0.87 + lighting.strength * 0.11 + blockGlow * 0.17,
       scratchFlash > 0 ? 0.58 : 0.96 - lighting.strength * 0.04);
     const standingArmed = action === 'ready' && speed <= 0.12;
     idleTime = (action === 'idle' || standingArmed) && brakeTime === 0 && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
@@ -2078,9 +2124,13 @@ async function showMenu() {
     }
     const attacking = lift < 0.2 && progress >= (swinging ? swingMoment : 0.32) && progress < 0.69;
     const reach = attacking ? characterHeight * (swinging ? 0.97 * weaponShops.reach : action === 'punch' ? 0.49 : 0) : 0;
-    const { hits, killed, scratched, pickedUp } = animateDummies(dt, heroPosition, reach, facing,
+    const { hits, killed, scratched, pickedUp, blocked } = animateDummies(dt, heroPosition, reach, facing,
       THREE.MathUtils.clamp(height * 0.31, 100, 285) * (mobileLandscape.matches ? 0.65 : 0.5),
-      swinging ? weaponShops.damage : 5, swinging ? attack : -1, lift < 0.16);
+      swinging ? weaponShops.damage : 5, swinging ? attack : -1, lift < 0.16, guarding);
+    if (blocked) {
+      guardImpact = 0.18;
+      audio.block();
+    }
     if (pickedUp) weaponShops.collectCoins(pickedUp);
     const birdHit = animateBirds(dt, !reducedMotion.matches, sceneryCenter, footX, footY, facing, swinging ? reach : 0);
     if (swinging && (hits || birdHit)) audio.swordHit(attack);
