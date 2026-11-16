@@ -4,13 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Onder de Schors</title>
-<link rel="stylesheet" href="./menu.css">
-<script type="module" src="./menu.js?v=route-camera"></script>
+<link rel="stylesheet" href="./menu.css?v=shops">
+<script type="module" src="./menu.js?v=shops"></script>
 </head>
 <body>
 <main class="title-screen" aria-label="Onder de Schors">
   <div id="scene" class="scene" aria-hidden="true"></div>
   <div class="shade" aria-hidden="true"></div>
+  <div class="wallet" aria-label="100 munten"><span aria-hidden="true" class="coin"></span><span data-balance>100</span></div>
+  <div id="combat-hud" aria-hidden="true"></div>
+  <button id="shop-entry" type="button" hidden></button>
+  <dialog id="weapon-shop" aria-labelledby="shop-title">
+    <section class="shop-panel">
+      <button type="button" class="shop-close" aria-label="Winkel verlaten">×</button>
+      <div class="shop-purse"><span aria-hidden="true" class="coin"></span><span data-balance>100</span> munten</div>
+      <h1 id="shop-title"></h1>
+      <div id="shop-items"></div>
+      <p id="shop-feedback" role="status"></p>
+    </section>
+  </dialog>
   <svg class="health" viewBox="0 0 86 10" role="img" aria-label="Levens: 5 van 5">
     <defs>
       <path id="heart" fill="#ea3548" d="M2 0h3v1h1v1h2V1h1V0h3v1h1v1h1v4h-1v1h-2v1H9v1H8v1H6V9H5V8H3V7H1V6H0V2h1V1h1z"/>

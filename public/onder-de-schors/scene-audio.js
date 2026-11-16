@@ -9,7 +9,7 @@ const swordSounds = [
 
 export function makeSceneAudio() {
   const Audio = window.AudioContext ?? window.webkitAudioContext;
-  if (!Audio) return { update() {}, swing() {}, swordHit() {} };
+  if (!Audio) return { update() {}, swing() {}, swordHit() {}, arcadeHit() {} };
 
   let context;
   let output;
@@ -91,6 +91,17 @@ export function makeSceneAudio() {
   }
 
   return {
+    arcadeHit(killed) {
+      if (context?.state !== 'running' || document.hidden) return;
+      const now = context.currentTime;
+      const tone = context.createOscillator();
+      tone.type = 'triangle';
+      tone.frequency.setValueAtTime(killed ? 460 : 655, now);
+      tone.frequency.setValueAtTime(killed ? 310 : 440, now + 0.036);
+      if (killed) tone.frequency.setValueAtTime(195, now + 0.071);
+      tone.start(now);
+      play(tone, tone, now, killed ? 0.15 : 0.085, 0.105, 0.004);
+    },
     swing(attack) {
       if (context?.state !== 'running' || document.hidden) return;
       const sound = swordSounds[attack];

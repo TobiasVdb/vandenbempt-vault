@@ -549,30 +549,43 @@ function makeTrainingDummies(scene, atlas) {
   const dummies = [1.19, 1.43, 1.66].map((home, index) => {
     const mesh = sprite(frames[1], 2.8);
     scene.add(mesh);
-    return { mesh, home, x: home, facing: -1, phase: index * 0.29, stagger: 0, struck: false };
+    const bar = document.createElement('div');
+    bar.className = 'dummy-health';
+    bar.append(document.createElement('span'));
+    const popup = document.createElement('div');
+    popup.className = 'damage-number';
+    document.querySelector('#combat-hud').append(bar, popup);
+    return { mesh, bar, popup, hp: 20, popupTime: 0, home, x: home,
+      facing: -1, phase: index * 0.29, stagger: 0, struck: false };
   });
 
-  return (dt, player, reach, facing, baseHeight) => {
+  return (dt, player, reach, facing, baseHeight, damage) => {
     const lane = 0.91;
     const footY = (1 - lane) * backgroundHeight;
     const size = baseHeight * 1.11;
     const stopDistance = size * 0.32 / backgroundWidth;
-    let hit = false;
+    let hits = 0;
+    let killed = false;
     for (const dummy of dummies) {
       if (!reach) dummy.struck = false;
       const distance = player.x - dummy.x;
       const gap = Math.abs(distance);
       if (gap > 0.004) dummy.facing = Math.sign(distance);
-      if (reach && !dummy.struck && gap * backgroundWidth <= reach
+      if (dummy.hp > 0 && reach && !dummy.struck && gap * backgroundWidth <= reach
         && distance * facing <= 0.015 && Math.abs(player.y - lane) < 0.026) {
         dummy.struck = true;
         dummy.stagger = 0.34;
         dummy.recoil = facing;
-        hit = true;
+        const dealt = Math.min(dummy.hp, damage);
+        dummy.hp -= dealt;
+        dummy.popup.textContent = `−${dealt}`;
+        dummy.popupTime = 0.78;
+        hits++;
+        if (dummy.hp === 0) killed = true;
       }
 
       const stunned = dummy.stagger > 0;
-      const following = !stunned && gap > stopDistance && gap < 0.27;
+      const following = dummy.hp > 0 && player.x < routeSpacing * 3 && !stunned && gap > stopDistance && gap < 0.27;
       const movement = stunned ? dummy.recoil * 0.075 : following ? dummy.facing * 0.032 : 0;
       const nextX = THREE.MathUtils.clamp(dummy.x + movement * dt, dummy.home - 0.11, dummy.home + 0.11);
       const walking = following && nextX !== dummy.x;
@@ -581,12 +594,119 @@ function makeTrainingDummies(scene, atlas) {
       if (walking) dummy.phase = (dummy.phase + dt / 1.08) % 1;
 
       const screenX = backgroundCenter + (dummy.x - 0.5) * backgroundWidth;
-      dummy.mesh.visible = screenX + size > 0 && screenX - size < width;
+      const onScreen = screenX + size > 0 && screenX - size < width;
+      dummy.mesh.visible = onScreen && (dummy.hp > 0 || stunned);
       dummy.mesh.material.map = frames[stunned ? 3 : walking ? Math.floor(dummy.phase * 3) : 1];
+      dummy.mesh.material.opacity = dummy.hp > 0 ? 1 : Math.min(1, dummy.stagger / 0.24);
       dummy.mesh.position.set(screenX, footY + size * 0.46, player.y < lane ? 3.15 : 2.8);
       dummy.mesh.scale.set(size * dummy.facing, size, 1);
+      const headY = height - footY - size;
+      dummy.bar.hidden = !onScreen || dummy.hp <= 0;
+      dummy.bar.style.left = `${screenX}px`;
+      dummy.bar.style.top = `${headY}px`;
+      dummy.bar.firstElementChild.style.width = `${dummy.hp * 5}%`;
+      dummy.popup.hidden = !onScreen || dummy.popupTime <= 0;
+      dummy.popup.style.left = `${screenX}px`;
+      dummy.popup.style.top = `${headY - 13 - (reducedMotion.matches ? 0 : (0.78 - dummy.popupTime) * 48)}px`;
+      dummy.popup.style.opacity = Math.min(1, dummy.popupTime / 0.22);
+      dummy.popupTime = Math.max(0, dummy.popupTime - dt);
     }
-    return hit;
+    return { hits, killed };
+  };
+}
+
+function makeWeaponShops() {
+  const entry = document.querySelector('#shop-entry');
+  const dialog = document.querySelector('#weapon-shop');
+  const items = document.querySelector('#shop-items');
+  const feedback = document.querySelector('#shop-feedback');
+  const balances = document.querySelectorAll('[data-balance]');
+  const weapons = {
+    iron: { name: 'IJzeren zwaard', price: 35, damage: 7, reach: 1.08 },
+    bronze: { name: 'Bronzen kling', price: 55, damage: 9, reach: 1.12 },
+    long: { name: 'Langzwaard', price: 75, damage: 10, reach: 1.28 },
+  };
+  const shops = [
+    { name: 'Wapenhandel', interior: 'merchant', x: 0.36, goods: ['iron', 'bronze'] },
+    { name: 'Smidse', interior: 'smith', x: 0.80, goods: ['bronze', 'long'] },
+  ];
+  let nearby;
+  let activeShop;
+  let coins = 100;
+  let equipped;
+  const owned = new Set();
+
+  function renderItems() {
+    items.replaceChildren();
+    for (const id of activeShop.goods) {
+      const weapon = weapons[id];
+      const row = document.createElement('div');
+      row.className = 'shop-item';
+      const label = document.createElement('div');
+      label.textContent = weapon.name;
+      const details = document.createElement('small');
+      details.textContent = `${weapon.damage} schade · +${Math.round((weapon.reach - 1) * 100)}% bereik`;
+      label.append(details);
+      const buy = document.createElement('button');
+      buy.type = 'button';
+      buy.textContent = equipped === id ? 'Uitgerust' : owned.has(id) ? 'Uitrusten' : `Koop · ${weapon.price}`;
+      buy.disabled = equipped === id || (!owned.has(id) && coins < weapon.price);
+      buy.addEventListener('click', () => {
+        if (!owned.has(id)) {
+          if (coins < weapon.price) return;
+          coins -= weapon.price;
+          owned.add(id);
+        }
+        equipped = id;
+        for (const balance of balances) balance.textContent = coins;
+        document.querySelector('.wallet').setAttribute('aria-label', `${coins} munten`);
+        renderItems();
+        feedback.textContent = `${weapon.name} uitgerust.`;
+        dialog.querySelector('.shop-close').focus();
+      });
+      row.append(label, buy);
+      items.append(row);
+    }
+  }
+
+  function open() {
+    if (!nearby || dialog.open) return;
+    activeShop = nearby;
+    keys.clear();
+    touchDirections.clear();
+    motion.set(0, 0);
+    dialog.dataset.interior = activeShop.interior;
+    dialog.querySelector('#shop-title').textContent = activeShop.name;
+    feedback.textContent = '';
+    renderItems();
+    dialog.showModal();
+  }
+
+  entry.addEventListener('click', open);
+  dialog.querySelector('.shop-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => {
+    keys.clear();
+    touchDirections.clear();
+  });
+  window.addEventListener('keydown', event => {
+    if (!event.repeat && event.key.toLowerCase() === 'e' && !event.ctrlKey && !event.metaKey && !event.altKey) open();
+  });
+  return {
+    get open() { return dialog.open; },
+    get damage() { return weapons[equipped]?.damage ?? 5; },
+    get reach() { return weapons[equipped]?.reach ?? 1; },
+    update(sceneryCenter, footX) {
+      nearby = shops.find(shop => {
+        const screenX = sceneryCenter + (routeSpacing * 3 + shop.x - 0.5) * backgroundWidth;
+        return Math.abs(footX - screenX) < Math.max(65, backgroundWidth * 0.047)
+          && screenX >= 25 && screenX <= width - 25;
+      });
+      entry.hidden = !nearby;
+      if (!nearby) return;
+      entry.textContent = nearby.name + ' betreden';
+      entry.style.left = `${sceneryCenter + (routeSpacing * 3 + nearby.x - 0.5) * backgroundWidth}px`;
+      entry.style.top = `${Math.max(70, height - backgroundHeight * 0.32)}px`;
+    },
   };
 }
 
@@ -662,6 +782,7 @@ async function showMenu() {
   const animateFireflies = makeFireflies(scene);
   const animateCritters = makeCritters(scene);
   const animateDummies = makeTrainingDummies(scene, dummyAtlas);
+  const weaponShops = makeWeaponShops();
   const audio = makeSceneAudio();
 
   const playSequence = document.querySelector('#play-sequence');
@@ -677,6 +798,7 @@ async function showMenu() {
   let jumpDuration = 0.54;
   let jumpTime = jumpDuration;
   function jump() {
+    if (weaponShops.open) return;
     if (demoTime >= 0 || jumpTime < jumpDuration) return;
     jumpDrift.set(0, 0);
     if (motion.lengthSq() > 0.05) jumpDrift.copy(motion).normalize();
@@ -739,6 +861,7 @@ async function showMenu() {
   }
 
   function draw(dt) {
+    if (weaponShops.open) return;
     elapsed += dt;
     const previousJumpProgress = jumpTime / jumpDuration;
     const wasInAir = previousJumpProgress < 1;
@@ -837,6 +960,7 @@ async function showMenu() {
     const progress = THREE.MathUtils.clamp(actionTime / (duration[action] ?? 1), 0, 1);
     const footX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     const footY = (1 - heroPosition.y) * backgroundHeight;
+    weaponShops.update(sceneryCenter, footX);
     const flight = THREE.MathUtils.clamp((airProgress - 0.12) / 0.76, 0, 1);
     const lift = 4 * flight * (1 - flight);
     const airborne = jumpTime < jumpDuration && ['idle', 'run', 'ready', 'turn', 'armed-turn'].includes(action);
@@ -874,10 +998,12 @@ async function showMenu() {
       swingPlayed = true;
     }
     const attacking = lift < 0.2 && progress >= (swinging ? swingMoment : 0.32) && progress < 0.69;
-    const reach = attacking ? characterHeight * (action === 'slash' ? 0.97 : action === 'punch' ? 0.49 : 0) : 0;
-    const hit = animateDummies(dt, heroPosition, reach, facing,
-      THREE.MathUtils.clamp(height * 0.31, 100, 285) * (mobileLandscape.matches ? 0.65 : 0.5));
-    if (swinging && hit) audio.swordHit(attack);
+    const reach = attacking ? characterHeight * (swinging ? 0.97 * weaponShops.reach : action === 'punch' ? 0.49 : 0) : 0;
+    const { hits, killed } = animateDummies(dt, heroPosition, reach, facing,
+      THREE.MathUtils.clamp(height * 0.31, 100, 285) * (mobileLandscape.matches ? 0.65 : 0.5),
+      swinging ? weaponShops.damage : 5);
+    if (swinging && hits) audio.swordHit(attack);
+    if (hits) audio.arcadeHit(killed);
     renderer.render(scene, camera);
   }
 
@@ -889,7 +1015,7 @@ async function showMenu() {
     renderer.setAnimationLoop(null);
   });
   bindControls(key => {
-    if (demoTime >= 0) return;
+    if (demoTime >= 0 || weaponShops.open) return;
     if ((key === 'f' || key === 'draw') && (action === 'idle' || action === 'run')) startAction('draw');
     else if (key === 'f' && action === 'ready') startAction('sheathe');
     else if (key === ' ' && action === 'ready') startAction('slash');
