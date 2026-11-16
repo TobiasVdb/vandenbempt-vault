@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/three.module.js';
-import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js';
+import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=idle-poses';
 import { makeSceneAudio } from './scene-audio.js';
 
 const host = document.querySelector('#scene');
@@ -29,6 +29,22 @@ const sceneryParallax = 0.74;
 const skyParallax = 0.48;
 const closeForegroundParallax = 0.24;
 const lightAnchors = [[0.907, 0.285], [1.95, 0.36], [2.62, 0.33], [3.14, 0.33]];
+// Corner positions on the original town painting, measured on a 1300 × 732 reference.
+const pennants = [
+  [[390,234], [416,246], [383,276], [407,280]],
+  [[420,249], [435,255], [420,284], [420,284]],
+  [[435,256], [451,264], [441,284], [441,284]],
+  [[461,269], [474,274], [467,297], [467,297]],
+  [[480,276], [496,282], [491,304], [491,304]],
+  [[504,284], [520,288], [508,311], [508,311]],
+  [[530,290], [556,296], [526,329], [550,333]],
+  [[728,308], [754,305], [729,352], [757,350]],
+  [[765,304], [782,301], [775,331], [775,331]],
+  [[791,299], [808,294], [799,326], [799,326]],
+  [[814,291], [840,283], [818,334], [844,329]],
+  [[934,241], [945,235], [941,283], [941,283]],
+  [[945,235], [966,220], [953,286], [977,278]],
+].map(points => points.map(([x, y]) => [x / 1300, 1 - y / 732]));
 const puddleGLSL = `
   float pavingX(float x) {
     return 1.0 - abs(fract(x / 1.24) * 2.0 - 1.0);
@@ -152,7 +168,52 @@ function sprite(texture, z) {
   return mesh;
 }
 
-function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, effects) {
+function makePennants(scene, texture) {
+  const cloth = pennants.map(([topL, topR, bottomL, bottomR], index) => {
+    const geometry = new THREE.PlaneGeometry(1, 1, 6, 8);
+    const uv = geometry.attributes.uv;
+    const tint = new THREE.BufferAttribute(new Float32Array(uv.count * 3).fill(1), 3);
+    const rest = [];
+    for (let i = 0; i < uv.count; i++) {
+      const s = uv.getX(i), t = 1 - uv.getY(i);
+      const x = THREE.MathUtils.lerp(THREE.MathUtils.lerp(topL[0], topR[0], s),
+        THREE.MathUtils.lerp(bottomL[0], bottomR[0], s), t);
+      const y = THREE.MathUtils.lerp(THREE.MathUtils.lerp(topL[1], topR[1], s),
+        THREE.MathUtils.lerp(bottomL[1], bottomR[1], s), t);
+      rest.push({ s, t, x, y });
+      uv.setXY(i, x, y);
+    }
+    geometry.setAttribute('color', tint);
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      map: texture, vertexColors: true, side: THREE.DoubleSide, transparent: true, depthWrite: false,
+    }));
+    mesh.frustumCulled = false;
+    scene.add(mesh);
+    return { index, mesh, rest, tint };
+  });
+  return (center, time, storm) => {
+    for (const { index, mesh, rest, tint } of cloth) {
+      const anchor = center + (pennants[index][0][0] - 0.5) * backgroundWidth;
+      mesh.visible = anchor > -100 && anchor < width + 100;
+      if (!mesh.visible) continue;
+      const position = mesh.geometry.attributes.position;
+      const gust = (1 + storm * 0.51) * (0.58 + Math.sin(time * 1.7 - index * 0.24) * 0.27 + Math.sin(time * 3.1) * 0.15);
+      for (let i = 0; i < rest.length; i++) {
+        const { s, t, x, y } = rest[i];
+        const wave = time * 5.3 - t * 5.6 - s * 1.5 - index * 0.43;
+        const billow = t * t * (0.64 + Math.sin(wave) * 0.36) * gust;
+        position.setXYZ(i, (x - 0.5 + billow * 0.015) * backgroundWidth,
+          (y + billow * 0.010 + Math.sin(wave + 1.1) * t * 0.0025) * backgroundHeight, 0);
+        const shade = 1 + Math.cos(wave) * t * gust * 0.27;
+        tint.setXYZ(i, shade, shade, shade);
+      }
+      position.needsUpdate = tint.needsUpdate = true;
+      mesh.position.set(center, 0, 0.46);
+    }
+  };
+}
+
+function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, effects, weather) {
   const { lights, splash } = effects;
   const townTime = { value: 0 };
   const skyOffset = { value: 0 };
@@ -165,6 +226,11 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     diffuseColor.a *= smoothstep(seam - 0.027, seam + 0.027, vMapUv.x);
   `;
   const meadowSeam = 'diffuseColor.a *= smoothstep(0.05, 0.091, vMapUv.x);';
+  const drawPennants = makePennants(scene, scenery.at(-1));
+  const clothCutouts = pennants.map(corners => {
+    const points = corners.map(([x, y]) => `vec2(${x.toFixed(6)}, ${y.toFixed(6)})`).join(', ');
+    return `paint = clearCloth(map, paint, vMapUv, ${points});`;
+  }).join(' ');
   const panels = scenery.map((texture, index) => {
     const panel = sprite(makeTexture(texture), 0.1 * (index + 1));
     const isForest = index === 0;
@@ -172,10 +238,27 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     panel.material.customProgramCacheKey = () => routeScenes[index];
     panel.material.onBeforeCompile = shader => {
       if (isTown) {
-        shader.uniforms.townTime = townTime;
         shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
           #include <common>
-          uniform float townTime;
+          #ifdef USE_MAP
+          vec4 clearCloth(sampler2D art, vec4 painted, vec2 p, vec2 a, vec2 b, vec2 c, vec2 d) {
+            float low = min(c.y, d.y);
+            float high = mix(a.y, b.y, clamp((p.x - a.x) / (b.x - a.x), 0.0, 1.0)) - 0.0035;
+            if (p.y > high || p.y < low - 0.003) return painted;
+            float t = 1.0 - clamp((p.y - low) / (high - low), 0.0, 1.0);
+            float left = mix(a.x, c.x, t), right = mix(b.x, d.x, t);
+            float mask = smoothstep(left - 0.003, left, p.x) * (1.0 - smoothstep(right, right + 0.003, p.x));
+            // Warm fringes can extend past the measured edges of the triangular flags.
+            if (distance(c, d) < 0.00001 && a.x > 0.35) {
+              float edge = smoothstep(left - 0.006, left, p.x) * (1.0 - smoothstep(right, right + 0.006, p.x));
+              mask = max(mask, edge * smoothstep(0.04, 0.15, painted.r - painted.g));
+            }
+            if (mask < 0.001) return painted;
+            vec4 fill = mix(texture2D(art, vec2(left - 0.004, p.y)), texture2D(art, vec2(right + 0.004, p.y)),
+              smoothstep(left - 0.003, right + 0.003, p.x));
+            return mix(painted, fill, mask);
+          }
+          #endif
         `);
       }
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
@@ -185,21 +268,11 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
           forestUV.y -= 0.04 * curb * smoothstep(0.58, 0.82, forestUV.x);
           diffuseColor *= texture2D(map, forestUV);
         ` : isTown ? `
-          vec2 pennantUV = vMapUv;
-          float flags = (1.0 - smoothstep(0.45, 1.0,
-            length((pennantUV - vec2(0.53, 0.59)) / vec2(0.24, 0.067))));
-          pennantUV.x += flags * sin(townTime * 3.0 + pennantUV.x * 79.0) * 0.0029;
-          diffuseColor *= texture2D(map, pennantUV);
+          vec4 paint = texture2D(map, vMapUv);
+          ${clothCutouts}
+          diffuseColor *= paint;
         ` : '#include <map_fragment>'}
         ${isForest ? forestSeam : isTown ? routeSeam : meadowSeam}
-        ${isTown ? `
-          vec2 uv = vMapUv;
-          float fountain = (1.0 - smoothstep(0.8, 1.0,
-            length((uv - vec2(0.509, 0.392)) / vec2(0.057, 0.045))))
-            * smoothstep(0.015, 0.14, diffuseColor.g - diffuseColor.r);
-          float shimmer = sin(uv.y * 680.0 + uv.x * 420.0 + townTime * 13.0);
-          diffuseColor.rgb += vec3(0.075, 0.13, 0.14) * fountain * shimmer;
-        ` : ''}
       `);
     };
     scene.add(panel);
@@ -213,12 +286,14 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     shader.uniforms.roadLights = lights;
     shader.uniforms.roadSplash = splash;
     shader.uniforms.roadTime = townTime;
+    shader.uniforms.weather = weather;
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
       #include <common>
       uniform vec2 roadView;
       uniform vec3 roadLights[4];
       uniform vec3 roadSplash;
       uniform float roadTime;
+      uniform vec4 weather;
       ${puddleGLSL}
     `).replace('#include <map_fragment>', `
       // Mirror a clean section of paving at the joins. World coordinates keep
@@ -227,6 +302,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
       float paving = pavingX(worldX);
       diffuseColor *= texture2D(map, vec2(paving, vMapUv.y / 0.22));
       float wet = puddleAt(vec2(worldX, vMapUv.y));
+      wet = mix(wet, max(wet, 0.33), weather.z);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.60 + vec3(0.015, 0.037, 0.047), wet * 0.72);
       vec3 illumination = vec3(0.89, 0.95, 1.01);
       vec3 reflections = vec3(0.0);
@@ -244,6 +320,13 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
       float ring = 1.0 - smoothstep(0.002, 0.014, abs(wake - roadSplash.z * 0.23));
       diffuseColor.rgb += vec3(0.11, 0.19, 0.20) * wet * ring *
         (1.0 - smoothstep(0.06, 0.42, roadSplash.z));
+      vec2 rainGrid = vec2(worldX * 93.0, vMapUv.y * 92.0);
+      vec2 rainCell = floor(rainGrid);
+      float rainSeed = fract(sin(dot(rainCell, vec2(127.1, 311.7))) * 43758.54);
+      float rainAge = fract(roadTime * (1.4 + rainSeed) + rainSeed * 13.0);
+      float radius = length((fract(rainGrid) - vec2(0.5)) * vec2(1.0, 1.8));
+      float rainRing = (1.0 - smoothstep(0.013, 0.049, abs(radius - rainAge * 0.42))) * (1.0 - rainAge);
+      diffuseColor.rgb += vec3(0.12, 0.19, 0.24) * rainRing * weather.z * (0.35 + 0.65 * wet);
       diffuseColor.a *= 1.0 - smoothstep(0.154, 0.213, vMapUv.y);
     `);
   };
@@ -281,10 +364,12 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     clouds.material.onBeforeCompile = shader => {
       shader.uniforms.skyOffset = skyOffset;
       shader.uniforms.weatherTime = townTime;
+      shader.uniforms.weather = weather;
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
         #include <common>
         uniform float skyOffset;
         uniform float weatherTime;
+        uniform vec4 weather;
         float skyHash(vec2 p) {
           return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
         }
@@ -295,17 +380,32 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
           return mix(mix(skyHash(cell), skyHash(cell + vec2(1, 0)), f.x),
             mix(skyHash(cell + vec2(0, 1)), skyHash(cell + vec2(1, 1)), f.x), f.y);
         }
+        float cloudShape(vec2 p) {
+          return skyNoise(p) * 0.55 + skyNoise(p * 2.03 + 14.2) * 0.27
+            + skyNoise(p * 4.11 - 9.6) * 0.13 + skyNoise(p * 8.17) * 0.05;
+        }
       `).replace('#include <map_fragment>', `
         #include <map_fragment>
         vec2 uv = vMapUv;
         // Use the painted sky as a mask so clouds stay behind roofs and leaves.
         float blue = smoothstep(0.005, 0.08, diffuseColor.b - diffuseColor.r);
         float silhouettes = 1.0 - smoothstep(0.13, 0.28, diffuseColor.r);
-        float heightMask = smoothstep(0.65, 0.78, uv.y) * (1.0 - smoothstep(0.94, 1.0, uv.y));
-        vec2 cloud = vec2((uv.x + ${(index * routeSpacing).toFixed(2)} - skyOffset) * 8.5 - weatherTime * 0.11, uv.y * 17.0);
-        float banks = skyNoise(cloud) * 0.72 + skyNoise(cloud * 2.25) * 0.28;
-        diffuseColor.rgb = vec3(0.18, 0.37, 0.42);
-        diffuseColor.a *= blue * silhouettes * heightMask * smoothstep(0.47, 0.82, banks) * 0.32;
+        float heightMask = smoothstep(0.61, 0.74, uv.y) * (1.0 - smoothstep(0.95, 1.0, uv.y));
+        float skyX = uv.x + ${(index * routeSpacing).toFixed(2)} - skyOffset;
+        vec2 wisp = vec2(skyX * 6.4 - weatherTime * 0.035, uv.y * 33.0);
+        float highCloud = smoothstep(0.46, 0.72, cloudShape(wisp + 19.0));
+        vec2 bank = vec2(skyX * 9.1 - weatherTime * 0.105 - weather.z * 0.55, uv.y * 24.0);
+        bank.y += skyNoise(bank * 0.36 + vec2(0.0, weatherTime * 0.014)) * 0.96;
+        float density = cloudShape(bank);
+        float lowCloud = smoothstep(0.44, 0.74, density);
+        float rim = clamp((density - cloudShape(bank + vec2(-0.16, 0.28))) * 3.7 + 0.28, 0.0, 1.0);
+        vec3 cloudColor = mix(vec3(0.026, 0.084, 0.103), vec3(0.19, 0.29, 0.30), rim);
+        vec3 clearSky = mix(vec3(0.082, 0.142, 0.17), vec3(0.092, 0.31, 0.57), weather.x);
+        cloudColor = mix(cloudColor, vec3(0.46, 0.55, 0.60) + rim * 0.19, weather.x);
+        cloudColor = mix(cloudColor, vec3(0.045, 0.063, 0.088) + rim * 0.095, weather.z);
+        diffuseColor.rgb = mix(clearSky, cloudColor, lowCloud * (1.0 - weather.y * 0.48));
+        diffuseColor.a *= blue * silhouettes * heightMask * clamp(highCloud * 0.17 + lowCloud * 0.56
+          + weather.x * 0.59 + weather.z * 0.24, 0.0, 1.0);
         ${['', forestSeam, meadowSeam, routeSeam][index]}
         ${index < tiles.length - 1 ? 'diffuseColor.a *= 1.0 - smoothstep(0.86, 0.95, uv.x);' : ''}
       `);
@@ -357,6 +457,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     skyOffset.value = sceneryShift - scroll * skyParallax;
     sky.forEach((tile, index) => positionPanel(tile, sceneryCenter + index * routeSpacing * backgroundWidth));
     panels.forEach((panel, index) => positionPanel(panel, sceneryCenter + (index + 1) * routeSpacing * backgroundWidth));
+    drawPennants(sceneryCenter + routeSpacing * routeScenes.length * backgroundWidth, townTime.value, weather.value.w);
     roadView.value.set(0.5 - backgroundCenter / backgroundWidth, width / backgroundWidth);
     road.scale.set(width, backgroundHeight, 1);
     road.position.set(width / 2, backgroundHeight / 2, 0.55);
@@ -396,9 +497,9 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
 function makeRouteEffects(scene) {
   const lights = { value: lightAnchors.map(() => new THREE.Vector3()) };
   const splash = { value: new THREE.Vector3(0, 0, 1) };
-  const embersPerLight = 11;
+  const emberCount = 15;
   const tracks = Array.from({ length: 18 }, () => ({ life: 0, x: 0, y: 0, drift: 0 }));
-  const positions = new THREE.BufferAttribute(new Float32Array((lightAnchors.length * embersPerLight + tracks.length) * 3), 3);
+  const positions = new THREE.BufferAttribute(new Float32Array((emberCount + tracks.length) * 3), 3);
   const colors = new THREE.BufferAttribute(new Float32Array(positions.count * 3), 3);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', positions);
@@ -411,7 +512,6 @@ function makeRouteEffects(scene) {
   scene.add(particles);
   let nextTrack = 0;
   let kickTime = 0;
-  const emberCount = lightAnchors.length * embersPerLight;
   return {
     lights,
     splash,
@@ -434,14 +534,16 @@ function makeRouteEffects(scene) {
           strength = incident;
           nearestLight = lightX;
         }
-        for (let i = 0; i < embersPerLight; i++) {
-          const t = (elapsed * (0.44 + (i % 4) * 0.063) + i * 0.618) % 1;
-          const px = lightX + Math.sin(i * 2.17 + t * 5) * backgroundHeight * t * 0.037;
-          const py = backgroundHeight * (y + t * (0.045 + i % 3 * 0.013));
-          const alpha = Math.sin(Math.PI * t) * (0.30 + i % 4 * 0.13);
-          positions.setXYZ(index * embersPerLight + i, px, py, 2.1);
-          colors.setXYZ(index * embersPerLight + i, alpha, alpha * 0.36, alpha * 0.059);
-        }
+      }
+      // The forge is open; the glass lanterns keep their embers inside.
+      const forgeX = sceneryCenter + (lightAnchors[3][0] - 0.5) * backgroundWidth - backgroundHeight * 0.019;
+      for (let i = 0; i < emberCount; i++) {
+        const t = (elapsed * (0.61 + (i % 5) * 0.11) + i * 0.618) % 1;
+        const px = forgeX + (Math.sin(i * 2.17) * 0.012 + Math.sin(i * 4.1 + t * 4) * t * 0.036) * backgroundHeight;
+        const py = backgroundHeight * (0.337 + t * (0.032 + i % 4 * 0.009) - t * t * 0.01);
+        const alpha = Math.sin(Math.PI * t) * (1 - t) * (0.16 + i % 4 * 0.11);
+        positions.setXYZ(i, px, py, 0.51);
+        colors.setXYZ(i, alpha, alpha * 0.42, alpha * 0.075);
       }
       kickTime -= dt;
       if (animated && sliding && kickTime <= 0) {
@@ -466,6 +568,136 @@ function makeRouteEffects(scene) {
       colors.needsUpdate = true;
       return { strength, direction: nearestLight === undefined ? 0 : Math.sign(footX - nearestLight) };
     },
+  };
+}
+
+function makeLivingScenery(scene) {
+  const time = { value: 0 };
+  const makeMaterial = (fragment, seed) => new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { time, seed: { value: seed } },
+    vertexShader: `
+      varying vec2 uvLocal;
+      void main() {
+        uvLocal = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 uvLocal;
+      uniform float time, seed;
+      float roll(float n) { return fract(sin(n * 127.1 + seed * 83.71) * 43758.54); }
+      float noise1(float n) {
+        float i = floor(n), f = fract(n);
+        return mix(roll(i), roll(i + 1.0), f * f * (3.0 - 2.0 * f));
+      }
+      void main() {
+        ${fragment}
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  const stream = `
+    vec2 p = vec2(uvLocal.x * 2.0 - 1.0, uvLocal.y);
+    float fall = clamp((0.99 - p.y) / 0.79, 0.0, 1.0);
+    float path = (noise1(fall * 4.0 + time * 0.7) - 0.5) * fall * 0.20;
+    float threads = 0.67 + 0.33 * noise1(7.0 * p.x + floor(seed * 5.0));
+    float flow = noise1(sqrt(fall + 0.07) * 13.0 - time * 16.0 + p.x * 2.1);
+    float streamWidth = (0.23 + fall * 0.26) * threads;
+    float body = (1.0 - smoothstep(streamWidth * 0.30, streamWidth, abs(p.x - path)))
+      * smoothstep(0.18, 0.29, p.y) * (1.0 - smoothstep(0.967, 1.0, p.y));
+    float splash = 0.0;
+    for (int i = 0; i < 7; i++) {
+      float key = float(i) + 3.0;
+      float age = fract(time * (1.4 + roll(key) * 1.1) + roll(key + 19.0));
+      vec2 drop = vec2((roll(key + 7.0) - 0.5) * age * 2.7,
+        0.22 + (0.29 + roll(key + 11.0) * 0.28) * age - age * age * 0.46);
+      splash += (1.0 - smoothstep(0.025, 0.12, length((p - drop) * vec2(1.0, 2.9)))) * (1.0 - age);
+    }
+    float foam = exp(-abs(p.x) * 3.2 - abs(p.y - 0.22) * 35.0) * (0.23 + 0.42 * noise1(time * 7.0));
+    float ringAge = fract(time * 1.45 + roll(27.0));
+    float ringRadius = length(vec2(p.x, (p.y - 0.20) * 9.0));
+    float ripple = exp(-abs(ringRadius - (0.17 + ringAge * 0.63)) * 37.0) * sin(ringAge * 3.14159) * 0.17;
+    float lip = flow * flow * (0.22 + fall * 0.34);
+    gl_FragColor = vec4(mix(vec3(0.18, 0.47, 0.49), vec3(0.70, 0.88, 0.80), clamp(lip + splash + foam, 0.0, 1.0)),
+      clamp(body * (0.16 + flow * 0.46) + splash * 0.31 + foam * 0.52 + ripple, 0.0, 0.88));
+  `;
+  const pool = `
+    vec2 p = uvLocal * 2.0 - 1.0;
+    float fade = 1.0 - smoothstep(0.33, 1.0, length(p));
+    float stripes = 0.0;
+    for (int i = 0; i < 8; i++) {
+      float key = float(i) + 2.0;
+      float age = fract(time * (0.37 + roll(key) * 0.20) + roll(key + 12.0));
+      vec2 from = vec2(roll(key + 35.0) * 1.55 - 0.775, roll(key + 8.0) * 1.4 - 0.7);
+      vec2 gap = p - from - vec2(age * 0.18, age * 0.25);
+      float reach = 0.025 + age * (0.12 + roll(key + 42.0) * 0.17);
+      stripes += exp(-abs(gap.x) / reach - abs(gap.y) * 48.0) * sin(age * 3.14159);
+    }
+    gl_FragColor = vec4(0.31, 0.57, 0.54, min(0.42, stripes * 0.61) * fade);
+  `;
+  const flame = `
+    vec2 p = vec2(uvLocal.x * 2.0 - 1.0, uvLocal.y);
+    float density = 0.0;
+    float heat = 0.0;
+    for (int i = 0; i < 3; i++) {
+      float k = float(i);
+      float base = (k - 1.0) * 0.46;
+      float tip = 0.43 + 0.42 * noise1(time * (4.1 + k) + k * 12.3);
+      float rise = p.y / tip;
+      float bend = (noise1(time * 6.2 - rise * 2.6 + k * 9.0) - 0.43) * rise * 0.65;
+      float taper = max(0.042, (0.43 - 0.32 * rise) * (1.0 - rise * 0.4));
+      float tongue = (1.0 - smoothstep(taper * 0.25, taper, abs(p.x - base - bend)))
+        * smoothstep(0.0, 0.085, rise) * (1.0 - smoothstep(0.72, 1.0, rise));
+      density = max(density, tongue);
+      heat = max(heat, tongue * (1.0 - smoothstep(0.13, 0.84, rise)));
+    }
+    float glow = exp(-length((p - vec2(0.0, 0.24)) * vec2(2.4, 3.8)) * 2.2);
+    vec3 color = mix(vec3(0.52, 0.052, 0.005), vec3(1.0, 0.39, 0.04), density);
+    color = mix(color, vec3(1.0, 0.86, 0.39), heat);
+    gl_FragColor = vec4(color, min(0.93, density * 0.86 + glow * 0.26));
+  `;
+  const town = routeSpacing * 3;
+  const props = [
+    // x, y, width, height in painting coordinates; stream y is the lip of the drop.
+    ...[
+      [0.777, 0.493, 0.021, 0.028], [0.738, 0.461, 0.021, 0.026],
+      [0.706, 0.424, 0.023, 0.026], [0.728, 0.391, 0.025, 0.034],
+      [0.836, 0.400, 0.033, 0.032], [0.639, 0.300, 0.026, 0.032],
+      [town + 0.542, 0.757, 0.031, 0.067], [town + 0.775, 0.852, 0.025, 0.064],
+      [town + 0.466, 0.422, 0.012, 0.070], [town + 0.478, 0.426, 0.010, 0.064],
+      [town + 0.504, 0.428, 0.013, 0.068], [town + 0.515, 0.428, 0.013, 0.068],
+      [town + 0.548, 0.425, 0.009, 0.066], [town + 0.557, 0.423, 0.014, 0.068],
+    ].map(([x, y, w, h]) => ({ x, y: y - h / 2, w, h, fragment: stream, z: 0.43 })),
+    ...[
+      [0.510, 0.314, 0.141, 0.046], [0.606, 0.289, 0.091, 0.039],
+      [0.672, 0.314, 0.065, 0.024], [town + 0.510, 0.365, 0.100, 0.021],
+    ].map(([x, y, w, h]) => ({ x, y, w, h, fragment: pool, z: 0.44 })),
+    ...[
+      [0.907, 0.293, 0.017, 0.032], [1.950, 0.355, 0.011, 0.025],
+      [town + 0.339, 0.570, 0.013, 0.028], [town + 0.445, 0.553, 0.012, 0.026],
+      [town + 0.670, 0.570, 0.012, 0.026], [town + 0.702, 0.592, 0.012, 0.028],
+      [town + 0.394, 0.389, 0.014, 0.034], [town + 0.630, 0.385, 0.014, 0.034],
+    ].map(([x, y, w, h]) => ({ x, y: y + h * 0.58, w: w * 0.83, h: h * 0.77, fragment: flame, z: 0.49 })),
+    // The forge art is scaled from a square rather than the full painting.
+    { x: town + 0.80, y: 0.348, w: 0.046, h: 0.058, fragment: flame, z: 0.50, square: true },
+  ].map((prop, i) => {
+    const mesh = new THREE.Mesh(plane, makeMaterial(prop.fragment, i + 1));
+    scene.add(mesh);
+    return { ...prop, mesh };
+  });
+
+  return (sceneryCenter, clock) => {
+    time.value = clock;
+    for (const { mesh, x, y, w, h, z, square } of props) {
+      const screenX = sceneryCenter + (x - 0.5) * backgroundWidth - (square ? backgroundHeight * 0.019 : 0);
+      const span = w * (square ? backgroundHeight : backgroundWidth);
+      mesh.visible = screenX + span / 2 > 0 && screenX - span / 2 < width;
+      if (!mesh.visible) continue;
+      mesh.position.set(screenX, y * backgroundHeight, z);
+      mesh.scale.set(span, h * backgroundHeight, 1);
+    }
   };
 }
 
@@ -500,13 +732,6 @@ function makeLandscape(texture) {
         float gust = sin(uTime * 1.9 + phase) * 0.72 + sin(uTime * 3.2 + phase) * 0.28;
         return vec2(0.0030, -p.x * 0.0008) * cluster * tips * gust;
       }
-      float softArea(vec2 uv, vec2 center, vec2 span) {
-        return 1.0 - smoothstep(0.50, 1.0, length((uv - center) / span));
-      }
-      float cascade(vec2 uv, vec2 center, vec2 span) {
-        vec2 p = abs((uv - center) / span);
-        return (1.0 - smoothstep(0.65, 1.0, p.x)) * (1.0 - smoothstep(0.67, 1.0, p.y));
-      }
     `).replace('#include <map_fragment>', `
       vec2 uv = vMapUv;
       // De hangende bladeren en de kruin bewegen. De stam en gebouwen staan vast.
@@ -514,25 +739,7 @@ function makeLandscape(texture) {
         + leafSway(uv, vec2(0.46, 0.94), vec2(0.15, -0.07), 1.8)
         + leafSway(uv, vec2(0.69, 0.89), vec2(0.16, 0.09), 3.2)
         + leafSway(uv, vec2(0.82, 0.77), vec2(0.15, 0.065), 4.7);
-      float falls = max(cascade(uv, vec2(0.842, 0.384), vec2(0.027, 0.019)),
-        cascade(uv, vec2(0.735, 0.380), vec2(0.014, 0.017)));
-      falls = max(falls, cascade(uv, vec2(0.741, 0.454), vec2(0.012, 0.013)));
-      falls = max(falls, cascade(uv, vec2(0.776, 0.483), vec2(0.009, 0.016)));
-      falls = max(falls, cascade(uv, vec2(0.628, 0.260), vec2(0.018, 0.028)));
-      float lake = max(softArea(uv, vec2(0.528, 0.295), vec2(0.104, 0.023)),
-        softArea(uv, vec2(0.669, 0.318), vec2(0.048, 0.024)));
-      vec3 painted = texture2D(map, uv).rgb;
-      float cyanWater = smoothstep(0.015, 0.11, painted.g - painted.r)
-        * smoothstep(0.15, 0.40, painted.g);
-      falls *= mix(0.18, 1.0, cyanWater);
-      sway.y += falls * sin(uv.y * 270.0 + uv.x * 193.0 + uTime * 8.0) * 0.0020;
-      float ripple = sin(uv.y * 530.0 + uv.x * 26.0 + uTime * 2.5)
-        * sin(uv.x * 56.0 - uTime * 0.8);
-      sway.x += lake * ripple * 0.0018;
       diffuseColor *= texture2D(map, clamp(uv + sway, 0.0, 1.0));
-      diffuseColor.rgb += vec3(0.09, 0.15, 0.16) * falls
-        * pow(0.5 + 0.5 * sin(uv.y * 420.0 + uv.x * 310.0 + uTime * 10.0), 3.0);
-      diffuseColor.rgb += vec3(0.035, 0.065, 0.067) * lake * ripple;
       float valleyMist = windBand(uv, 0.30 + sin(uv.x * 5.0) * 0.027, 0.087, 0.085);
       float highClouds = windBand(uv, 0.59 - uv.x * 0.13, 0.095, 0.055);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.44, 0.43),
@@ -575,7 +782,7 @@ function makeFireflies(scene) {
       phase: index * 2.399,
     };
   });
-  return (time, visible, sceneryCenter) => {
+  return (time, visible, sceneryCenter, glow) => {
     group.visible = visible;
     if (!visible) return;
     for (const { mesh, x, y, foreground, pace, phase } of flies) {
@@ -586,11 +793,214 @@ function makeFireflies(scene) {
       mesh.position.y = (y + Math.cos(flight * 0.77 + phase) * 0.032) * backgroundHeight;
       mesh.visible = mesh.position.x + size > 0 && mesh.position.x - size < width;
       mesh.scale.set(size, size, 1);
-      mesh.material.opacity = 0.055 + pulse * (foreground ? 0.82 : 0.62);
+      mesh.material.opacity = glow * (0.055 + pulse * (foreground ? 0.82 : 0.62));
     }
   };
 }
 
+
+function makeBirds(scene) {
+  const random = (min, max) => THREE.MathUtils.randFloat(min, max);
+  const textures = Array.from({ length: 8 }, (_, pose) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 80;
+    canvas.height = 54;
+    const ctx = canvas.getContext('2d');
+    const flying = pose < 6;
+    const wing = [5, 10, 24, 43, 37, 19][pose];
+    const shape = (color, ...points) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(...points[0]);
+      for (const point of points.slice(1)) ctx.lineTo(...point);
+      ctx.closePath();
+      ctx.fill();
+    };
+    if (flying) shape('#323b3c', [38, 31], [22, 22], [10, 32 + (28 - wing) * 0.55], [24, 33], [42, 35]);
+    shape('#444443', [32, 35], [10, 38], [15, 31], [36, 29]);
+    ctx.fillStyle = '#6e6660';
+    ctx.beginPath();
+    ctx.ellipse(41, 31, 20, 9, -0.13, 0, Math.PI * 2);
+    ctx.fill();
+    if (flying) {
+      shape('#575653', [49, 31], [37, wing + 8], [18, wing], [25, wing + 13], [36, 38]);
+      shape('#84796b', [48, 30], [37, wing + 8], [18, wing], [36, wing + 13], [43, 31]);
+    } else {
+      shape('#514c49', [54, 30], [41, 22], [17, 33], [36, 38], [48, 34]);
+      shape('#837363', [49, 28], [38, 24], [22, 32], [38, 30]);
+      ctx.strokeStyle = '#98765f';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(40, 36);
+      ctx.lineTo(41, 44);
+      ctx.lineTo(47, 44);
+      ctx.stroke();
+    }
+    const headY = flying ? 25 : pose === 6 ? 21 : 32;
+    ctx.fillStyle = '#92918a';
+    ctx.beginPath();
+    ctx.ellipse(56, headY, 9, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    shape('#c2a583', [62, headY], [72, headY + (pose === 7 ? 5 : 1)], [63, headY + 3]);
+    ctx.fillStyle = '#1d2222';
+    ctx.fillRect(58, headY - 3, 2, 2);
+    return makeTexture(new THREE.CanvasTexture(canvas));
+  });
+  const featherCanvas = document.createElement('canvas');
+  featherCanvas.width = 32;
+  featherCanvas.height = 16;
+  const quill = featherCanvas.getContext('2d');
+  quill.fillStyle = '#d7c4a6';
+  quill.beginPath();
+  quill.moveTo(2, 13);
+  quill.quadraticCurveTo(11, 1, 30, 3);
+  quill.quadraticCurveTo(27, 13, 2, 13);
+  quill.fill();
+  const featherTexture = makeTexture(new THREE.CanvasTexture(featherCanvas));
+  const feathers = Array.from({ length: 22 }, () => {
+    const mesh = sprite(featherTexture, 3.4);
+    mesh.visible = false;
+    scene.add(mesh);
+    return { mesh, age: Infinity };
+  });
+  const birds = Array.from({ length: 3 }, () => {
+    const mesh = sprite(textures[0], 0.53);
+    mesh.visible = false;
+    scene.add(mesh);
+    return { mesh, state: 'away' };
+  });
+  const town = routeSpacing * routeScenes.length;
+  const branches = [[0.10, 0.85], [0.67, 0.76], [0.92, 0.80], [1.84, 0.55]];
+  // Building anchors follow the painted roofs or the square shop facade overlays.
+  const rooftops = [[0.636, 0.597], [0.824, 0.761], [0.616, 0.445], [0.527, 0.387]];
+  const shopRoofs = [
+    [town + 0.27, 0.53, 0.84], [town + 0.27, 0.69, 0.958],
+    [town + 0.80, 0.48, 0.882],
+  ];
+  let nextVisit = 1.5;
+  let visits = 0;
+  let featherIndex = 0;
+  const screenX = (x, depth, sceneryCenter) =>
+    THREE.MathUtils.lerp(backgroundCenter, sceneryCenter, depth) + (x - 0.5) * backgroundWidth;
+
+  function depart(bird, direction) {
+    Object.assign(bird, { state: 'depart', age: 0, direction, startY: bird.y });
+  }
+
+  return (dt, visible, sceneryCenter, footX, footY, facing, reach) => {
+    if (!visible) {
+      for (const bird of birds) { bird.state = 'away'; bird.mesh.visible = false; }
+      for (const feather of feathers) { feather.age = Infinity; feather.mesh.visible = false; }
+      nextVisit = 1.5;
+      return false;
+    }
+    const aspect = backgroundHeight / backgroundWidth;
+    const body = THREE.MathUtils.clamp(height * 0.030, 19, 36);
+    const lead = birds[0];
+    if (lead.state === 'away' && (nextVisit -= dt) <= 0) {
+      const visiblePerches = points => points.filter(([x, y]) => {
+        const onScreen = screenX(x, 1, sceneryCenter);
+        return onScreen > width * 0.13 && onScreen < width * 0.90 && y * backgroundHeight < height - body;
+      });
+      const roofs = visiblePerches([...rooftops, ...shopRoofs.map(([x, u, v]) =>
+        [x + (u - 0.5) * aspect * 0.56, 0.238 + v * 0.56])]);
+      const trees = visiblePerches(branches);
+      const stop = visits++ % 3;
+      const preferred = stop === 1 ? roofs : trees;
+      const candidates = stop === 0 ? [] : preferred.length ? preferred : [...roofs, ...trees];
+      const perch = candidates[Math.floor(Math.random() * candidates.length)];
+      const direction = visits % 2 === 1 ? -1 : 1;
+      const ahead = footX < width * 0.7 ? 1 : -1;
+      const targetX = perch ? perch[0] : THREE.MathUtils.clamp(
+        0.5 + (footX - backgroundCenter + ahead * height * 0.27) / backgroundWidth, 0.08, routeEnd - 0.08);
+      const targetY = perch ? perch[1] : 1 - THREE.MathUtils.clamp(heroPosition.y + random(-0.009, 0.009), 0.848, 0.939);
+      birds.forEach((bird, i) => {
+        if (i && bird.state !== 'away') return;
+        const depth = perch || i ? 1 : 0;
+        const entry = direction > 0 ? -body : width + body;
+        Object.assign(bird, {
+          state: i ? 'pass' : 'approach', age: -i * 0.27, direction, depth,
+          startX: 0.5 + (entry - THREE.MathUtils.lerp(backgroundCenter, sceneryCenter, depth)) / backgroundWidth,
+          startY: Math.max(0.68 + i * 0.055, targetY + 0.045), x: targetX, y: targetY, targetX, targetY,
+          duration: random(2.1, 2.7), elevated: Boolean(perch), rest: random(2.8, 5.5),
+        });
+      });
+      nextVisit = random(5, 8);
+    }
+
+    let hit = false;
+    for (const bird of birds) {
+      bird.age += dt;
+      const { mesh } = bird;
+      mesh.visible = bird.state !== 'away' && bird.age >= 0;
+      if (!mesh.visible) continue;
+      let frame = 6;
+      if (bird.state === 'pass') {
+        bird.x = bird.startX + bird.direction * bird.age * 0.46 * aspect;
+        bird.y = bird.startY + Math.sin(bird.age * 1.45) * 0.023;
+        frame = bird.age % 1.27 > 0.79 ? 2 : Math.floor(bird.age * 20) % 6;
+      } else if (bird.state === 'approach') {
+        const t = Math.min(1, bird.age / bird.duration);
+        bird.x = THREE.MathUtils.lerp(bird.startX, bird.targetX, 1 - (1 - t) ** 1.35);
+        bird.y = THREE.MathUtils.lerp(bird.startY, bird.targetY, THREE.MathUtils.smoothstep(t, 0.18, 1))
+          + Math.sin(t * Math.PI) * 0.06;
+        frame = t > 0.81 || t % 0.4 < 0.26 ? Math.floor(bird.age * 21) % 6 : 2;
+        if (t === 1) { bird.state = 'perch'; bird.age = 0; }
+      } else if (bird.state === 'perch') {
+        const gap = screenX(bird.x, bird.depth, sceneryCenter) - footX;
+        const close = !bird.elevated && Math.abs(gap) < body * 4.8 && Math.abs(bird.y * backgroundHeight - footY) < body * 1.9;
+        if (close || bird.age > bird.rest) depart(bird, close ? (Math.sign(gap) || facing) : bird.direction);
+        else frame = bird.age % 1.2 < 0.30 ? 7 : 6;
+      } else if (bird.state === 'depart') {
+        const t = Math.max(0, bird.age - 0.12);
+        bird.x += bird.direction * dt * aspect * (t > 0 ? Math.min(0.48, 0.055 + t * 0.36) : 0);
+        bird.y = bird.startY + Math.min(Math.max(0.055, 0.90 - bird.startY), 0.16 * t + 0.12 * t * t);
+        frame = t > 0 ? Math.floor(t * 27) % 6 : 7;
+      }
+      const x = screenX(bird.x, bird.depth, sceneryCenter);
+      const y = bird.y * backgroundHeight;
+      if ((bird.state === 'pass' || bird.state === 'depart') &&
+          (bird.direction * (x - width / 2) > width / 2 + body * 2 || bird.age > 9)) {
+        bird.state = 'away';
+        mesh.visible = false;
+        continue;
+      }
+      const gap = (x - footX) * facing;
+      if (reach > 0 && !bird.elevated && (bird.state === 'perch' || bird.state === 'depart')
+          && gap >= -body * 0.25 && gap < reach && y >= footY - body && y < footY + body * 2.1) {
+        bird.state = 'away';
+        mesh.visible = false;
+        hit = true;
+        for (let i = 0; i < 11; i++) {
+          const feather = feathers[featherIndex++ % feathers.length];
+          Object.assign(feather, {
+            age: 0, x: bird.x, y: bird.y + body * 0.27 / backgroundHeight, vx: random(-0.14, 0.14) + facing * 0.065,
+            vy: random(0.035, 0.21), spin: random(-8, 8), size: random(0.19, 0.36) * body, life: random(0.48, 0.99),
+          });
+        }
+        continue;
+      }
+      mesh.material.map = textures[frame];
+      mesh.material.color.setScalar(bird.depth ? 0.70 : 0.97);
+      mesh.scale.set(bird.direction * body, body * 0.675, 1);
+      mesh.position.set(x, y + body * 0.22, bird.depth ? 0.53 : 2.65);
+    }
+    for (const feather of feathers) {
+      feather.age += dt;
+      const { mesh, age, life } = feather;
+      mesh.visible = age < life;
+      if (!mesh.visible) continue;
+      feather.x += feather.vx * dt * aspect;
+      feather.y += feather.vy * dt;
+      feather.vy -= dt * 0.43;
+      mesh.position.set(screenX(feather.x, 0, sceneryCenter), feather.y * backgroundHeight, 3.4);
+      mesh.scale.set(feather.size, feather.size * 0.5, 1);
+      mesh.rotation.z = feather.spin * age;
+      mesh.material.opacity = 1 - THREE.MathUtils.smoothstep(age, life * 0.32, life);
+    }
+    return hit;
+  };
+}
 
 function makeCritters(scene) {
   const species = [
@@ -736,16 +1146,41 @@ function makeTrainingDummies(scene, atlas) {
     frame.needsUpdate = true;
     return frame;
   });
+  const coinCanvas = document.createElement('canvas');
+  coinCanvas.width = coinCanvas.height = 32;
+  const gold = coinCanvas.getContext('2d');
+  const disk = (radius, color) => {
+    gold.beginPath();
+    gold.arc(16, 16, radius, 0, Math.PI * 2);
+    gold.fillStyle = color;
+    gold.fill();
+  };
+  disk(14, '#633a18');
+  disk(12, '#ffc867');
+  disk(9, '#ac6828');
+  disk(7, '#e6a849');
+  gold.fillStyle = '#734218';
+  gold.beginPath();
+  gold.moveTo(16, 10);
+  gold.lineTo(20, 16);
+  gold.lineTo(16, 22);
+  gold.lineTo(12, 16);
+  gold.closePath();
+  gold.fill();
+  const coinTexture = makeTexture(new THREE.CanvasTexture(coinCanvas));
   const dummies = [1.19, 1.43, 1.66].map((home, index) => {
     const mesh = sprite(frames[1], 2.8);
     scene.add(mesh);
+    const coinMesh = sprite(coinTexture, 3.2);
+    coinMesh.visible = false;
+    scene.add(coinMesh);
     const bar = document.createElement('div');
     bar.className = 'dummy-health';
     bar.append(document.createElement('span'));
     const popup = document.createElement('div');
     popup.className = 'damage-number';
     document.querySelector('#combat-hud').append(bar, popup);
-    return { mesh, bar, popup, hp: 20, popupTime: 0, home, x: home,
+    return { mesh, bar, popup, coinMesh, drop: null, hp: 20, popupTime: 0, home, x: home,
       facing: -1, phase: index * 0.29, stagger: 0, struck: false, scratch: 0, recovery: 0, hop: 0 };
   });
 
@@ -757,6 +1192,7 @@ function makeTrainingDummies(scene, atlas) {
     let hits = 0;
     let killed = false;
     let scratched = false;
+    let pickedUp = 0;
     for (const dummy of dummies) {
       if (!reach) dummy.struck = false;
       const distance = player.x - dummy.x;
@@ -775,7 +1211,10 @@ function makeTrainingDummies(scene, atlas) {
         dummy.popup.textContent = `−${dealt}`;
         dummy.popupTime = 0.78;
         hits++;
-        if (dummy.hp === 0) killed = true;
+        if (dummy.hp === 0) {
+          killed = true;
+          dummy.drop = { x: dummy.x, age: 0, direction: facing };
+        }
       }
 
       const stunned = dummy.stagger > 0;
@@ -817,8 +1256,29 @@ function makeTrainingDummies(scene, atlas) {
       dummy.popup.style.top = `${headY - 13 - (reducedMotion.matches ? 0 : (0.78 - dummy.popupTime) * 48)}px`;
       dummy.popup.style.opacity = Math.min(1, dummy.popupTime / 0.22);
       dummy.popupTime = Math.max(0, dummy.popupTime - dt);
+
+      const drop = dummy.drop;
+      if (!drop) continue;
+      drop.age += dt;
+      const flight = Math.min(drop.age / 0.38, 1);
+      const coinSize = THREE.MathUtils.clamp(size * 0.19, 14, 24);
+      const coinX = drop.x + drop.direction * 0.012 * flight;
+      const screenCoinX = backgroundCenter + (coinX - 0.5) * backgroundWidth;
+      const animated = !reducedMotion.matches;
+      const lift = animated ? 4 * flight * (1 - flight) * coinSize * 1.6 : 0;
+      if (flight === 1 && grounded && Math.abs(player.y - lane) * backgroundHeight < coinSize
+        && Math.abs(player.x - coinX) * backgroundWidth < coinSize * 1.1) {
+        dummy.drop = null;
+        dummy.coinMesh.visible = false;
+        pickedUp++;
+      } else {
+        const spin = animated ? 0.34 + 0.66 * Math.abs(Math.cos(drop.age * 5)) : 1;
+        dummy.coinMesh.visible = screenCoinX > -coinSize && screenCoinX < width + coinSize;
+        dummy.coinMesh.position.set(screenCoinX, footY + coinSize * 0.55 + lift, 3.2);
+        dummy.coinMesh.scale.set(coinSize * spin, coinSize, 1);
+      }
     }
-    return { hits, killed, scratched };
+    return { hits, killed, scratched, pickedUp };
   };
 }
 
@@ -828,6 +1288,7 @@ function makeWeaponShops() {
   const items = document.querySelector('#shop-items');
   const feedback = document.querySelector('#shop-feedback');
   const balances = document.querySelectorAll('[data-balance]');
+  const wallet = document.querySelector('.wallet');
   const weapons = {
     iron: { name: 'IJzeren zwaard', price: 35, damage: 7, reach: 1.08 },
     bronze: { name: 'Bronzen kling', price: 55, damage: 9, reach: 1.12 },
@@ -842,6 +1303,12 @@ function makeWeaponShops() {
   let coins = 100;
   let equipped;
   const owned = new Set();
+
+  function changeCoins(amount) {
+    coins += amount;
+    for (const balance of balances) balance.textContent = coins;
+    wallet.setAttribute('aria-label', `${coins} munten`);
+  }
 
   function renderItems() {
     items.replaceChildren();
@@ -861,12 +1328,10 @@ function makeWeaponShops() {
       buy.addEventListener('click', () => {
         if (!owned.has(id)) {
           if (coins < weapon.price) return;
-          coins -= weapon.price;
+          changeCoins(-weapon.price);
           owned.add(id);
         }
         equipped = id;
-        for (const balance of balances) balance.textContent = coins;
-        document.querySelector('.wallet').setAttribute('aria-label', `${coins} munten`);
         renderItems();
         feedback.textContent = `${weapon.name} uitgerust.`;
         dialog.querySelector('.shop-close').focus();
@@ -903,6 +1368,7 @@ function makeWeaponShops() {
     get open() { return dialog.open; },
     get damage() { return weapons[equipped]?.damage ?? 5; },
     get reach() { return weapons[equipped]?.reach ?? 1; },
+    collectCoins: changeCoins,
     update(sceneryCenter, footX) {
       nearby = shops.find(shop => {
         const screenX = sceneryCenter + (routeSpacing * 3 + shop.x - 0.5) * backgroundWidth;
@@ -915,6 +1381,289 @@ function makeWeaponShops() {
       entry.style.left = `${sceneryCenter + (routeSpacing * 3 + nearby.x - 0.5) * backgroundWidth}px`;
       entry.style.top = `${Math.max(70, height - backgroundHeight * 0.32)}px`;
     },
+  };
+}
+
+function makeWeather(scene) {
+  const modes = [
+    { label: 'Nacht', values: [0, 0, 0, 0], duration: 32 },
+    { label: 'Dag', values: [0.85, 0, 0, 0], duration: 31 },
+    { label: 'Zonnig', values: [1, 1, 0, 0], duration: 36 },
+    { label: 'Regen', values: [0.21, 0, 0.72, 0], duration: 29 },
+    { label: 'Storm', values: [0.04, 0, 1, 1], duration: 23 },
+  ];
+  const weather = { value: new THREE.Vector4() };
+  const target = new THREE.Vector4();
+  const clock = { value: 0 };
+  const lightning = { value: 0 };
+  const canvasSize = { value: new THREE.Vector2() };
+  const view = { value: 0 };
+  const button = document.querySelector('#weather');
+  let mode = 0;
+  let duration = modes[0].duration;
+  let nextFlash = 10;
+  let flashAge = 2;
+  const atmosphere = new THREE.Mesh(plane, new THREE.ShaderMaterial({
+    transparent: true, depthTest: false, depthWrite: false,
+    uniforms: { weather, clock, lightning, canvasSize, view },
+    vertexShader: `
+      varying vec2 screenUv;
+      void main() {
+        screenUv = uv;
+        gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 screenUv;
+      uniform vec2 canvasSize;
+      uniform vec4 weather;
+      uniform float clock, lightning, view;
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.54);
+      }
+      float drops(vec2 p, float scale, float speed, float offset) {
+        vec2 grid = p * vec2(scale, scale * 0.32);
+        grid.y += clock * speed;
+        grid.x += view * scale * 0.54 + offset;
+        vec2 id = floor(grid);
+        float seed = hash(id);
+        vec2 cell = fract(grid);
+        float streak = 1.0 - smoothstep(0.012, 0.034, abs(cell.x - (0.15 + seed * 0.7)));
+        float lengthFade = smoothstep(0.10, 0.25, cell.y) * (1.0 - smoothstep(0.44, 0.86, cell.y));
+        return streak * lengthFade * smoothstep(0.40, 0.88, seed);
+      }
+      void main() {
+        float aspect = canvasSize.x / max(canvasSize.y, 1.0);
+        vec2 uv = screenUv;
+        vec2 p = vec2(uv.x * aspect, uv.y);
+        p.x -= p.y * mix(0.12, 0.40, weather.w);
+        float rain = (0.32 * drops(p, 59.0, 21.0, 3.0) + 0.47 * drops(p, 34.0, 17.0, 17.0)) * weather.z;
+        float mistHeight = (uv.y - 0.47) * 3.0;
+        float haze = exp(-mistHeight * mistHeight) * weather.z * (0.045 + weather.w * 0.048);
+        vec2 sunward = vec2((uv.x - 0.79) * aspect, uv.y - 1.13);
+        float sun = exp(-dot(sunward, sunward) * 2.8) * weather.y * 0.16;
+        float flash = lightning * (0.035 + smoothstep(0.35, 0.96, uv.y) * 0.15);
+        vec3 tint = (vec3(0.34, 0.50, 0.60) * rain + vec3(0.22, 0.32, 0.38) * haze
+          + vec3(1.0, 0.76, 0.42) * sun + vec3(0.68, 0.80, 1.0) * flash);
+        float alpha = rain + haze + sun + flash;
+        gl_FragColor = vec4(tint / max(0.001, alpha), min(alpha, 0.90));
+        #include <colorspace_fragment>
+      }
+    `,
+  }));
+  atmosphere.frustumCulled = false;
+  atmosphere.renderOrder = 10;
+  atmosphere.visible = false;
+  scene.add(atmosphere);
+
+  function next() {
+    mode = (mode + 1) % modes.length;
+    const { label, values, duration: hold } = modes[mode];
+    target.set(...values);
+    duration = hold;
+    button.textContent = label;
+    button.setAttribute('aria-label', `Weer wisselen, nu ${label.toLowerCase()}`);
+  }
+  button.addEventListener('click', () => { next(); button.blur(); });
+  return {
+    weather,
+    applyLighting() {
+      // Grade each painted layer and character in linear light, after their own shading.
+      const graded = new Set();
+      scene.traverse(({ material }) => {
+        if (!material?.isMeshBasicMaterial || graded.has(material)) return;
+        graded.add(material);
+        const compile = material.onBeforeCompile;
+        const key = material.customProgramCacheKey();
+        material.customProgramCacheKey = () => `${key}-weather`;
+        material.onBeforeCompile = function (shader, renderer) {
+          compile.call(this, shader, renderer);
+          shader.uniforms.weatherGrade = weather;
+          shader.uniforms.stormLight = lightning;
+          shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+            #include <common>
+            uniform vec4 weatherGrade;
+            uniform float stormLight;
+          `).replace('#include <opaque_fragment>', `
+            vec3 gradeInput = max(outgoingLight, vec3(0.0));
+            float gradeLuma = dot(gradeInput, vec3(0.2126, 0.7152, 0.0722));
+            vec3 daylight = pow(gradeInput, vec3(0.66)) * vec3(1.15, 1.09, 0.98);
+            daylight += gradeLuma * vec3(0.083, 0.060, 0.025) * weatherGrade.y;
+            outgoingLight = mix(gradeInput, daylight, weatherGrade.x);
+            vec3 overcast = mix(outgoingLight, vec3(gradeLuma), 0.24) * vec3(0.64, 0.78, 0.88);
+            outgoingLight = mix(outgoingLight, overcast, weatherGrade.z);
+            outgoingLight *= (1.0 - weatherGrade.w * 0.17) + stormLight * 0.51;
+            #include <opaque_fragment>
+          `);
+        };
+      });
+    },
+    update(dt, scroll) {
+      const reduced = reducedMotion.matches;
+      duration -= dt;
+      if (duration <= 0 && !reduced) next();
+      weather.value.lerp(target, 1 - Math.exp(-dt * 0.64));
+      clock.value = reduced ? 0 : clock.value + dt;
+      nextFlash -= dt;
+      if (nextFlash <= 0) {
+        nextFlash = 8 + Math.random() * 8;
+        if (mode === 4 && !reduced) flashAge = 0;
+      }
+      flashAge += dt;
+      lightning.value = reduced ? 0 : weather.value.w * Math.max(0, 1 - Math.abs(flashAge - 0.12) / 0.12);
+      canvasSize.value.set(width, height);
+      view.value = scroll;
+      atmosphere.visible = weather.value.y + weather.value.z > 0.015;
+    },
+  };
+}
+
+function makeIdleGestures(hero, bellmaker) {
+  const clips = [
+    { length: 1.85, poses: [[0,'#16'], [0.24,0], [1.57,'#16']], lean: -0.88, lift: -0.65 },
+    { length: 2.15, poses: [[0,'#16'], [0.25,1], [1.92,'#16']], lean: 0.30, lift: 0.36 },
+    { length: 2.58, poses: [
+      [0,'#16'], [0.22,'#8'], [0.32,'#30'], [0.43,'#31',-1], [0.52,1,-1],
+      [1.50,'#8',-1], [1.59,'#30',-1], [1.70,'#31'], [1.83,1], [2.39,'#16'],
+    ], lean: 0.34, lift: 0.24 },
+    { length: 2.42, poses: [[0,'#16'], [0.20,'#8'], [0.37,2], [2.13,'#8'], [2.27,'#16']], lean: 0.12, lift: 0.75 },
+    { length: 3.88, poses: [
+      [0,'#16'], [0.20,'#21'], [0.51,3], [1.11,5], [1.50,4], [1.98,5], [2.28,4], [2.76,5],
+      [3.19,3], [3.51,'#24'], [3.72,'#16'],
+    ], lean: 0.18, lift: 0.20, tosses: [1.50, 2.28] },
+    { length: 2.25, poses: [[0,'#16'], [0.25,6], [1.96,'#16']], lean: 0.44, lift: 0.56 },
+    { length: 1.70, poses: [[0,'#16'], [0.19,7], [1.47,'#16']], lean: -0.53, lift: 0.38 },
+    { length: 1.90, poses: [[0,'#16'], [0.24,8], [1.67,'#16']], lean: 0.42, lift: 0.43 },
+  ];
+  const stoneCanvas = document.createElement('canvas');
+  stoneCanvas.width = stoneCanvas.height = 16;
+  const brush = stoneCanvas.getContext('2d');
+  brush.fillStyle = '#766554';
+  brush.beginPath();
+  brush.moveTo(1, 9);
+  brush.lineTo(4, 3);
+  brush.lineTo(10, 2);
+  brush.lineTo(15, 7);
+  brush.lineTo(11, 12);
+  brush.lineTo(5, 13);
+  brush.closePath();
+  brush.fill();
+  brush.fillStyle = '#a09278';
+  brush.fillRect(5, 4, 5, 2);
+  const stone = sprite(makeTexture(new THREE.CanvasTexture(stoneCanvas)), 0.01);
+  stone.scale.set(0.018, 0.018, 1);
+  stone.visible = false;
+  hero.add(stone);
+
+  const motion = { value: new THREE.Vector2() };
+  // The head height above the boots guides the in-between poses, particularly when sitting down.
+  const headHeight = { 0: 0.74, 1: 0.76, 2: 0.76, 3: 0.58, 4: 0.62, 5: 0.60, 6: 0.76, 7: 0.75, 8: 0.72,
+    '#16': 0.76, '#8': 0.77, '#21': 0.60, '#24': 0.61, '#30': 0.72, '#31': 0.72 };
+  let clipIndex = 0;
+  let clip;
+  let time = 0;
+  let delay = 5;
+  return {
+    motion,
+    update(dt, idle) {
+      stone.visible = false;
+      motion.value.set(0, 0);
+      if (!idle || reducedMotion.matches) {
+        if (clip) clipIndex = (clipIndex + 1) % clips.length;
+        clip = undefined;
+        time = 0;
+        delay = 5;
+        return;
+      }
+      if (!clip) {
+        delay -= dt;
+        if (delay > 0) return;
+        clip = clips[clipIndex];
+        time = 0;
+      }
+      time += dt;
+      if (time >= clip.length) {
+        clip = undefined;
+        delay = 5 + Math.random() * 3;
+        clipIndex = (clipIndex + 1) % clips.length;
+        return;
+      }
+      const index = clip.poses.findLastIndex(([start]) => time >= start);
+      const [start, pose, direction = 1] = clip.poses[index];
+      const frame = bellmaker.idleFrame(pose);
+      if (!frame) return;
+      const next = clip.poses[index + 1];
+      let transition;
+      if (next) {
+        const [end, nextPose, nextDirection = 1] = next;
+        const blend = THREE.MathUtils.smoothstep(time, end - Math.min(0.23, (end - start) * 0.82), end);
+        const nextFrame = blend > 0 ? bellmaker.idleFrame(nextPose) : undefined;
+        if (nextFrame) transition = {
+          frame: nextFrame, blend, flip: direction * nextDirection,
+          height: headHeight[nextPose] - headHeight[pose],
+        };
+      }
+      const envelope = Math.sin(Math.PI * time / clip.length);
+      motion.value.set(clip.lean * envelope * (0.72 + 0.28 * Math.sin(time * 5)),
+        clip.lift * envelope * (0.65 + 0.35 * Math.cos(time * 7)));
+      const toss = clip.tosses?.find(start => time >= start && time < start + 0.48);
+      if (toss !== undefined) {
+        const progress = (time - toss) / 0.48;
+        stone.visible = true;
+        stone.position.set(0.083 + progress * 0.008, 0.064 + 0.096 * 4 * progress * (1 - progress), 0.02);
+        stone.rotation.z = progress * 6.3;
+      }
+      return { frame, direction, transition };
+    },
+  };
+}
+
+function makeIdleInbetweens(materials) {
+  const nextMap = { value: null };
+  const fromUv = { value: new THREE.Vector4() };
+  const toUv = { value: new THREE.Vector4() };
+  const inbetween = { value: new THREE.Vector3() };
+  for (const material of materials) {
+    const compile = material.onBeforeCompile;
+    material.onBeforeCompile = function (shader, renderer) {
+      compile.call(this, shader, renderer);
+      Object.assign(shader.uniforms, { idleNextMap: nextMap, idleFromUv: fromUv, idleToUv: toUv, idleInbetween: inbetween });
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+        #include <common>
+        uniform sampler2D idleNextMap;
+        uniform vec4 idleFromUv, idleToUv;
+        uniform vec3 idleInbetween;
+      `).replace('#include <map_fragment>', `
+        #ifdef USE_MAP
+          vec4 poseColor = texture2D(map, vMapUv);
+          if (idleInbetween.x > 0.0) {
+            vec2 local = (vMapUv - idleFromUv.xy) / idleFromUv.zw;
+            // Anchor the boots while the head and torso travel between the two poses.
+            float upper = smoothstep(0.22, 0.75, local.y);
+            vec2 earlier = local - vec2(0.0, idleInbetween.z * upper * idleInbetween.x);
+            vec2 later = vec2(0.5 + (local.x - 0.5) * idleInbetween.y,
+              local.y + idleInbetween.z * upper * (1.0 - idleInbetween.x));
+            vec4 a = texture2D(map, idleFromUv.xy + clamp(earlier, 0.0, 1.0) * idleFromUv.zw);
+            vec4 b = texture2D(idleNextMap, idleToUv.xy + clamp(later, 0.0, 1.0) * idleToUv.zw);
+            float alpha = mix(a.a, b.a, idleInbetween.x);
+            vec3 color = mix(a.rgb * a.a, b.rgb * b.a, idleInbetween.x) / max(alpha, 0.001);
+            poseColor = vec4(color, alpha);
+          }
+          diffuseColor *= poseColor;
+        #endif
+      `);
+    };
+  }
+  return (frame, transition) => {
+    nextMap.value = transition?.frame ?? frame;
+    if (!transition) {
+      inbetween.value.x = 0;
+      return;
+    }
+    fromUv.value.set(frame.offset.x, frame.offset.y, frame.repeat.x, frame.repeat.y);
+    const next = transition.frame;
+    toUv.value.set(next.offset.x, next.offset.y, next.repeat.x, next.repeat.y);
+    inbetween.value.set(transition.blend, transition.flip, transition.height);
   };
 }
 
@@ -937,10 +1686,12 @@ async function showMenu() {
     loader.loadAsync('./assets/open-winkels.webp'),
   ]);
   const world = makeTexture(worldTexture);
+  const climate = makeWeather(scene);
   const { mesh: background, time: landscapeTime } = makeLandscape(world);
   scene.add(background);
   const routeEffects = makeRouteEffects(scene);
-  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, routeEffects);
+  const updateRoute = makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, street, storefronts, routeEffects, climate.weather);
+  const updateLivingScenery = makeLivingScenery(scene);
   let routeOrigin;
   let cameraScroll = 0;
   let lookAhead = 0;
@@ -948,16 +1699,19 @@ async function showMenu() {
   hero.geometry = new THREE.PlaneGeometry(1, 1, 48, 64);
   const idleBreath = { value: 0 };
   const swordBreath = { value: 0 };
+  const idleGestures = makeIdleGestures(hero, bellmaker);
   let idleTime = 0;
   hero.material.onBeforeCompile = shader => {
     shader.uniforms.idleBreath = idleBreath;
     shader.uniforms.swordBreath = swordBreath;
-    shader.vertexShader = 'uniform float idleBreath;\nuniform float swordBreath;\n' + shader.vertexShader.replace(
+    shader.uniforms.idleGesture = idleGestures.motion;
+    shader.vertexShader = 'uniform float idleBreath;\nuniform float swordBreath;\nuniform vec2 idleGesture;\n' + shader.vertexShader.replace(
       '#include <begin_vertex>',
       '#include <begin_vertex>\n'
         + `float heightFromChest = (position.y * ${bellmaker.scale.toFixed(6)} - 0.15) / 0.095;\n`
         + 'float chest = exp(-heightFromChest * heightFromChest);\n'
         + 'float upperBody = smoothstep(-0.16, 0.045, position.y);\n'
+        + 'transformed.xy += idleGesture * upperBody * vec2(0.014, 0.009);\n'
         + 'transformed.x += position.x * chest * idleBreath * 0.018;\n'
         + `transformed.y += upperBody * idleBreath * ${(0.004 / bellmaker.scale).toFixed(6)};\n`
         + `
@@ -1022,10 +1776,13 @@ async function showMenu() {
       `);
   };
   scene.add(reflection);
+  const updateIdleInbetweens = makeIdleInbetweens([hero.material, castShadow.material, reflection.material]);
 
   const animateFireflies = makeFireflies(scene);
   const animateCritters = makeCritters(scene);
+  const animateBirds = makeBirds(scene);
   const animateDummies = makeTrainingDummies(scene, dummyAtlas);
+  climate.applyLighting();
   const weaponShops = makeWeaponShops();
   const audio = makeSceneAudio();
 
@@ -1040,6 +1797,10 @@ async function showMenu() {
   let swingPlayed = false;
   let playerHealth = 5;
   let recoveryTime = 0;
+  const playerDamage = document.createElement('div');
+  playerDamage.className = 'damage-number player-damage-number';
+  document.querySelector('#combat-hud').append(playerDamage);
+  let damageAnimation;
   const hearts = [...document.querySelectorAll('.health use')];
   const renderHealth = () => {
     hearts.forEach((heart, index) => heart.style.opacity = index < playerHealth ? 1 : 0.22);
@@ -1054,12 +1815,13 @@ async function showMenu() {
     if (weaponShops.open) return;
     if (demoTime >= 0 || jumpTime < jumpDuration) return;
     jumpDrift.set(0, 0);
-    if (motion.lengthSq() > 0.05) jumpDrift.copy(motion).normalize();
+    if (motion.lengthSq() > 0.14) jumpDrift.copy(motion);
     jumpDuration = jumpDrift.lengthSq() > 0 ? 0.59 : 0.50;
     jumpTime = 0;
   }
 
-  const duration = { turn: 0.34, 'armed-turn': 0.34, draw: 0.48, slash: 0.42, recover: 0.20, sheathe: 0.48, punch: 0.31 };
+  const duration = { turn: 0.24, 'armed-turn': 0.24, draw: 0.48, slash: 0.42, recover: 0.20, sheathe: 0.48, punch: 0.31 };
+  let brakeTime = 0;
   const demo = [
     { action: 'run', duration: 1.10, facing: 1 },
     { action: 'turn', duration: duration.turn, facing: -1 },
@@ -1090,6 +1852,7 @@ async function showMenu() {
     jumpTime = jumpDuration;
     facing = 1;
     motion.set(0, 0);
+    brakeTime = 0;
     sprintDirection = 0;
     demoTime = 0;
     playSequence.disabled = true;
@@ -1114,8 +1877,11 @@ async function showMenu() {
     background.position.y = backgroundHeight / 2;
   }
 
-  function draw(dt) {
-    if (weaponShops.open) return;
+  function draw(dt, weatherDt = dt) {
+    if (weaponShops.open) {
+      idleGestures.update(0, false);
+      return;
+    }
     if (recoveryTime > 0) {
       recoveryTime = Math.max(0, recoveryTime - dt);
       if (recoveryTime > 0) return;
@@ -1128,6 +1894,7 @@ async function showMenu() {
       touchDirections.clear();
       sprintDirection = 0;
       motion.set(0, 0);
+      brakeTime = 0;
       startAction('idle');
       status.hidden = true;
     }
@@ -1182,16 +1949,26 @@ async function showMenu() {
         startAction(action === 'ready' ? 'armed-turn' : 'turn');
       }
       if (action === 'idle' || action === 'run') action = stepDirection.lengthSq() ? 'run' : 'idle';
-      if (['turn', 'armed-turn', 'slash', 'recover', 'punch'].includes(action)) stepDirection.set(0, 0);
+      if (['turn', 'armed-turn'].includes(action)) {
+        // Plant on the first half of the turn. The exit step can already take input.
+        stepDirection.multiplyScalar(THREE.MathUtils.smoothstep(actionTime / duration[action], 0.48, 0.94));
+      }
+      if (['slash', 'recover', 'punch'].includes(action)) stepDirection.set(0, 0);
       // Keep moving during weapon transitions. Defer reversing until the animation ends.
       if (stepDirection.x && Math.sign(stepDirection.x) !== facing) stepDirection.x = 0;
       if (wasInAir) stepDirection.copy(jumpDrift);
     }
-    const sliding = !wasInAir && (action === 'slash' || action === 'punch' || Math.abs(motion.x) > 1.13)
-      && Math.abs(stepDirection.x) < 0.1;
+    const turning = action === 'turn' || action === 'armed-turn';
+    const movingInput = stepDirection.lengthSq() > 0.001;
+    const braking = !wasInAir && !movingInput && (action === 'idle' || action === 'ready') && motion.lengthSq() > 0.0144;
+    brakeTime = braking ? brakeTime + dt : 0;
+    const attackSlide = action === 'slash' || action === 'punch';
+    const sliding = !wasInAir && !movingInput && (attackSlide || (braking && Math.abs(motion.x) > 0.7));
     if (sprinting && !wasInAir) stepDirection.x *= 1.66;
-    motion.lerp(stepDirection, 1 - Math.exp(-dt * (sliding ? 6.5 : 18)));
-    if (!wasInAir && !sliding && (action === 'turn' || action === 'armed-turn')) motion.set(0, 0);
+    const response = wasInAir ? 20 : turning && actionTime < duration[action] * 0.48 ? 29
+      : attackSlide ? 9 : movingInput ? 15 : 17;
+    motion.lerp(stepDirection, 1 - Math.exp(-dt * response));
+    if (!wasInAir && !movingInput && motion.lengthSq() < 0.0144) motion.set(0, 0);
     const speed = motion.length();
     const targetHeight = THREE.MathUtils.clamp(height * 0.31, 100, 285)
       * THREE.MathUtils.lerp(0.78, 1.09, (heroPosition.y - 0.835) / 0.11);
@@ -1225,14 +2002,17 @@ async function showMenu() {
     const sceneryCenter = backgroundCenter + sceneryLag * backgroundWidth;
     background.position.x = sceneryCenter;
     background.visible = sceneryCenter + backgroundWidth / 2 > 0;
+    climate.update(weatherDt, scroll);
     updateRoute(routeOrigin, scroll, sceneryCenter);
+    updateLivingScenery(sceneryCenter, reducedMotion.matches ? 0 : elapsed);
     const nextPhase = phase + dt * speed * 1.22 / bellmaker.cycle;
-    const stepped = !wasInAir && speed > 0.12
+    const stepped = !wasInAir && movingInput && !turning && speed > 0.12
       && (heroPosition.x !== oldX || heroPosition.y !== oldY)
       && Math.floor(nextPhase * 2) !== Math.floor(phase * 2);
     const airProgress = jumpTime / jumpDuration;
     audio.update(stepped, previousJumpProgress < 0.88 && airProgress >= 0.88);
-    phase = nextPhase % 1;
+    if (movingInput && !turning && !wasInAir) phase = nextPhase % 1;
+    else if (speed <= 0.12 || turning) phase = 0;
     const progress = THREE.MathUtils.clamp(actionTime / (duration[action] ?? 1), 0, 1);
     const footX = backgroundCenter + (heroPosition.x - 0.5) * backgroundWidth;
     const footY = (1 - heroPosition.y) * backgroundHeight;
@@ -1248,17 +2028,20 @@ async function showMenu() {
     const runningJump = jumpDrift.lengthSq() > 0;
     const armed = action === 'ready' || action === 'armed-turn';
     const jumpAction = `${armed ? 'armed-' : ''}${runningJump ? 'run-jump' : 'jump'}`;
-    const frame = bellmaker.frame(airborne ? jumpAction : action, speed > 0.12, phase,
-      airborne ? airProgress : progress, attack);
+    const pose = airborne ? jumpAction : brakeTime > 0 ? (armed ? 'armed-stop' : 'stop') : action;
+    const gesture = idleGestures.update(Math.min(weatherDt, 0.18), action === 'idle' && speed <= 0.12
+      && !activeDirections.size && !airborne && demoTime < 0 && scratchFlash === 0);
+    const frame = gesture?.frame ?? bellmaker.frame(pose, speed > 0.12, phase,
+      airborne ? airProgress : brakeTime > 0 ? Math.min(brakeTime / 0.16, 1) : progress, attack);
     hero.material.map = frame;
+    updateIdleInbetweens(frame, gesture?.transition);
     hero.material.color.setRGB(0.82 + lighting.strength * 0.24, 0.87 + lighting.strength * 0.11,
       scratchFlash > 0 ? 0.58 : 0.96 - lighting.strength * 0.04);
     const standingArmed = action === 'ready' && speed <= 0.12;
-    idleTime = (action === 'idle' || standingArmed) && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
+    idleTime = (action === 'idle' || standingArmed) && brakeTime === 0 && !airborne && !reducedMotion.matches ? idleTime + dt : 0;
     idleBreath.value = 0.5 - Math.cos(idleTime * 1.62) * 0.5;
     swordBreath.value = standingArmed ? idleBreath.value : 0;
-    const turning = action === 'turn' || action === 'armed-turn';
-    const facingSprite = turning && progress < 0.5 ? -facing : facing;
+    const facingSprite = (turning && progress < 0.5 && !airborne ? -facing : facing) * (gesture?.direction ?? 1);
     const spriteHeight = renderHeight * bellmaker.scale;
     hero.scale.set(heroWidth * bellmaker.scale * facingSprite, spriteHeight, 1);
     hero.position.set(footX, footY + spriteHeight * (0.5 - bellmaker.baseline)
@@ -1281,7 +2064,8 @@ async function showMenu() {
     reflectionWorld.value.set(backgroundCenter, backgroundWidth, backgroundHeight);
 
     landscapeTime.value = reducedMotion.matches ? 0 : elapsed;
-    animateFireflies(elapsed, !reducedMotion.matches, sceneryCenter);
+    const { x: daylight, z: rain } = climate.weather.value;
+    animateFireflies(elapsed, !reducedMotion.matches, sceneryCenter, (1 - daylight) * (1 - rain));
     const runningOnGround = lift === 0 && speed > 0.12 && stepDirection.lengthSq() > 0
       && (heroPosition.x !== oldX || heroPosition.y !== oldY);
     animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround);
@@ -1294,14 +2078,26 @@ async function showMenu() {
     }
     const attacking = lift < 0.2 && progress >= (swinging ? swingMoment : 0.32) && progress < 0.69;
     const reach = attacking ? characterHeight * (swinging ? 0.97 * weaponShops.reach : action === 'punch' ? 0.49 : 0) : 0;
-    const { hits, killed, scratched } = animateDummies(dt, heroPosition, reach, facing,
+    const { hits, killed, scratched, pickedUp } = animateDummies(dt, heroPosition, reach, facing,
       THREE.MathUtils.clamp(height * 0.31, 100, 285) * (mobileLandscape.matches ? 0.65 : 0.5),
       swinging ? weaponShops.damage : 5, swinging ? attack : -1, lift < 0.16);
-    if (swinging && hits) audio.swordHit(attack);
+    if (pickedUp) weaponShops.collectCoins(pickedUp);
+    const birdHit = animateBirds(dt, !reducedMotion.matches, sceneryCenter, footX, footY, facing, swinging ? reach : 0);
+    if (swinging && (hits || birdHit)) audio.swordHit(attack);
     if (hits) audio.arcadeHit(killed);
     if (scratched && scratchCooldown === 0 && demoTime < 0) {
+      const previousHealth = playerHealth;
       playerHealth--;
       renderHealth();
+      playerDamage.textContent = `−${previousHealth - playerHealth}`;
+      playerDamage.style.left = `${footX}px`;
+      playerDamage.style.top = `${height - footY - characterHeight * (1.19 + lift * 0.73) - 12}px`;
+      damageAnimation?.cancel();
+      damageAnimation = playerDamage.animate([
+        { opacity: 1, transform: 'translateY(0)', offset: 0 },
+        { opacity: 1, offset: 0.3 },
+        { opacity: 0, transform: reducedMotion.matches ? 'translateY(0)' : 'translateY(-34px)', offset: 1 },
+      ], { duration: 810, easing: 'ease-out' });
       scratchCooldown = 1.15;
       scratchFlash = 0.20;
       audio.scratch();
@@ -1326,7 +2122,10 @@ async function showMenu() {
     if ((key === 'f' || key === 'draw') && (action === 'idle' || action === 'run')) startAction('draw');
     else if (key === 'f' && action === 'ready') startAction('sheathe');
     else if (key === ' ' && action === 'ready') startAction('slash');
-    else if (key === ' ' && (action === 'idle' || action === 'run' || action === 'turn')) startAction('punch');
+    else if (key === ' ' && (action === 'idle' || action === 'run' || action === 'turn')) {
+      if (action === 'turn' && actionTime < duration.turn * 0.5) facing *= -1;
+      startAction('punch');
+    }
   }, jump);
   new ResizeObserver(resize).observe(host);
   resize();
@@ -1335,7 +2134,8 @@ async function showMenu() {
   controls.hidden = false;
   let last = performance.now();
   renderer.setAnimationLoop(now => {
-    draw(THREE.MathUtils.clamp((now - last) / 1000, 0, 0.04));
+    const frameTime = Math.max(0, (now - last) / 1000);
+    draw(Math.min(frameTime, 0.04), Math.min(frameTime, 0.5));
     last = now;
   });
 }

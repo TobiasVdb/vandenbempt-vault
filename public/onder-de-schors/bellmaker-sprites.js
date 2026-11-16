@@ -85,6 +85,39 @@ export function makeSlashTrail() {
   };
 }
 
+async function loadIdleFrames(loader) {
+  const source = await loader.loadAsync('./assets/klokkenmaker-rustposes.png');
+  const image = source.image;
+  const cell = image.width / 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = cellSize * 3;
+  const ctx = canvas.getContext('2d');
+  // Anchor each pose by its boots. The seated poses use the same scale as standing.
+  const anchors = [[220,397], [204,397], [181,395], [232,353], [211,352], [193,352],
+    [235,390], [204,390], [172,390]];
+  const scale = 0.545;
+  anchors.forEach(([x, y], index) => {
+    const col = index % 3, row = Math.floor(index / 3);
+    const left = col * cellSize + cellSize / 2 - x * scale;
+    const top = row * cellSize + 299 - y * scale;
+    ctx.drawImage(image, col * cell, row * cell, cell, cell, left, top, cell * scale, cell * scale);
+    // The toss uses a separate moving pebble.
+    if (index === 4) ctx.clearRect(left + 255 * scale, top + 54 * scale, 28 * scale, 55 * scale);
+  });
+  const atlas = new THREE.CanvasTexture(canvas);
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  atlas.minFilter = atlas.magFilter = THREE.LinearFilter;
+  atlas.generateMipmaps = false;
+  return anchors.map((_, index) => {
+    const frame = atlas.clone();
+    frame.repeat.setScalar((cellSize - 1) / canvas.width);
+    frame.offset.set(((index % 3) * cellSize + 0.5) / canvas.width,
+      1 - ((Math.floor(index / 3) + 1) * cellSize - 0.5) / canvas.height);
+    frame.needsUpdate = true;
+    return frame;
+  });
+}
+
 export async function loadBellmakerSprites(loader) {
   const atlas = await loader.loadAsync('./assets/klokkenmaker-animaties.webp');
   atlas.colorSpace = THREE.SRGBColorSpace;
@@ -104,6 +137,10 @@ export async function loadBellmakerSprites(loader) {
   });
 
   const frameAt = (indices, progress) => frames[indices[Math.min(indices.length - 1, Math.floor(progress * indices.length))]];
+  const idleFrames = await loadIdleFrames(loader).catch(error => {
+    console.warn('De extra rustanimaties konden niet laden.', error);
+    return [];
+  });
 
   return {
     aspect: 1,
@@ -111,9 +148,14 @@ export async function loadBellmakerSprites(loader) {
     baseline: (19 + (size - originalCellSize) / 2) / size,
     cycle: 0.59,
     attackCount: attacks.length,
+    idleFrame(pose) {
+      return typeof pose === 'number' ? idleFrames[pose] : frames[Number(pose?.slice(1))];
+    },
     frame(action, moving, phase, progress, attack = 0) {
       switch (action) {
         case 'run': return frameAt([0, 41, 1, 42, 2, 43, 3, 44], phase);
+        case 'stop': return frameAt([0, 8, 16], progress);
+        case 'armed-stop': return frameAt([45, 69, 10], progress);
         case 'jump': return frameAt([21, 22, 23, 23, 22, 24], progress);
         case 'run-jump': return frameAt([25, 26, 27, 27, 26, 28], progress);
         case 'armed-jump': return frameAt([49, 50, 51, 51, 50, 52], progress);
