@@ -10,12 +10,7 @@ const attacks = [
   [39, 68, 40, 40],
 ];
 
-function slashPose(progress) {
-  if (progress < 0.28) return 0;
-  if (progress < 0.43) return 1;
-  if (progress < 0.62) return 2;
-  return 3;
-}
+export const swordContact = attack => attack === 0 ? 0.43 : 0.28;
 
 function makeTrailPath(start, firstControl, mid, secondControl, end) {
   const point = ([x, y]) => new THREE.Vector2(x, y);
@@ -52,15 +47,15 @@ export function makeSlashTrail() {
   return {
     trail,
     update(action, progress, attack = 0) {
-      const overhead = attack === 0;
-      trail.visible = action === 'slash' && progress >= (overhead ? 0.43 : 0.28) && progress < 0.91;
+      const contact = swordContact(attack);
+      trail.visible = action === 'slash' && progress >= contact && progress < 0.91;
       if (!trail.visible) return;
 
       const { path, midpoint } = arcs[attack];
-      const midSwing = slashPose(progress) === (overhead ? 2 : 1);
-      const end = midSwing ? midpoint : 1;
+      const swept = THREE.MathUtils.smoothstep(progress, contact, 0.67);
+      const end = THREE.MathUtils.lerp(midpoint, 1, swept);
       const fade = THREE.MathUtils.smoothstep(progress, 0.62, 0.91);
-      const start = midSwing ? 0.03 : 0.22 + fade * 0.48;
+      const start = 0.03 + swept * 0.19 + fade * 0.48;
       points.forEach((point, i) => path.getPoint(THREE.MathUtils.lerp(start, end, i / 24), point));
 
       brush.clearRect(0, 0, cellSize, cellSize);
@@ -92,7 +87,7 @@ function idleAtlasFrames(canvas, columns, count) {
   atlas.generateMipmaps = false;
   return Array.from({ length: count }, (_, index) => {
     const frame = atlas.clone();
-    frame.repeat.setScalar((cellSize - 1) / canvas.width);
+    frame.repeat.set((cellSize - 1) / canvas.width, (cellSize - 1) / canvas.height);
     frame.offset.set(((index % columns) * cellSize + 0.5) / canvas.width,
       1 - ((Math.floor(index / columns) + 1) * cellSize - 0.5) / canvas.height);
     frame.needsUpdate = true;
@@ -148,6 +143,60 @@ async function loadIdleTransitionFrames(loader) {
   return idleAtlasFrames(canvas, 4, anchors.length);
 }
 
+async function loadActionFrames(loader, baseImage, type) {
+  const motion = type === 'beweging';
+  const filename = motion ? 'bewegingstussenposes' : 'zwaardtussenposes';
+  const { image } = await loader.loadAsync(`./assets/klokkenmaker-${filename}.png`);
+  const columns = motion ? [0, 280, 561, 841, 1122, 1402] : [0, 282, 554, 859, 1122];
+  const rows = motion ? [0, 281, 561, 842, 1122] : [0, 300, 555, 824, 1077, 1402];
+  const anchors = motion ? [
+    [180,261], [162,260], [150,261], [169,260], [159,261],
+    [180,252], [162,252], [150,253], [169,251], [159,253],
+    [156,255], [155,222], [146,197], [169,214], [159,255],
+    [150,205], [157,215], [151,233], [153,250], [148,250],
+  ] : [
+    [162,272], [138,272], [119,272], [95,272],
+    [160,237], [138,237], [148,237], [97,237],
+    [148,253], [137,254], [101,255], [103,254],
+    [150,237], [114,237], [112,237], [102,237],
+    [163,266], [135,266], [123,266], [101,266],
+  ];
+  const shieldCenters = [
+    [217,133], [208,130], [195,134], [209,130], [209,133],
+    [217,125], [208,122], [195,126], [209,122], [209,125],
+    [203,163], [201,112], [210,102], [220,110], [216,153],
+  ];
+  const canvas = document.createElement('canvas');
+  const columnCount = columns.length - 1;
+  canvas.width = cellSize * columnCount;
+  canvas.height = cellSize * (rows.length - 1);
+  const ctx = canvas.getContext('2d');
+  const shield = document.createElement('canvas');
+  shield.width = 48;
+  shield.height = 68;
+  const shieldBrush = shield.getContext('2d');
+  shieldBrush.beginPath();
+  shieldBrush.ellipse(23, 34, 22, 33, -0.15, 0, Math.PI * 2);
+  shieldBrush.clip();
+  shieldBrush.drawImage(baseImage, 212, 138, 48, 68, 0, 0, 48, 68);
+  anchors.forEach(([x, y], index) => {
+    const col = index % columnCount;
+    const row = Math.floor(index / columnCount);
+    const cropWidth = columns[col + 1] - columns[col];
+    const cropHeight = rows[row + 1] - rows[row];
+    const scale = motion ? 0.88 : 0.94;
+    const left = col * cellSize + cellSize / 2 - x * scale;
+    const top = row * cellSize + 299 - y * scale;
+    ctx.drawImage(image, columns[col], rows[row], cropWidth, cropHeight, left, top, cropWidth * scale, cropHeight * scale);
+    // Carry the same shield through the new running and jumping cels.
+    if (motion && shieldCenters[index]) {
+      const [u, v] = shieldCenters[index];
+      ctx.drawImage(shield, left + (u - 22) * scale, top + (v - 31) * scale, 44 * scale, 62 * scale);
+    }
+  });
+  return idleAtlasFrames(canvas, columnCount, anchors.length);
+}
+
 export async function loadBellmakerSprites(loader) {
   const atlas = await loader.loadAsync('./assets/klokkenmaker-animaties.webp');
   atlas.colorSpace = THREE.SRGBColorSpace;
@@ -166,15 +215,43 @@ export async function loadBellmakerSprites(loader) {
     return frame;
   });
 
-  const frameAt = (indices, progress) => frames[indices[Math.min(indices.length - 1, Math.floor(progress * indices.length))]];
-  const optionalFrames = task => task.catch(error => {
-    console.warn('De extra rustanimaties konden niet laden.', error);
+  const optionalFrames = (label, task) => task.catch(error => {
+    console.warn(`Extra animatieframes (${label}) konden niet laden.`, error);
     return [];
   });
-  const [idleFrames, transitionFrames] = await Promise.all([
-    optionalFrames(loadIdleFrames(loader)),
-    optionalFrames(loadIdleTransitionFrames(loader)),
+  const [idleFrames, transitionFrames, motionFrames, swingFrames] = await Promise.all([
+    optionalFrames('rust', loadIdleFrames(loader)),
+    optionalFrames('rustovergangen', loadIdleTransitionFrames(loader)),
+    optionalFrames('beweging', loadActionFrames(loader, atlas.image, 'beweging')),
+    optionalFrames('zwaard', loadActionFrames(loader, atlas.image, 'zwaard')),
   ]);
+  const sequences = {
+    guard: [8, 61, 62, 62], 'guard-impact': [62, 61, 62],
+    run: [0, 'm0', 41, 'm1', 1, 'm2', 42, 2, 'm3', 43, 3, 'm4', 44],
+    ready: [45, 'm5', 6, 'm6', 46, 'm7', 47, 'm8', 7, 'm9', 48],
+    stop: [0, 8, 16], 'armed-stop': [45, 69, 10],
+    jump: [21, 'm10', 22, 'm11', 23, 'm12', 22, 'm10', 24],
+    'run-jump': [25, 'm13', 26, 27, 'm12', 27, 'm13', 'm14', 28],
+    'armed-jump': [49, 50, 'm15', 51, 'm16', 50, 52],
+    'armed-run-jump': [53, 'm17', 54, 55, 'm16', 'm17', 54, 56],
+    turn: [8, 29, 'm18', 30, 31, 'm18', 32, 9],
+    'armed-turn': [10, 69, 'm19', 70, 71, 'm19', 72, 10],
+    draw: [4, 57, 58, 5, 59, 60], sheathe: [60, 59, 5, 58, 57, 4],
+    punch: [61, 62, 63, 15, 64, 14],
+  };
+  const clips = Object.fromEntries(Object.entries(sequences).map(([name, indexes]) =>
+    [name, indexes.map(index => typeof index === 'number' ? frames[index] : motionFrames[Number(index.slice(1))]).filter(Boolean)]));
+  const frameAt = (clip, progress) => clip[Math.min(clip.length - 1, Math.floor(progress * clip.length))];
+  const swordClips = attacks.map(([start, windup, hit, follow], attack) => {
+    const contact = swordContact(attack);
+    const [prepare, release, finish, settle] = swingFrames.slice(attack * 4, attack * 4 + 4);
+    const keys = attack === 0
+      ? [[0, frames[start]], [0.12, prepare], [0.25, release], [0.34, frames[windup]], [contact, frames[hit]],
+        [0.56, finish], [0.69, frames[follow]], [0.84, settle]]
+      : [[0, frames[start]], [0.12, prepare], [contact, frames[windup]], [0.39, release], [0.49, frames[hit]],
+        [0.60, finish], [0.74, frames[follow]], [0.86, settle]];
+    return { keys: keys.filter(([, frame]) => frame), recovery: [settle || frames[follow], frames[13], frames[10]] };
+  });
 
   return {
     aspect: 1,
@@ -187,26 +264,11 @@ export async function loadBellmakerSprites(loader) {
       return pose < 9 ? idleFrames[pose] : transitionFrames[pose - 9];
     },
     frame(action, moving, phase, progress, attack = 0) {
-      switch (action) {
-        case 'guard': return frameAt([8, 61, 62, 62], progress);
-        case 'guard-impact': return frameAt([62, 61, 62], progress);
-        case 'run': return frameAt([0, 41, 1, 42, 2, 43, 3, 44], phase);
-        case 'stop': return frameAt([0, 8, 16], progress);
-        case 'armed-stop': return frameAt([45, 69, 10], progress);
-        case 'jump': return frameAt([21, 22, 23, 23, 22, 24], progress);
-        case 'run-jump': return frameAt([25, 26, 27, 27, 26, 28], progress);
-        case 'armed-jump': return frameAt([49, 50, 51, 51, 50, 52], progress);
-        case 'armed-run-jump': return frameAt([53, 54, 55, 55, 54, 56], progress);
-        case 'turn': return frameAt([8, 29, 30, 31, 32, 9], progress);
-        case 'armed-turn': return frameAt([10, 69, 70, 71, 72, 10], progress);
-        case 'draw': return frameAt([4, 57, 58, 5, 59, 60], progress);
-        case 'ready': return moving ? frameAt([45, 6, 46, 47, 7, 48], phase) : frames[10];
-        case 'slash': return frames[attacks[attack][slashPose(progress)]];
-        case 'recover': return frameAt([attacks[attack][3], 13, 10], progress);
-        case 'sheathe': return frameAt([60, 59, 5, 58, 57, 4], progress);
-        case 'punch': return frameAt([61, 62, 63, 15, 64, 14], progress);
-        default: return frames[16];
-      }
+      if (action === 'run') return frameAt(clips.run, phase);
+      if (action === 'ready') return moving ? frameAt(clips.ready, phase) : frames[10];
+      if (action === 'slash') return swordClips[attack].keys.findLast(([start]) => progress >= start)[1];
+      if (action === 'recover') return frameAt(swordClips[attack].recovery, progress);
+      return clips[action] ? frameAt(clips[action], progress) : frames[16];
     },
   };
 }

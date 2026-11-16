@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/three.module.js';
-import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=idle-frames';
+import { loadBellmakerSprites, makeSlashTrail, swordContact } from './bellmaker-sprites.js?v=action-frames';
 import { makeSceneAudio } from './scene-audio.js?v=clouds-music';
 
 const host = document.querySelector('#scene');
@@ -2163,7 +2163,7 @@ async function showMenu() {
       && (heroPosition.x !== oldX || heroPosition.y !== oldY);
     animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround, sceneryCenter);
     const swinging = action === 'slash';
-    const swingMoment = attack === 0 ? 0.43 : 0.28;
+    const swingMoment = swordContact(attack);
     if (!swinging) swingPlayed = false;
     if (swinging && progress >= swingMoment && !swingPlayed) {
       audio.swing(attack);
