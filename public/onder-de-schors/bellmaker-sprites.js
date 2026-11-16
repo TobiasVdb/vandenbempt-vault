@@ -85,6 +85,21 @@ export function makeSlashTrail() {
   };
 }
 
+function idleAtlasFrames(canvas, columns, count) {
+  const atlas = new THREE.CanvasTexture(canvas);
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  atlas.minFilter = atlas.magFilter = THREE.LinearFilter;
+  atlas.generateMipmaps = false;
+  return Array.from({ length: count }, (_, index) => {
+    const frame = atlas.clone();
+    frame.repeat.setScalar((cellSize - 1) / canvas.width);
+    frame.offset.set(((index % columns) * cellSize + 0.5) / canvas.width,
+      1 - ((Math.floor(index / columns) + 1) * cellSize - 0.5) / canvas.height);
+    frame.needsUpdate = true;
+    return frame;
+  });
+}
+
 async function loadIdleFrames(loader) {
   const source = await loader.loadAsync('./assets/klokkenmaker-rustposes.png');
   const image = source.image;
@@ -104,18 +119,33 @@ async function loadIdleFrames(loader) {
     // The toss uses a separate moving pebble.
     if (index === 4) ctx.clearRect(left + 255 * scale, top + 54 * scale, 28 * scale, 55 * scale);
   });
-  const atlas = new THREE.CanvasTexture(canvas);
-  atlas.colorSpace = THREE.SRGBColorSpace;
-  atlas.minFilter = atlas.magFilter = THREE.LinearFilter;
-  atlas.generateMipmaps = false;
-  return anchors.map((_, index) => {
-    const frame = atlas.clone();
-    frame.repeat.setScalar((cellSize - 1) / canvas.width);
-    frame.offset.set(((index % 3) * cellSize + 0.5) / canvas.width,
-      1 - ((Math.floor(index / 3) + 1) * cellSize - 0.5) / canvas.height);
-    frame.needsUpdate = true;
-    return frame;
+  return idleAtlasFrames(canvas, 3, anchors.length);
+}
+
+async function loadIdleTransitionFrames(loader) {
+  const { image } = await loader.loadAsync('./assets/klokkenmaker-rustovergangen.png');
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = cellSize * 4;
+  const ctx = canvas.getContext('2d');
+  // The painted sheet has uneven gutters. Crop those out and align the boots to the game atlas.
+  const columns = [0, 320, 630, 955, 1254];
+  const rows = [0, 329, 638, 921, 1254];
+  const anchors = [
+    [203,314,.72], [169,313,.72], [165,313,.72], [148,314,.72],
+    [191,298,.71], [168,298,.71], [162,298,.71], [146,298,.71],
+    [182,270,.70], [163,268,.66], [144,269,.56], [130,269,.56],
+    [180,313,.68], [163,313,.68], [157,313,.68], [110,313,.66],
+  ];
+  anchors.forEach(([x, y, scale], index) => {
+    const column = index % 4;
+    const row = Math.floor(index / 4);
+    const cropWidth = columns[column + 1] - columns[column];
+    const cropHeight = rows[row + 1] - rows[row];
+    ctx.drawImage(image, columns[column], rows[row], cropWidth, cropHeight,
+      column * cellSize + cellSize / 2 - x * scale, row * cellSize + 299 - y * scale,
+      cropWidth * scale, cropHeight * scale);
   });
+  return idleAtlasFrames(canvas, 4, anchors.length);
 }
 
 export async function loadBellmakerSprites(loader) {
@@ -137,10 +167,14 @@ export async function loadBellmakerSprites(loader) {
   });
 
   const frameAt = (indices, progress) => frames[indices[Math.min(indices.length - 1, Math.floor(progress * indices.length))]];
-  const idleFrames = await loadIdleFrames(loader).catch(error => {
+  const optionalFrames = task => task.catch(error => {
     console.warn('De extra rustanimaties konden niet laden.', error);
     return [];
   });
+  const [idleFrames, transitionFrames] = await Promise.all([
+    optionalFrames(loadIdleFrames(loader)),
+    optionalFrames(loadIdleTransitionFrames(loader)),
+  ]);
 
   return {
     aspect: 1,
@@ -149,7 +183,8 @@ export async function loadBellmakerSprites(loader) {
     cycle: 0.59,
     attackCount: attacks.length,
     idleFrame(pose) {
-      return typeof pose === 'number' ? idleFrames[pose] : frames[Number(pose?.slice(1))];
+      if (typeof pose !== 'number') return frames[Number(pose?.slice(1))];
+      return pose < 9 ? idleFrames[pose] : transitionFrames[pose - 9];
     },
     frame(action, moving, phase, progress, attack = 0) {
       switch (action) {

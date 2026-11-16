@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/three.module.js';
-import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=shield';
+import { loadBellmakerSprites, makeSlashTrail } from './bellmaker-sprites.js?v=idle-frames';
 import { makeSceneAudio } from './scene-audio.js?v=clouds-music';
 
 const host = document.querySelector('#scene');
@@ -25,10 +25,19 @@ const stepDirection = new THREE.Vector2();
 const motion = new THREE.Vector2();
 const plane = new THREE.PlaneGeometry(1, 1);
 const routeSpacing = 0.78;
+const entranceTreeX = routeSpacing + 0.202;
+const entranceTreeWidth = 0.19;
+const entranceTreeHeight = 0.89;
+const entranceTreeBase = 0.185;
 const routeScenes = ['bos-uitloop', 'grasland-open', 'dorpsplein'];
 const routeEnd = 1 + routeSpacing * routeScenes.length;
 const sceneryParallax = 0.74;
 const skyParallax = 0.48;
+const shopBase = 0.238;
+const shopScale = 0.43;
+const shopScaleRatio = shopScale / 0.56;
+const forgeOffset = 0.019 * shopScaleRatio;
+const shopHeightAt = y => shopBase + (y - shopBase) * shopScaleRatio;
 const cloudNoiseGLSL = `
   float skyHash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -522,18 +531,18 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
     road.position.set(width / 2, backgroundHeight / 2, 0.55);
     for (const { facade, x } of shops) {
       const center = sceneryCenter + (x - 0.5) * backgroundWidth;
-      const size = backgroundHeight * 0.56;
-      facade.position.set(center, backgroundHeight * 0.238 + size / 2, 0.48);
+      const size = backgroundHeight * shopScale;
+      facade.position.set(center, backgroundHeight * shopBase + size / 2, 0.48);
       facade.scale.set(size, size, 1);
       facade.visible = center + size / 2 > 0 && center - size / 2 < width;
     }
-    const entranceX = sceneryCenter + (routeSpacing + 0.202 - 0.5) * backgroundWidth;
-    const trunkWidth = backgroundWidth * 0.19;
-    forestEntrance.position.set(entranceX, backgroundHeight * 0.63, 0.45);
-    forestEntrance.scale.set(trunkWidth, backgroundHeight * 0.89, 1);
+    const entranceX = sceneryCenter + (entranceTreeX - 0.5) * backgroundWidth;
+    const trunkWidth = backgroundWidth * entranceTreeWidth;
+    forestEntrance.position.set(entranceX, backgroundHeight * (entranceTreeBase + entranceTreeHeight / 2), 0.45);
+    forestEntrance.scale.set(trunkWidth, backgroundHeight * entranceTreeHeight, 1);
     forestEntrance.visible = entranceX + trunkWidth / 2 > 0 && entranceX - trunkWidth / 2 < width;
     for (const { x, size, plant } of plants) {
-      const side = size * backgroundHeight;
+      const side = size * backgroundHeight * 0.81;
       const screenX = origin + (x - 0.5 - scroll + (x - 0.67 - scroll) * 0.24) * backgroundWidth;
       plant.position.set(screenX, side * 0.30, 4.5);
       plant.scale.set(side, side, 1);
@@ -544,7 +553,7 @@ function makeRoute(scene, world, scenery, foliage, entranceTree, closeFoliage, s
         : Math.sin(elapsed * 2 + x * 5) * 0.022 + brush * (1 - Math.abs(brush)) * 0.29;
     }
     for (const { x, plant } of closePlants) {
-      const size = backgroundHeight * 0.39;
+      const size = backgroundHeight * 0.32;
       const screenX = origin + (x - 0.5 - scroll * closeForegroundParallax) * backgroundWidth;
       plant.position.set(screenX, size * 0.09, 5);
       plant.scale.set(size, size * 0.44, 1);
@@ -596,11 +605,11 @@ function makeRouteEffects(scene) {
         }
       }
       // The forge is open; the glass lanterns keep their embers inside.
-      const forgeX = sceneryCenter + (lightAnchors[3][0] - 0.5) * backgroundWidth - backgroundHeight * 0.019;
+      const forgeX = sceneryCenter + (lightAnchors[3][0] - 0.5) * backgroundWidth - backgroundHeight * forgeOffset;
       for (let i = 0; i < emberCount; i++) {
         const t = (elapsed * (0.61 + (i % 5) * 0.11) + i * 0.618) % 1;
-        const px = forgeX + (Math.sin(i * 2.17) * 0.012 + Math.sin(i * 4.1 + t * 4) * t * 0.036) * backgroundHeight;
-        const py = backgroundHeight * (0.337 + t * (0.032 + i % 4 * 0.009) - t * t * 0.01);
+        const px = forgeX + (Math.sin(i * 2.17) * 0.012 + Math.sin(i * 4.1 + t * 4) * t * 0.036) * backgroundHeight * shopScaleRatio;
+        const py = backgroundHeight * shopHeightAt(0.337 + t * (0.032 + i % 4 * 0.009) - t * t * 0.01);
         const alpha = Math.sin(Math.PI * t) * (1 - t) * (0.16 + i % 4 * 0.11);
         positions.setXYZ(i, px, py, 0.51);
         colors.setXYZ(i, alpha, alpha * 0.42, alpha * 0.075);
@@ -741,7 +750,7 @@ function makeLivingScenery(scene) {
       [town + 0.394, 0.389, 0.014, 0.034], [town + 0.630, 0.385, 0.014, 0.034],
     ].map(([x, y, w, h]) => ({ x, y: y + h * 0.58, w: w * 0.83, h: h * 0.77, fragment: flame, z: 0.49 })),
     // The forge art is scaled from a square rather than the full painting.
-    { x: town + 0.80, y: 0.348, w: 0.046, h: 0.058, fragment: flame, z: 0.50, square: true },
+    { x: town + 0.80, y: shopHeightAt(0.348), w: 0.046 * shopScaleRatio, h: 0.058 * shopScaleRatio, fragment: flame, z: 0.50, square: true },
   ].map((prop, i) => {
     const mesh = new THREE.Mesh(plane, makeMaterial(prop.fragment, i + 1));
     scene.add(mesh);
@@ -751,7 +760,7 @@ function makeLivingScenery(scene) {
   return (sceneryCenter, clock) => {
     time.value = clock;
     for (const { mesh, x, y, w, h, z, square } of props) {
-      const screenX = sceneryCenter + (x - 0.5) * backgroundWidth - (square ? backgroundHeight * 0.019 : 0);
+      const screenX = sceneryCenter + (x - 0.5) * backgroundWidth - (square ? backgroundHeight * forgeOffset : 0);
       const span = w * (square ? backgroundHeight : backgroundWidth);
       mesh.visible = screenX + span / 2 > 0 && screenX - span / 2 < width;
       if (!mesh.visible) continue;
@@ -910,9 +919,8 @@ function makeBirds(scene) {
     return { mesh, state: 'away' };
   });
   const town = routeSpacing * routeScenes.length;
-  const branches = [[0.10, 0.85], [0.67, 0.76], [0.92, 0.80], [1.84, 0.55]];
-  // Building anchors follow the painted roofs or the square shop facade overlays.
-  const rooftops = [[0.636, 0.597], [0.824, 0.761], [0.616, 0.445], [0.527, 0.387]];
+  // Only trees in the near scenery and separate shop facades support perching.
+  const branches = [[0.92, 0.80], [1.84, 0.55]];
   const shopRoofs = [
     [town + 0.27, 0.53, 0.84], [town + 0.27, 0.69, 0.958],
     [town + 0.80, 0.48, 0.882],
@@ -942,8 +950,8 @@ function makeBirds(scene) {
         const onScreen = screenX(x, 1, sceneryCenter);
         return onScreen > width * 0.13 && onScreen < width * 0.90 && y * backgroundHeight < height - body;
       });
-      const roofs = visiblePerches([...rooftops, ...shopRoofs.map(([x, u, v]) =>
-        [x + (u - 0.5) * aspect * 0.56, 0.238 + v * 0.56])]);
+      const roofs = visiblePerches(shopRoofs.map(([x, u, v]) =>
+        [x + (u - 0.5) * aspect * shopScale, shopBase + v * shopScale]));
       const trees = visiblePerches(branches);
       const stop = visits++ % 3;
       const preferred = stop === 1 ? roofs : trees;
@@ -1043,6 +1051,17 @@ function makeBirds(scene) {
 }
 
 function makeCritters(scene) {
+  // Points follow the left and right contours of the illustrated entrance tree.
+  const treeLines = [
+    [[0.12, 0.015], [0.27, 0.066], [0.36, 0.154], [0.26, 0.245], [0.23, 0.34], [0.32, 0.43]],
+    [[0.90, 0.015], [0.75, 0.073], [0.69, 0.161], [0.70, 0.235], [0.62, 0.33], [0.64, 0.43]],
+  ].map(line => line.map(([u, v]) => new THREE.Vector3(
+    entranceTreeX - 0.5 + (u - 0.5) * entranceTreeWidth,
+    entranceTreeBase + v * entranceTreeHeight,
+    0,
+  )));
+  const climbPoint = new THREE.Vector3();
+  const climbTangent = new THREE.Vector3();
   const species = [
     {
       frames: [
@@ -1103,7 +1122,7 @@ function makeCritters(scene) {
   let visit;
   let spill;
 
-  return (time, dt, visible, footX, footY, running) => {
+  return (time, dt, visible, footX, footY, running, sceneryCenter) => {
     puddle.visible = Boolean(spill && visible && time < spill.time + 4);
     if (puddle.visible) {
       puddle.position.x = backgroundCenter + spill.x * backgroundWidth;
@@ -1127,7 +1146,7 @@ function makeCritters(scene) {
         animal, direction, started: time, distance: 0, lane,
         x: (spawnX - backgroundCenter) / backgroundWidth,
         worldPace: (width + 2 * animal.size) / (backgroundWidth * Math.min(width, 1050)),
-        climb: 0,
+        climb: null,
         fleeing: false,
       };
       mesh.visible = true;
@@ -1140,34 +1159,57 @@ function makeCritters(scene) {
       visit.fleeing = true;
       visit.direction = animalX < heroPosition.x ? -1 : 1;
     }
-    const nearTrunk = [1.01, 1.34, 1.52].some(x => Math.abs(animalX - x) < 0.023);
-    if (visit.climb || (visit.fleeing && nearTrunk)) visit.climb += dt;
+    const groundY = (1 - lane) * backgroundHeight;
     const moving = visit.fleeing || age % 2.1 < 1.68;
     if (moving && !visit.climb) {
       const step = animal.pace * dt * (visit.fleeing ? 2.3 : 1);
       visit.distance += step;
-      visit.x += visit.direction * step * visit.worldPace;
+      const nextX = visit.x + visit.direction * step * visit.worldPace;
+      const line = treeLines[visit.direction > 0 ? 0 : 1];
+      const entryX = line[0].x - visit.direction * 0.018;
+      const base = entryX + (sceneryCenter - backgroundCenter) / backgroundWidth;
+      const gap = (base - visit.x) * visit.direction;
+      if (visit.fleeing && gap >= 0 && (base - nextX) * visit.direction <= 0) {
+        const start = new THREE.Vector3(entryX, 1 - lane, 0);
+        const approach = new THREE.Vector3((start.x + line[0].x) / 2, (start.y + line[0].y) / 2, 0);
+        visit.climb = { age: 0, curve: new THREE.CatmullRomCurve3([start, approach, ...line]) };
+      } else {
+        visit.x = nextX;
+      }
     }
     const size = THREE.MathUtils.clamp(height / 850, 0.78, 1.25) * animal.size;
     const texture = animal.textures[moving ? Math.floor(age * (visit.fleeing ? 22 : 12)) % 2 : 0];
     const spriteHeight = size * texture.image.height / texture.image.width;
     mesh.material.map = texture;
     mesh.scale.set(visit.direction * size, spriteHeight, 1);
-    mesh.rotation.z = visit.climb ? visit.direction * Math.PI / 2 : 0;
-    mesh.material.opacity = 1 - THREE.MathUtils.smoothstep(visit.climb, 0.72, 1.22);
-    const groundY = (1 - lane) * backgroundHeight;
-    mesh.position.set(
-      backgroundCenter + visit.x * backgroundWidth,
-      groundY + spriteHeight / 2 + visit.climb * backgroundHeight * 0.19,
-      lane > heroPosition.y ? 4 : 1.8,
-    );
+    let climbProgress = 0;
+    if (visit.climb) {
+      const { curve } = visit.climb;
+      visit.climb.age += dt;
+      climbProgress = Math.min(1, visit.climb.age / 2.25);
+      curve.getPointAt(climbProgress, climbPoint);
+      curve.getTangentAt(climbProgress, climbTangent);
+      const angle = Math.atan2(climbTangent.y * backgroundHeight, climbTangent.x * backgroundWidth)
+        - (visit.direction < 0 ? Math.PI : 0);
+      mesh.rotation.z = angle * THREE.MathUtils.smoothstep(climbProgress, 0, 0.11);
+      mesh.position.set(
+        sceneryCenter + climbPoint.x * backgroundWidth - Math.sin(mesh.rotation.z) * spriteHeight / 2,
+        climbPoint.y * backgroundHeight + Math.cos(mesh.rotation.z) * spriteHeight / 2,
+        1.8,
+      );
+    } else {
+      mesh.rotation.z = 0;
+      mesh.position.set(backgroundCenter + visit.x * backgroundWidth, groundY + spriteHeight / 2,
+        lane > heroPosition.y ? 4 : 1.8);
+    }
+    mesh.material.opacity = 1 - THREE.MathUtils.smoothstep(climbProgress, 0.80, 1);
     const trampled = running && !visit.climb && Math.abs(mesh.position.x - footX) < size * 0.40
       && Math.abs(groundY - footY) < Math.max(9, backgroundHeight * 0.009);
     if (trampled) {
       spill = { time, x: (mesh.position.x - backgroundCenter) / backgroundWidth, y: 1 - lane };
       puddle.scale.set(size * 0.76, size * 0.23, 1);
     }
-    if (trampled || visit.distance > 1100 || visit.climb > 1.22) {
+    if (trampled || (!visit.climb && visit.distance > 1100) || climbProgress >= 1) {
       mesh.visible = false;
       visit = undefined;
       nextVisit = time + 8 + Math.random() * 9;
@@ -1423,7 +1465,7 @@ function makeWeaponShops() {
       if (!nearby) return;
       entry.textContent = nearby.name + ' betreden';
       entry.style.left = `${sceneryCenter + (routeSpacing * 3 + nearby.x - 0.5) * backgroundWidth}px`;
-      entry.style.top = `${Math.max(70, height - backgroundHeight * 0.32)}px`;
+      entry.style.top = `${Math.max(70, height - backgroundHeight * shopHeightAt(0.32))}px`;
     },
   };
 }
@@ -1611,20 +1653,30 @@ function makeWeather(scene) {
 
 function makeIdleGestures(hero, bellmaker) {
   const clips = [
-    { length: 1.85, poses: [[0,'#16'], [0.24,0], [1.57,'#16']], lean: -0.88, lift: -0.65 },
-    { length: 2.15, poses: [[0,'#16'], [0.25,1], [1.92,'#16']], lean: 0.30, lift: 0.36 },
+    { length: 1.85, poses: [[0,'#16'], [0.12,9], [0.36,10], [0.56,0], [0.99,10],
+      [1.42,11], [1.62,'#16']], lean: -0.88, lift: -0.65 },
+    { length: 2.15, poses: [[0,'#16'], [0.11,11], [0.27,12], [0.47,1], [1.57,12],
+      [1.76,11], [1.94,'#16']], lean: 0.30, lift: 0.36 },
     { length: 2.58, poses: [
-      [0,'#16'], [0.22,'#8'], [0.32,'#30'], [0.43,'#31',-1], [0.52,1,-1],
-      [1.50,'#8',-1], [1.59,'#30',-1], [1.70,'#31'], [1.83,1], [2.39,'#16'],
+      [0,'#16'], [0.15,'#8'], [0.23,'#29'], [0.29,'#30'], [0.35,'#31',-1],
+      [0.41,'#32',-1], [0.49,'#9',-1], [0.57,11,-1], [0.72,12,-1], [0.87,1,-1],
+      [1.37,11,-1], [1.49,'#8',-1], [1.56,'#29',-1], [1.63,'#30',-1],
+      [1.70,'#31'], [1.77,'#32'], [1.84,'#9'], [1.93,11], [2.12,12], [2.33,11], [2.46,'#16'],
     ], lean: 0.34, lift: 0.24 },
-    { length: 2.42, poses: [[0,'#16'], [0.20,'#8'], [0.37,2], [2.13,'#8'], [2.27,'#16']], lean: 0.12, lift: 0.75 },
+    { length: 2.42, poses: [[0,'#16'], [0.12,13], [0.24,14], [0.36,15], [0.49,16], [0.60,2],
+      [1.37,16], [1.57,2], [1.80,16], [1.93,15], [2.06,14], [2.17,13], [2.31,'#16']], lean: 0.12, lift: 0.75 },
     { length: 3.88, poses: [
-      [0,'#16'], [0.20,'#21'], [0.51,3], [1.11,5], [1.50,4], [1.98,5], [2.28,4], [2.76,5],
-      [3.19,3], [3.51,'#24'], [3.72,'#16'],
+      [0,'#16'], [0.14,17], [0.29,18], [0.45,'#21'], [0.59,3],
+      [0.89,19], [1.16,5], [1.36,20], [1.50,4], [1.81,20], [1.98,5],
+      [2.13,19], [2.20,20], [2.28,4], [2.61,20], [2.76,5],
+      [2.95,19], [3.16,3], [3.39,'#24'], [3.50,18], [3.63,17], [3.78,'#16'],
     ], lean: 0.18, lift: 0.20, tosses: [1.50, 2.28] },
-    { length: 2.25, poses: [[0,'#16'], [0.25,6], [1.96,'#16']], lean: 0.44, lift: 0.56 },
-    { length: 1.70, poses: [[0,'#16'], [0.19,7], [1.47,'#16']], lean: -0.53, lift: 0.38 },
-    { length: 1.90, poses: [[0,'#16'], [0.24,8], [1.67,'#16']], lean: 0.42, lift: 0.43 },
+    { length: 2.25, poses: [[0,'#16'], [0.14,11], [0.26,21], [0.45,6],
+      [0.87,21], [1.07,6], [1.54,21], [1.76,6], [1.93,21], [2.10,'#16']], lean: 0.44, lift: 0.56 },
+    { length: 1.70, poses: [[0,'#16'], [0.15,22], [0.32,7], [0.51,23],
+      [0.69,7], [0.84,23], [1.02,7], [1.27,22], [1.48,'#16']], lean: -0.53, lift: 0.38 },
+    { length: 1.90, poses: [[0,'#16'], [0.13,17], [0.31,24], [0.51,8], [0.86,24],
+      [1.04,8], [1.36,24], [1.54,17], [1.75,'#16']], lean: 0.42, lift: 0.43 },
   ];
   const stoneCanvas = document.createElement('canvas');
   stoneCanvas.width = stoneCanvas.height = 16;
@@ -1647,9 +1699,6 @@ function makeIdleGestures(hero, bellmaker) {
   hero.add(stone);
 
   const motion = { value: new THREE.Vector2() };
-  // The head height above the boots guides the in-between poses, particularly when sitting down.
-  const headHeight = { 0: 0.74, 1: 0.76, 2: 0.76, 3: 0.58, 4: 0.62, 5: 0.60, 6: 0.76, 7: 0.75, 8: 0.72,
-    '#16': 0.76, '#8': 0.77, '#21': 0.60, '#24': 0.61, '#30': 0.72, '#31': 0.72 };
   let clipIndex = 0;
   let clip;
   let time = 0;
@@ -1679,21 +1728,8 @@ function makeIdleGestures(hero, bellmaker) {
         clipIndex = (clipIndex + 1) % clips.length;
         return;
       }
-      const index = clip.poses.findLastIndex(([start]) => time >= start);
-      const [start, pose, direction = 1] = clip.poses[index];
+      const [, pose, direction = 1] = clip.poses.findLast(([start, key]) => time >= start && bellmaker.idleFrame(key));
       const frame = bellmaker.idleFrame(pose);
-      if (!frame) return;
-      const next = clip.poses[index + 1];
-      let transition;
-      if (next) {
-        const [end, nextPose, nextDirection = 1] = next;
-        const blend = THREE.MathUtils.smoothstep(time, end - Math.min(0.23, (end - start) * 0.82), end);
-        const nextFrame = blend > 0 ? bellmaker.idleFrame(nextPose) : undefined;
-        if (nextFrame) transition = {
-          frame: nextFrame, blend, flip: direction * nextDirection,
-          height: headHeight[nextPose] - headHeight[pose],
-        };
-      }
       const envelope = Math.sin(Math.PI * time / clip.length);
       motion.value.set(clip.lean * envelope * (0.72 + 0.28 * Math.sin(time * 5)),
         clip.lift * envelope * (0.65 + 0.35 * Math.cos(time * 7)));
@@ -1704,59 +1740,8 @@ function makeIdleGestures(hero, bellmaker) {
         stone.position.set(0.083 + progress * 0.008, 0.064 + 0.096 * 4 * progress * (1 - progress), 0.02);
         stone.rotation.z = progress * 6.3;
       }
-      return { frame, direction, transition };
+      return { frame, direction };
     },
-  };
-}
-
-function makeIdleInbetweens(materials) {
-  const nextMap = { value: null };
-  const fromUv = { value: new THREE.Vector4() };
-  const toUv = { value: new THREE.Vector4() };
-  const inbetween = { value: new THREE.Vector3() };
-  for (const material of materials) {
-    const compile = material.onBeforeCompile;
-    const baseProgramKey = material.customProgramCacheKey();
-    material.customProgramCacheKey = () => `${baseProgramKey}-idle-inbetweens`;
-    material.onBeforeCompile = function (shader, renderer) {
-      compile.call(this, shader, renderer);
-      Object.assign(shader.uniforms, { idleNextMap: nextMap, idleFromUv: fromUv, idleToUv: toUv, idleInbetween: inbetween });
-      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
-        #include <common>
-        uniform sampler2D idleNextMap;
-        uniform vec4 idleFromUv, idleToUv;
-        uniform vec3 idleInbetween;
-      `).replace('#include <map_fragment>', `
-        #ifdef USE_MAP
-          vec4 poseColor = texture2D(map, vMapUv);
-          if (idleInbetween.x > 0.0) {
-            vec2 local = (vMapUv - idleFromUv.xy) / idleFromUv.zw;
-            // Anchor the boots while the head and torso travel between the two poses.
-            float upper = smoothstep(0.22, 0.75, local.y);
-            vec2 earlier = local - vec2(0.0, idleInbetween.z * upper * idleInbetween.x);
-            vec2 later = vec2(0.5 + (local.x - 0.5) * idleInbetween.y,
-              local.y + idleInbetween.z * upper * (1.0 - idleInbetween.x));
-            vec4 a = texture2D(map, idleFromUv.xy + clamp(earlier, 0.0, 1.0) * idleFromUv.zw);
-            vec4 b = texture2D(idleNextMap, idleToUv.xy + clamp(later, 0.0, 1.0) * idleToUv.zw);
-            float alpha = mix(a.a, b.a, idleInbetween.x);
-            vec3 color = mix(a.rgb * a.a, b.rgb * b.a, idleInbetween.x) / max(alpha, 0.001);
-            poseColor = vec4(color, alpha);
-          }
-          diffuseColor *= poseColor;
-        #endif
-      `);
-    };
-  }
-  return (frame, transition) => {
-    nextMap.value = transition?.frame ?? frame;
-    if (!transition) {
-      inbetween.value.x = 0;
-      return;
-    }
-    fromUv.value.set(frame.offset.x, frame.offset.y, frame.repeat.x, frame.repeat.y);
-    const next = transition.frame;
-    toUv.value.set(next.offset.x, next.offset.y, next.repeat.x, next.repeat.y);
-    inbetween.value.set(transition.blend, transition.flip, transition.height);
   };
 }
 
@@ -1871,7 +1856,6 @@ async function showMenu() {
       `);
   };
   scene.add(reflection);
-  const updateIdleInbetweens = makeIdleInbetweens([hero.material, castShadow.material, reflection.material]);
 
   const animateFireflies = makeFireflies(scene);
   const animateCritters = makeCritters(scene);
@@ -2143,7 +2127,6 @@ async function showMenu() {
     const frame = gesture?.frame ?? bellmaker.frame(pose, speed > 0.12, phase,
       guarding ? guardProgress : airborne ? airProgress : brakeTime > 0 ? Math.min(brakeTime / 0.16, 1) : progress, attack);
     hero.material.map = frame;
-    updateIdleInbetweens(frame, gesture?.transition);
     const blockGlow = guarding ? guardImpact / 0.18 : 0;
     hero.material.color.setRGB(0.82 + lighting.strength * 0.24 + blockGlow * 0.35, 0.87 + lighting.strength * 0.11 + blockGlow * 0.17,
       scratchFlash > 0 ? 0.58 : 0.96 - lighting.strength * 0.04);
@@ -2178,7 +2161,7 @@ async function showMenu() {
     animateFireflies(elapsed, !reducedMotion.matches, sceneryCenter, (1 - daylight) * (1 - rain));
     const runningOnGround = lift === 0 && speed > 0.12 && stepDirection.lengthSq() > 0
       && (heroPosition.x !== oldX || heroPosition.y !== oldY);
-    animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround);
+    animateCritters(elapsed, dt, !reducedMotion.matches, footX, footY, runningOnGround, sceneryCenter);
     const swinging = action === 'slash';
     const swingMoment = attack === 0 ? 0.43 : 0.28;
     if (!swinging) swingPlayed = false;
