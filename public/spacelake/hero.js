@@ -5,7 +5,11 @@
   const ctx = canvas.getContext('2d');
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const W = 900, H = 510, columns = 76, rows = 36, count = columns * rows;
-  const cycleLength = 90, cityStart = 2;
+  const hasPort = hero.hasAttribute('data-terra-scene');
+  const portStart = 36, portDuration = 24;
+  const cycleLength = 90 + (hasPort ? portDuration : 0), cityStart = 2;
+  const sceneClock = clock => !hasPort || clock < portStart ? clock
+    : clock < portStart + portDuration ? portStart : clock - portDuration;
   let frame, lastFrame, elapsed = 0, visualTime = 0, rocketOffset = 0, advancePending = false;
   const pointer = { x: -1000, y: -1000, active: false };
   const easedPointer = { x: -1000, y: -1000, strength: 0 };
@@ -29,6 +33,33 @@
   const widths = [23, 17, 25, 16, 20, 23, 16, 21, 25, 17, 25, 19, 23, 18, 22, 26, 18, 24, 17, 22, 18, 25];
 
   // The points keep their identities throughout every scene and transition.
+  function portTarget(index) {
+    const u = hash(index + 3100), v = hash(index + 4100);
+    const quay = index % 2 === 0 ? 120 : 540;
+    if (index < 300) {
+      const crane = Math.floor(index / 50);
+      const t = (index % 25) / 24;
+      const x = (crane < 3 ? 332 : 548) + (crane % 3) * 55;
+      const y = 287 - (crane % 3) * 23;
+      const boom = index % 50 >= 25;
+      return { x: x + (boom ? t * (crane < 3 ? 48 : -48) : 0),
+        y: y - (boom ? 58 - 7 * t : 58 * t), color: '#f6c491', alpha: .9 };
+    }
+    if (index < 970) {
+      return { x: quay + u * 230 + v * 135, y: 318 + u * 12 - v * 116,
+        color: '#e5ad76', alpha: .56 };
+    }
+    if (index < 2370) {
+      const colors = ['#e5ad76', '#ed8a4f', '#c17958', '#7da799', '#527b83'];
+      const layer = index % colors.length;
+      const x = quay + u * 230;
+      return { x, y: 318 + u * 12 + layer * 24 + v * 19 + Math.sin(x * .019) * 4,
+        color: colors[layer], alpha: .69 };
+    }
+    return { x: 353 + u * 185 + v * 135, y: 324 - v * 116,
+      color: '#7da799', alpha: .37, water: true };
+  }
+
   const points = Array.from({ length: count }, (_, index) => {
     const i = index % columns, j = Math.floor(index / columns);
     // Distribute a reliable set of structural points to every building.
@@ -106,6 +137,7 @@
         && buildingHeight >= 180 && hash(index + 820) < .06,
       buildingBase: baseY, buildingHeight,
       elevatorOffset: hash(index + 1960) * elevatorFloors * 2 * elevatorStep,
+      port: hasPort ? portTarget(index) : null,
       stagger: hash(index + 301),
       streamSeed: hash(index + 547),
       streamSide: hash(index + 731) < .5 ? -1 : 1,
@@ -137,7 +169,10 @@
 
   function draw(sceneTime, time = sceneTime) {
     ctx.clearRect(0, 0, W, H);
-    const clock = motion.matches ? 0 : sceneTime % cycleLength;
+    const timeline = motion.matches ? 0 : sceneTime % cycleLength;
+    const portTime = timeline - portStart;
+    const inPort = hasPort && portTime >= 0 && portTime < portDuration;
+    const clock = sceneClock(timeline);
     easedPointer.strength += ((pointer.active && !motion.matches ? 1 : 0) - easedPointer.strength) * .045;
     if (pointer.active) {
       if (easedPointer.strength < .01) { easedPointer.x = pointer.x; easedPointer.y = pointer.y; }
@@ -210,6 +245,17 @@
         y = mix(y, targetY, form);
         alpha = mix(alpha, point.rocketVisible ? particleOpacity : 0, form);
       }
+      let portBlend = 0;
+      if (inPort) {
+        const { port } = point;
+        const enter = ease((portTime - point.stagger * 1.8) / 8);
+        const leave = ease((portTime - 13 - point.stagger * 1.8) / 9);
+        portBlend = enter * (1 - leave);
+        const ripple = port.water ? Math.sin(time * .65 + point.phase) * 2 : 0;
+        x = mix(x, port.x + ripple, portBlend);
+        y = mix(y, port.y, portBlend);
+        alpha = mix(alpha, port.alpha, portBlend);
+      }
       const dx = x - easedPointer.x, dy = y - easedPointer.y;
       const distance = Math.hypot(dx, dy);
       if (distance < 85 && distance > .01) {
@@ -217,9 +263,14 @@
         x += dx / distance * force;
         y += dy / distance * force;
       }
-      ctx.globalAlpha = clamp(alpha);
+      ctx.globalAlpha = clamp(alpha) * (1 - portBlend);
       ctx.fillStyle = point.warm ? '#ed8a4f' : '#e5c7a9';
       ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+      if (portBlend > 0) {
+        ctx.globalAlpha = clamp(alpha) * portBlend;
+        ctx.fillStyle = point.port.color;
+        ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -229,18 +280,21 @@
     lastFrame = timestamp;
     elapsed += delta;
     visualTime += delta;
-    if (elapsed % cycleLength < 56) rocketOffset = 0;
+    if (sceneClock(elapsed % cycleLength) < 56) rocketOffset = 0;
     if (advancePending) {
-      const clock = elapsed % cycleLength;
-      const cycleStart = elapsed - clock;
+      const timeline = elapsed % cycleLength;
+      const clock = sceneClock(timeline);
+      const cycleStart = elapsed - timeline;
+      const shift = hasPort ? portDuration : 0;
       // Wait for an in-progress morph to settle before beginning the next one.
       let next = null;
       if (clock < cityStart) next = cycleStart + cityStart;
       else if (clock >= 16 && clock < 36) next = cycleStart + 36;
-      else if (clock >= 48 && clock < 56) next = cycleStart + 56;
+      else if (hasPort && timeline >= portStart + 10 && timeline < portStart + 13) next = cycleStart + portStart + 13;
+      else if (clock >= 48 && clock < 56) next = cycleStart + 56 + shift;
       else if (clock >= 70 && clock < 79) {
         rocketOffset = 79 - clock;
-        next = cycleStart + 79;
+        next = cycleStart + 79 + shift;
       }
       else if (clock >= 88) next = cycleStart + cycleLength + cityStart;
       if (next !== null) { elapsed = next; advancePending = false; }
