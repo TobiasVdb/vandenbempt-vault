@@ -12,7 +12,7 @@ export async function createSite({ root, file, origins }) {
     '/3/': ['3/index.html', 'text/html; charset=utf-8'], '/3/index.html': ['3/index.html', 'text/html; charset=utf-8'],
     '/hero.js': ['hero.js', 'text/javascript'], '/activity.js': ['activity.js', 'text/javascript'],
     '/favicon.svg': ['favicon.svg', 'image/svg+xml'], '/kubetown.png': ['kubetown.png', 'image/png'],
-    '/thrustlings.png': ['thrustlings.png', 'image/png'] };
+    '/thrustlings.png': ['thrustlings.png', 'image/png'], '/poab-terra.png': ['poab-terra.png', 'image/png'] };
   const json = (res, status, data) => {
     res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify(data));
