@@ -4,7 +4,7 @@ import express from 'express'
 import { registerHawCms } from './haw-cms.mjs'
 
 function memoryStore() {
-  let credentials=null;const content=new Map(),media=new Map(),messages=new Map()
+  let credentials=null;const content=new Map(),media=new Map(),messages=new Map(),events=[]
   return {
     async credentials(){return credentials},async setup(salt,verifier){if(credentials)return false;credentials={salt,verifier};return true},async resetCredentials(salt,verifier){if(!credentials)return false;credentials={salt,verifier};return true},
     async content(page){return [...content.values()].filter(row=>row.page===page)},
@@ -12,6 +12,7 @@ function memoryStore() {
     async reset(page,field){content.delete(page+'|'+field)},async mediaList(){return [...media.values()].map(({data,...item})=>item)},
     async mediaGet(id){return media.get(id)||null},async mediaAdd(item){media.set(item.id,item)},async mediaDelete(id){if(!media.has(id))return 'missing';if([...content.values()].some(row=>row.kind==='image'&&row.value===id))return 'in_use';media.delete(id);return 'deleted'},async messages(){return [...messages.values()]},
     async messageAdd(item){messages.set(item.id,{...item,status:'new'})},async messageStatus(id,status){if(!messages.has(id))return false;messages.get(id).status=status;return true},async messageDelete(id){return messages.delete(id)},
+    async track(event){events.push(event)},async stats(day,days){return {day,days,events:events.length}},
   }
 }
 
@@ -22,11 +23,19 @@ test('CMS requires an existing administrator for setup and protects editing, med
   let cookie='';const call=(path,{method='GET',body,headers={}}={})=>fetch(base+path,{method,headers:{origin,...(cookie?{cookie}:{}),...(body&&!(body instanceof FormData)?{'content-type':'application/json'}:{}),...headers},body:body instanceof FormData?body:body?JSON.stringify(body):undefined})
   try {
     assert.equal((await call('/session')).status,200)
+    assert.equal((await call('/stats')).status,401)
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:'',ms:0},headers:{origin:'https://evil.example'}})).status,403)
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:'../private/'}})).status,400)
+    assert.equal((await call('/track',{method:'POST',body:{type:'time',page:'',ms:3600001}})).status,400)
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:''},headers:{'user-agent':'test crawler'}})).status,204)
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:'en/'},headers:{'user-agent':'Mozilla/5.0'}})).status,204)
     assert.equal((await call('/messages',{method:'POST',body:{name:'Example',email:'person@example.test',message:'Hello',language:'en'}})).status,503)
     assert.equal((await call('/setup',{method:'POST',body:{password:'a strong example password'}})).status,403)
     assert.equal((await call('/setup',{method:'POST',headers:{'x-house-test':'yes',origin:'https://evil.example'},body:{password:'a strong example password'}})).status,403)
     assert.equal((await call('/setup',{method:'POST',headers:{'x-house-test':'yes'},body:{password:'short'}})).status,400)
     const setup=await call('/setup',{method:'POST',headers:{'x-house-test':'yes'},body:{password:'a strong example password'}});assert.equal(setup.status,200);cookie=setup.headers.get('set-cookie').split(';')[0]
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:''},headers:{'user-agent':'Mozilla/5.0'}})).status,204)
+    const stats=await (await call('/stats?days=7')).json();assert.equal(stats.days,7);assert.equal(stats.events,1)
     assert.equal((await call('/setup',{method:'POST',headers:{'x-house-test':'yes'},body:{password:'another long password'}})).status,409)
     const field={page:'',field:'t:0123abcd:0',kind:'text',base:'Before',value:'After'}
     assert.equal((await call('/content',{method:'PUT',headers:{origin:'https://evil.example'},body:field})).status,403)

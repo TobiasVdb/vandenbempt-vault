@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,9 +16,13 @@ export async function initializeHawCms(pool) {
   await pool.query(`CREATE TABLE IF NOT EXISTS haw_cms_content (page TEXT NOT NULL, field TEXT NOT NULL, kind TEXT NOT NULL, base TEXT NOT NULL, value TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(page, field))`)
   await pool.query(`CREATE TABLE IF NOT EXISTS haw_cms_media (id UUID PRIMARY KEY, name TEXT NOT NULL, mime TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
   await pool.query(`CREATE TABLE IF NOT EXISTS haw_cms_messages (id UUID PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, message TEXT NOT NULL, language TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+  await pool.query(`CREATE TABLE IF NOT EXISTS haw_analytics_salts (day DATE PRIMARY KEY, salt TEXT NOT NULL)`)
+  await pool.query(`CREATE TABLE IF NOT EXISTS haw_analytics_events (day DATE NOT NULL, visitor TEXT NOT NULL, type TEXT NOT NULL, path TEXT NOT NULL, ms INTEGER)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS haw_analytics_day ON haw_analytics_events (day, type)`)
 }
 
 export function createHawStore(pool) {
+  let lastPrunedDay=''
   return {
     async credentials() { return (await pool.query('SELECT salt, verifier FROM haw_cms_settings WHERE id = 1')).rows[0] || null },
     async setup(salt, verifier) { return (await pool.query('INSERT INTO haw_cms_settings (id, salt, verifier) VALUES (1, $1, $2) ON CONFLICT (id) DO NOTHING RETURNING id', [salt, verifier])).rowCount === 1 },
@@ -40,6 +44,24 @@ export function createHawStore(pool) {
     async messageAdd(item) { await pool.query('INSERT INTO haw_cms_messages (id,name,email,message,language) VALUES ($1,$2,$3,$4,$5)', [item.id, item.name, item.email, item.message, item.language]) },
     async messageStatus(id,status) { return (await pool.query('UPDATE haw_cms_messages SET status=$2, updated_at=NOW() WHERE id=$1 RETURNING id', [id,status])).rowCount > 0 },
     async messageDelete(id) { return (await pool.query('DELETE FROM haw_cms_messages WHERE id=$1 RETURNING id', [id])).rowCount > 0 },
+    async track({day,ip,agent,type,path:pagePath,ms}) {
+      const salt=(await pool.query('INSERT INTO haw_analytics_salts (day,salt) VALUES ($1,$2) ON CONFLICT (day) DO UPDATE SET day=EXCLUDED.day RETURNING salt',[day,randomBytes(16).toString('hex')])).rows[0].salt
+      const visitor=createHash('sha256').update(`${salt}|${ip}|${agent}`).digest('hex').slice(0,16)
+      await pool.query('INSERT INTO haw_analytics_events (day,visitor,type,path,ms) VALUES ($1,$2,$3,$4,$5)',[day,visitor,type,pagePath,ms])
+      await pool.query('DELETE FROM haw_analytics_salts WHERE day < $1::date',[day])
+      if(lastPrunedDay!==day){await pool.query('DELETE FROM haw_analytics_events WHERE day < $1::date - 180',[day]);lastPrunedDay=day}
+    },
+    async stats(day,span) {
+      const start=new Date(`${day}T00:00:00Z`);start.setUTCDate(start.getUTCDate()-(span*2-1));const from=start.toISOString().slice(0,10)
+      const events=(await pool.query(`SELECT to_char(day,'YYYY-MM-DD') AS day, COUNT(DISTINCT visitor) FILTER (WHERE type='view')::int AS visitors, COUNT(*) FILTER (WHERE type='view')::int AS views, COUNT(*) FILTER (WHERE type='view' AND path ~ '^(en/)?project/')::int AS cases, COALESCE(SUM(ms) FILTER (WHERE type='time'),0)::bigint AS total_ms, COUNT(*) FILTER (WHERE type='time')::int AS time_samples FROM haw_analytics_events WHERE day BETWEEN $1 AND $2 GROUP BY day`,[from,day])).rows
+      const contacts=(await pool.query(`SELECT to_char(created_at AT TIME ZONE 'Europe/Brussels','YYYY-MM-DD') AS day, COUNT(*)::int AS count FROM haw_cms_messages WHERE (created_at AT TIME ZONE 'Europe/Brussels')::date BETWEEN $1 AND $2 GROUP BY 1`,[from,day])).rows
+      const current=new Date(`${day}T00:00:00Z`);current.setUTCDate(current.getUTCDate()-(span-1));const currentFrom=current.toISOString().slice(0,10)
+      const pages=(await pool.query(`SELECT path, COUNT(*)::int AS views FROM haw_analytics_events WHERE type='view' AND day BETWEEN $1 AND $2 GROUP BY path ORDER BY views DESC, path LIMIT 8`,[currentFrom,day])).rows
+      const metrics={};for(const [name,column] of [['visitors','visitors'],['views','views'],['cases','cases'],['contacts','count']]){const rows=name==='contacts'?contacts:events;const sum=(a,b)=>rows.filter(row=>row.day>=a&&row.day<=b).reduce((n,row)=>n+Number(row[column]),0);const before=new Date(`${currentFrom}T00:00:00Z`);before.setUTCDate(before.getUTCDate()-1);metrics[name]={total:sum(currentFrom,day),previous:sum(from,before.toISOString().slice(0,10))}}
+      const avg=rows=>{const samples=rows.reduce((n,r)=>n+Number(r.time_samples),0);return samples?Math.round(rows.reduce((n,r)=>n+Number(r.total_ms),0)/samples):null};metrics.time={total:avg(events.filter(r=>r.day>=currentFrom)),previous:avg(events.filter(r=>r.day<currentFrom))}
+      for(let i=0;i<span;i++){const date=new Date(`${currentFrom}T00:00:00Z`);date.setUTCDate(date.getUTCDate()+i);const key=date.toISOString().slice(0,10),event=events.find(row=>row.day===key),contact=contacts.find(row=>row.day===key);for(const name of ['visitors','views','cases']) (metrics[name].series??=[]).push(Number(event?.[name]||0));(metrics.contacts.series??=[]).push(Number(contact?.count||0));(metrics.time.series??=[]).push(event?avg([event]):null)}
+      return {days:span,metrics,pages}
+    },
   }
 }
 
@@ -65,6 +87,7 @@ export function registerHawCms(app, { store, isReady, isHouseAuthenticated, asse
   const sessions = new Map()
   const allowLogin = createRequestLimiter({ rate: 1/12, burst: 5 })
   const allowSubmit = createRequestLimiter({ rate: 1/60, burst: 3 })
+  const allowTrack = createRequestLimiter({ rate: 1/2, burst: 30 })
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } }).single('file')
   const client = req => req.get('do-connecting-ip') || req.socket.remoteAddress || 'unknown'
   const ready = (req,res,next) => { res.set('Cache-Control','no-store'); if (!isReady()) return res.status(503).json({ error: 'CMS is temporarily unavailable.' }); next() }
@@ -89,6 +112,9 @@ export function registerHawCms(app, { store, isReady, isHouseAuthenticated, asse
   const createSession = res => { const now=Date.now(); for(const [key,expiry] of sessions) if(expiry<=now)sessions.delete(key); if(sessions.size>=256)sessions.delete(sessions.keys().next().value); const token=randomBytes(32).toString('base64url'); sessions.set(token,now+SESSION_MS);res.cookie(COOKIE,token,{httpOnly:true,secure:secureCookies,sameSite:'strict',path:'/haw',maxAge:SESSION_MS}) }
 
   route('get','/session',async (req,res) => { const settings=await store.credentials(); res.json({authenticated:authenticated(req),setupRequired:!settings,setupAllowed:!settings && isHouseAuthenticated(req),resetAllowed:Boolean(settings) && isHouseAuthenticated(req)}) })
+  const analyticsDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(new Date())
+  route('post','/track',requireOrigin,async(req,res)=>{const {type,page:pagePath,ms}=req.body||{};if(!['view','time'].includes(type)||!validPage(pagePath)||(type==='time'&&(!Number.isInteger(ms)||ms<0||ms>3600000)))return res.status(400).json({error:'Invalid event.'});if(authenticated(req)||isHouseAuthenticated(req)||/bot|crawl|spider|slurp|preview|headless|lighthouse/i.test(req.get('user-agent')||''))return res.sendStatus(204);if(!allowTrack(client(req)))return res.sendStatus(429);await store.track({day:analyticsDay(),ip:client(req),agent:(req.get('user-agent')||'').slice(0,512),type,path:pagePath,ms:type==='time'?ms:null});res.sendStatus(204)})
+  route('get','/stats',requireAuth,async(req,res)=>{const days=[7,30,90].includes(Number(req.query.days))?Number(req.query.days):30;res.json(await store.stats(analyticsDay(),days))})
   route('post','/setup',requireOrigin,async (req,res) => {
     if (!isHouseAuthenticated(req)) return res.status(403).json({error:'Sign in to House of Tobias first.'})
     const password=req.body?.password
