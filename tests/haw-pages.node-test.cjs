@@ -60,7 +60,7 @@ test('contact form makes an email draft and does not post visitor data', () => {
 });
 
 test('language links connect each Dutch page to its English counterpart', () => {
-  for (const file of pages.filter(p => !p.startsWith('en/') && !p.startsWith('1/'))) {
+  for (const file of pages.filter(p => !p.startsWith('en/') && !p.startsWith('1/') && !p.startsWith('0/'))) {
     const enFile = 'en/' + file;
     assert.ok(pages.includes(enFile), 'Missing English page: ' + file);
     const nl = fs.readFileSync(path.join(root, file), 'utf8');
@@ -113,6 +113,29 @@ test('version 1 navigation remains in that version', () => {
       if (/^(https?:|mailto:|tel:)/.test(value)) continue;
       const resolved = new URL(value, base);
       assert.ok(resolved.pathname.startsWith('/haw/1/') || resolved.pathname.startsWith('/haw/assets/'), file + ': ' + value);
+    }
+  }
+});
+
+
+test('version 0 preserves both language routes and navigation', () => {
+  for (const file of pages.filter(p => p.startsWith('0/'))) {
+    const html = fs.readFileSync(path.join(root, file), 'utf8');
+    const pageUrl = new URL('/haw/' + file.replace(/index\.html$/, ''), 'https://example.test');
+    const base = new URL(html.match(/<base href="([^"]+)">/)?.[1] || '.', pageUrl);
+    for (const match of html.replace(/<base\s+href="[^"]+">/, '').matchAll(/href="([^"]+)"/g)) {
+      const value = match[1].replaceAll('&amp;', '&');
+      if (/^(https?:|mailto:|tel:)/.test(value)) continue;
+      const resolved = new URL(value, base);
+      assert.ok(resolved.pathname.startsWith('/haw/0/') || resolved.pathname.startsWith('/haw/assets/'), file + ': ' + value);
+    }
+    if (!file.startsWith('0/en/')) {
+      const route = file.slice(2).replace(/index\.html$/, '');
+      const enFile = '0/en/' + file.slice(2);
+      assert.ok(pages.includes(enFile), 'Missing archived English page: ' + file);
+      assert.ok(html.includes('href="en/' + route + '" lang="en"'), file);
+      const en = fs.readFileSync(path.join(root, enFile), 'utf8');
+      assert.ok(en.includes('href="' + (route || './') + '" lang="nl"'), enFile);
     }
   }
 });
