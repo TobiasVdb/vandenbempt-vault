@@ -1,3 +1,4 @@
+import { scryptSync } from 'node:crypto'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import express from 'express'
@@ -7,7 +8,10 @@ test('root access blocks aliases, validates passwords, and expires secure sessio
   const app = express()
   let time = Date.now()
   app.get(['/rocket/', '/bob/', '/nyc-follow/', '/api/health'], (_request, response) => response.send('public service'))
-  const rootAccess = registerRootAccess(app, { now: () => time })
+  const testPassword = 'isolated-test-password'
+  const salt = 'isolated-test-salt'
+  const verifier = scryptSync(testPassword, salt, 64)
+  const rootAccess = registerRootAccess(app, { now: () => time, salt, verifier })
   app.use(rootAccess)
   app.get('*', (_request, response) => response.send('private household'))
   const server = app.listen(0, '127.0.0.1')
@@ -29,8 +33,8 @@ test('root access blocks aliases, validates passwords, and expires secure sessio
     assert.equal((await fetch(base, { method: 'HEAD' })).status, 401)
     for (const path of ['/rocket/', '/bob/', '/nyc-follow/', '/api/health']) assert.equal((await fetch(base + path)).status, 200)
     assert.equal((await unlock('wrong')).status, 401)
-    assert.equal((await unlock('sofias', { origin: 'https://evil.example' })).status, 403)
-    const response = await unlock('sofias', { origin: base })
+    assert.equal((await unlock(testPassword, { origin: 'https://evil.example' })).status, 403)
+    const response = await unlock(testPassword, { origin: base })
     assert.equal(response.status, 303)
     assert.equal(response.headers.get('location'), '/')
     const cookie = response.headers.get('set-cookie')

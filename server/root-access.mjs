@@ -5,8 +5,8 @@ import { createRequestLimiter } from './security-http.mjs'
 
 const deriveKey = promisify(scrypt)
 // Only a salted verifier is deployed; the password never enters the client bundle.
-const SALT = 'fd6022017abff739e3d7e749066cbb70'
-const VERIFIER = Buffer.from('5264fa6165cfe23fe83be7e5f0b1cef2597c422870d5d4c8fbc3c79f5f4d6f8fa02bad66860678879981e22b7dd143df5f677e8cf60b99a7b839e1a5b032e10e', 'hex')
+const SALT = 'c1204b6fbb8eb07ce50d6b72529d9444'
+const VERIFIER = Buffer.from('5864ceebe91d433add9b843b8499682a4d276cc830a64512bcea0801a085e75456ba0f79a3ce2d61fa432bbe009d01bba9dff8740bd8c3a7b9a862a995bf9f5a', 'hex')
 const COOKIE = 'house_access'
 const SESSION_MS = 12 * 60 * 60 * 1000
 
@@ -27,7 +27,7 @@ button:hover{background:#414d3c}:focus-visible{outline:3px solid #6d8059;outline
 ${message ? `<p class="error" role="alert">${message}</p>` : ''}<button type="submit">Continue</button></form></main></body></html>`
 }
 
-export function registerRootAccess(app, { now = Date.now } = {}) {
+export function registerRootAccess(app, { now = Date.now, salt = SALT, verifier = VERIFIER } = {}) {
   const sessions = new Map()
   const allowAttempt = createRequestLimiter({ rate: 1 / 12, burst: 5 })
   const showLogin = (response, status = 401, message = '') => {
@@ -54,8 +54,8 @@ export function registerRootAccess(app, { now = Date.now } = {}) {
     try {
       const password = request.body?.password
       if (typeof password !== 'string' || password.length > 256) return showLogin(response, 401, 'Incorrect password. Please try again.')
-      const supplied = await deriveKey(password, SALT, VERIFIER.length)
-      if (!timingSafeEqual(supplied, VERIFIER)) return showLogin(response, 401, 'Incorrect password. Please try again.')
+      const supplied = await deriveKey(password, salt, verifier.length)
+      if (!timingSafeEqual(supplied, verifier)) return showLogin(response, 401, 'Incorrect password. Please try again.')
       for (const [token, expires] of sessions) if (expires <= now()) sessions.delete(token)
       if (sessions.size >= 4096) sessions.delete(sessions.keys().next().value)
       const token = randomBytes(32).toString('base64url')
