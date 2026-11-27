@@ -15,6 +15,7 @@ import { registerDirectorate } from './directorate.mjs'
 import { registerVectraUsage } from './vectra-usage.mjs'
 import { createNycTripService, initializeNycTripDatabase } from './nyc-trip.mjs'
 import { registerRootAccess } from './root-access.mjs'
+import { createHawStore, initializeHawCms, registerHawCms } from './haw-cms.mjs'
 import { registerRocketRedirect } from './rocket-redirect.mjs'
 
 const { Pool } = pg
@@ -3220,13 +3221,18 @@ if (bobCoop) {
   app.use('/bob', express.static(path.join(bobDir, 'dist')), (_request, response) => response.sendStatus(404))
 }
 
+// The CMS has its own editor sessions; initial setup requires a House administrator session.
+const rootAccess = registerRootAccess(app)
+let hawCmsReady = false
+registerHawCms(app, { store: pool ? createHawStore(pool) : null, isReady: () => hawCmsReady, isHouseAuthenticated: rootAccess.isAuthenticated, assetDir: path.join(distDir, 'haw', 'assets') })
+
 // Separate public apps retain their existing authentication and routes.
 app.use('/nyc-follow', express.static(path.join(distDir, 'nyc-follow')), (_request, response) => response.sendStatus(404))
 app.use('/haw', express.static(path.join(distDir, 'haw')), (_request, response) => response.sendStatus(404))
 app.use('/spacelake', express.static(path.join(distDir, 'spacelake')), (_request, response) => response.sendStatus(404))
 app.use('/belgiannavy', express.static(path.join(distDir, 'belgiannavy')), (_request, response) => response.sendStatus(404))
 app.use('/onder-de-schors', express.static(path.join(distDir, 'onder-de-schors')), (_request, response) => response.sendStatus(404))
-app.use(registerRootAccess(app))
+app.use(rootAccess)
 
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir))
@@ -3282,6 +3288,8 @@ initializeDatabase()
         console.warn(`Database not ready: ${dbInitError}`)
         return
       }
+
+      void initializeHawCms(pool).then(() => { hawCmsReady = true }).catch(() => console.warn('Holmes AND Watson CMS database initialization failed.'))
 
       void initializeRingEaterDatabase(pool)
         .then(() => {

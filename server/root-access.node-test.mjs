@@ -7,7 +7,8 @@ test('root access blocks aliases, validates passwords, and expires secure sessio
   const app = express()
   let time = Date.now()
   app.get(['/rocket/', '/bob/', '/nyc-follow/', '/api/health'], (_request, response) => response.send('public service'))
-  app.use(registerRootAccess(app, { now: () => time }))
+  const rootAccess = registerRootAccess(app, { now: () => time })
+  app.use(rootAccess)
   app.get('*', (_request, response) => response.send('private household'))
   const server = app.listen(0, '127.0.0.1')
   await new Promise(resolve => server.once('listening', resolve))
@@ -35,6 +36,8 @@ test('root access blocks aliases, validates passwords, and expires secure sessio
     const cookie = response.headers.get('set-cookie')
     for (const flag of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Max-Age=43200']) assert.ok(cookie.includes(flag), flag)
     const headers = { cookie: cookie.split(';')[0] }
+    assert.equal(rootAccess.isAuthenticated({ headers }), true)
+    assert.equal(rootAccess.isAuthenticated({ headers: { cookie: 'house_access=forged' } }), false)
     assert.equal(await (await fetch(base, { headers })).text(), 'private household')
     assert.equal((await fetch(base, { headers: { cookie: 'house_access=forged' } })).status, 401)
     time += 12 * 60 * 60 * 1000

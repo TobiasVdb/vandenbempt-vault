@@ -120,3 +120,15 @@ if (contactForm) {
     window.location.href = `mailto:shari@holmeswatson.be?${params.toString()}`;
   });
 }
+
+/* CMS assets are loaded only by the current site; archived versions keep their own script. */
+if (document.head && typeof document.createElement === 'function') {
+  const cmsStyles = document.createElement('link');
+  cmsStyles.rel = 'stylesheet';
+  cmsStyles.href = new URL('cms.css', document.baseURI).href;
+  document.head.append(cmsStyles);
+  const cmsScript = document.createElement('script');
+  cmsScript.src = new URL('cms.js', document.baseURI).href;
+  cmsScript.defer = true;
+  document.head.append(cmsScript);
+}

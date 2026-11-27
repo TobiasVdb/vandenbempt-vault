@@ -65,11 +65,16 @@ export function registerRootAccess(app, { now = Date.now } = {}) {
     } catch (error) { next(error) }
   })
 
-  return (request, response, next) => {
-    response.set('Cache-Control', 'no-store')
+  const isAuthenticated = (request) => {
     const token = String(request.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1)
-    if (token && (sessions.get(token) || 0) > now()) return next()
+    if (token && (sessions.get(token) || 0) > now()) return true
     if (token) sessions.delete(token)
-    return showLogin(response)
+    return false
   }
+  const middleware = (request, response, next) => {
+    response.set('Cache-Control', 'no-store')
+    return isAuthenticated(request) ? next() : showLogin(response)
+  }
+  middleware.isAuthenticated = isAuthenticated
+  return middleware
 }

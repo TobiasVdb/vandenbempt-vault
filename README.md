@@ -130,3 +130,11 @@ export default defineConfig([
   },
 ])
 ```
+
+## Holmes AND Watson CMS
+
+The public site is mounted at `/haw/`; `/haw/0/` and `/haw/1/` remain static snapshots. To activate the CMS for the first time, sign in to the existing House of Tobias root page, then open `/haw/admin/`, choose **Aanmelden**, and create a separate editor password (at least 16 characters). The House password is never entered into the CMS. An authenticated House session is also required to reset the editor password. Editor sessions expire after 12 hours or a server restart.
+
+Use **Pagina bewerken** in a page footer to edit existing text, link destinations and images on that page. Changes publish immediately; Dutch and English pages are edited separately. **Herstel origineel** removes an override. The admin area lists pages, uploaded and existing site images, and contact messages. Uploaded PNG, JPEG, WebP and GIF files are limited to 6 MB; an upload cannot be deleted while a page uses it. The CMS edits existing page fields; it does not create pages or rearrange sections. When a source page changes, an override that no longer matches its original field is not applied and the editor displays a warning.
+
+Once activated, the contact form stores messages in PostgreSQL for follow-up in the admin area. Editors can update their status, open an email reply, and delete messages. It does not send email notifications. Before activation, or if the CMS cannot be reached when the page loads, the original email-draft form remains available. If submission later fails, visitors are directed to the contact email. The dashboard displays up to the 500 most recent messages. Public content remains viewable if the CMS database is unavailable; editing and message submission require it. CMS tables use the existing configured PostgreSQL pool and persist across application deployments. No CMS password or API key is stored in the repository.
