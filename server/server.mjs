@@ -3224,7 +3224,7 @@ if (bobCoop) {
 // The CMS has its own editor sessions; initial setup requires a House administrator session.
 const rootAccess = registerRootAccess(app)
 let hawCmsReady = false
-registerHawCms(app, { store: pool ? createHawStore(pool) : null, isReady: () => hawCmsReady, isHouseAuthenticated: rootAccess.isAuthenticated, assetDir: path.join(distDir, 'haw', 'assets') })
+registerHawCms(app, { store: pool ? createHawStore(pool) : null, isReady: () => hawCmsReady, isHouseAuthenticated: rootAccess.isAuthenticated, assetDir: path.join(distDir, 'haw', 'assets'), trustedProxyIp: process.env.HAW_TRUSTED_PROXY_IP || '157.245.70.233' })
 
 // Separate public apps retain their existing authentication and routes.
 app.use('/nyc-follow', express.static(path.join(distDir, 'nyc-follow')), (_request, response) => response.sendStatus(404))

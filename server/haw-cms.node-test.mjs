@@ -12,13 +12,13 @@ function memoryStore() {
     async reset(page,field){content.delete(page+'|'+field)},async mediaList(){return [...media.values()].map(({data,...item})=>item)},
     async mediaGet(id){return media.get(id)||null},async mediaAdd(item){media.set(item.id,item)},async mediaDelete(id){if(!media.has(id))return 'missing';if([...content.values()].some(row=>row.kind==='image'&&row.value===id))return 'in_use';media.delete(id);return 'deleted'},async messages(){return [...messages.values()]},
     async messageAdd(item){messages.set(item.id,{...item,status:'new'})},async messageStatus(id,status){if(!messages.has(id))return false;messages.get(id).status=status;return true},async messageDelete(id){return messages.delete(id)},
-    async track(event){events.push(event)},async stats(day,days){return {day,days,events:events.length}},
+    async track(event){events.push(event)},async stats(day,days){return {day,days,events:events.length,ips:events.map(event=>event.ip)}},
   }
 }
 
 test('CMS requires an existing administrator for setup and protects editing, media and follow-up', async () => {
   const app=express();app.use(express.json({limit:'1mb'}));const store=memoryStore()
-  registerHawCms(app,{store,isReady:()=>true,isHouseAuthenticated:req=>req.get('x-house-test')==='yes',secureCookies:false})
+  registerHawCms(app,{store,isReady:()=>true,isHouseAuthenticated:req=>req.get('x-house-test')==='yes',secureCookies:false,trustedProxyIp:'198.51.100.20'})
   const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));const origin=`http://127.0.0.1:${server.address().port}`,base=origin+'/haw/api'
   let cookie='';const call=(path,{method='GET',body,headers={}}={})=>fetch(base+path,{method,headers:{origin,...(cookie?{cookie}:{}),...(body&&!(body instanceof FormData)?{'content-type':'application/json'}:{}),...headers},body:body instanceof FormData?body:body?JSON.stringify(body):undefined})
   try {
@@ -29,13 +29,15 @@ test('CMS requires an existing administrator for setup and protects editing, med
     assert.equal((await call('/track',{method:'POST',body:{type:'time',page:'',ms:3600001}})).status,400)
     assert.equal((await call('/track',{method:'POST',body:{type:'view',page:''},headers:{'user-agent':'test crawler'}})).status,204)
     assert.equal((await call('/track',{method:'POST',body:{type:'view',page:'en/'},headers:{'user-agent':'Mozilla/5.0'}})).status,204)
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:''},headers:{'user-agent':'Mozilla/5.0','do-connecting-ip':'198.51.100.20','x-real-ip':'203.0.113.10'}})).status,204)
+    assert.equal((await call('/track',{method:'POST',body:{type:'view',page:''},headers:{'user-agent':'Mozilla/5.0','do-connecting-ip':'198.51.100.21','x-real-ip':'203.0.113.11'}})).status,204)
     assert.equal((await call('/messages',{method:'POST',body:{name:'Example',email:'person@example.test',message:'Hello',language:'en'}})).status,503)
     assert.equal((await call('/setup',{method:'POST',body:{password:'a strong example password'}})).status,403)
     assert.equal((await call('/setup',{method:'POST',headers:{'x-house-test':'yes',origin:'https://evil.example'},body:{password:'a strong example password'}})).status,403)
     assert.equal((await call('/setup',{method:'POST',headers:{'x-house-test':'yes'},body:{password:'short'}})).status,400)
     const setup=await call('/setup',{method:'POST',headers:{'x-house-test':'yes'},body:{password:'a strong example password'}});assert.equal(setup.status,200);cookie=setup.headers.get('set-cookie').split(';')[0]
     assert.equal((await call('/track',{method:'POST',body:{type:'view',page:''},headers:{'user-agent':'Mozilla/5.0'}})).status,204)
-    const stats=await (await call('/stats?days=7')).json();assert.equal(stats.days,7);assert.equal(stats.events,1)
+    const stats=await (await call('/stats?days=7')).json();assert.equal(stats.days,7);assert.equal(stats.events,3);assert.deepEqual(stats.ips.slice(1),['203.0.113.10','198.51.100.21'])
     assert.equal((await call('/setup',{method:'POST',headers:{'x-house-test':'yes'},body:{password:'another long password'}})).status,409)
     const field={page:'',field:'t:0123abcd:0',kind:'text',base:'Before',value:'After'}
     assert.equal((await call('/content',{method:'PUT',headers:{origin:'https://evil.example'},body:field})).status,403)

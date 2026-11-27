@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSa
 import { promisify } from 'node:util'
 import fs from 'node:fs'
 import path from 'node:path'
+import { isIP } from 'node:net'
 import multer from 'multer'
 import { createRequestLimiter } from './security-http.mjs'
 
@@ -83,13 +84,14 @@ const validPage = page => typeof page === 'string' && page.length <= 300 && /^(?
 const validField = field => typeof field === 'string' && /^[til]:[0-9a-f]{8}:[0-9]{1,4}$/.test(field)
 const safeLink = value => { if(!value || value.length>2048 || /[\x00-\x1f\x7f]/.test(value))return false;try{return ['http:','https:','mailto:','tel:'].includes(new URL(value,'https://example.test/haw/').protocol)}catch{return false} }
 
-export function registerHawCms(app, { store, isReady, isHouseAuthenticated, assetDir, secureCookies = true }) {
+export function registerHawCms(app, { store, isReady, isHouseAuthenticated, assetDir, secureCookies = true, trustedProxyIp = '' }) {
   const sessions = new Map()
   const allowLogin = createRequestLimiter({ rate: 1/12, burst: 5 })
   const allowSubmit = createRequestLimiter({ rate: 1/60, burst: 3 })
   const allowTrack = createRequestLimiter({ rate: 1/2, burst: 30 })
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } }).single('file')
-  const client = req => req.get('do-connecting-ip') || req.socket.remoteAddress || 'unknown'
+  // Only the designated reverse proxy can supply a visitor IP; ignore spoofed headers from other clients.
+  const client = req => {const peer=req.get('do-connecting-ip') || req.socket.remoteAddress || 'unknown',forwarded=req.get('x-real-ip');return peer===trustedProxyIp&&isIP(forwarded||'')?forwarded:peer}
   const ready = (req,res,next) => { res.set('Cache-Control','no-store'); if (!isReady()) return res.status(503).json({ error: 'CMS is temporarily unavailable.' }); next() }
   const requireOrigin = (req,res,next) => sameOrigin(req) ? next() : res.status(403).json({ error: 'Invalid request origin.' })
   const authenticated = req => { const token = cookieValue(req); const expiry = sessions.get(token) || 0; if (expiry > Date.now()) return true; if (token) sessions.delete(token); return false }
